@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Console\Commands;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -20,5 +21,14 @@ class PingSchedulerCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('app:ping-scheduler', Artisan::output());
+    }
+
+    public function test_ping_scheduler_command_runs_daily(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains((string) $event->command, 'app:ping-scheduler'));
+
+        $this->assertCount(1, $events);
+        $this->assertSame('0 0 * * *', $events->first()->getExpression());
     }
 }
