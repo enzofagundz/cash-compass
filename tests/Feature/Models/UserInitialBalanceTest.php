@@ -28,4 +28,17 @@ class UserInitialBalanceTest extends TestCase
         $this->assertCount(1, $balances);
         $this->assertSame('5000.00', $balances->first()->amount);
     }
+
+    public function test_users_can_not_find_another_users_initial_balance(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $this->actingAs($userB);
+        $balance = UserInitialBalance::create(['amount' => 9000, 'base_date' => '2026-01-01']);
+
+        $this->actingAs($userA);
+
+        $this->assertNull(UserInitialBalance::find($balance->id));
+    }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature\Filament;
 
 use App\Filament\Pages\InitialBalanceSettings;
 use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -17,6 +18,13 @@ class InitialBalanceSettingsTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $this->get('/admin/initial-balance')->assertOk();
+    }
+
+    public function test_admin_is_forbidden_from_initial_balance_settings(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->get('/admin/initial-balance')->assertForbidden();
     }
 
     public function test_user_can_update_own_initial_balance(): void
@@ -34,5 +42,23 @@ class InitialBalanceSettingsTest extends TestCase
 
         $this->assertSame('5000.00', $balance->amount);
         $this->assertSame('2026-01-01', $balance->base_date->format('Y-m-d'));
+
+        Notification::assertNotified();
+    }
+
+    public function test_base_date_is_optional_when_saving_initial_balance(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        Livewire::test(InitialBalanceSettings::class)
+            ->set('data.amount', '1000.00')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $balance = $user->initialBalance()->firstOrFail();
+
+        $this->assertSame('1000.00', $balance->amount);
+        $this->assertNull($balance->base_date);
     }
 }
