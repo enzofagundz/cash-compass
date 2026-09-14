@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -25,6 +26,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string $role
+ * @property bool $is_active
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -32,7 +34,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role', 'is_active'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
@@ -49,6 +51,7 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -57,7 +60,7 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
      */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === UserRole::Admin->value;
     }
 
     /**
@@ -77,6 +80,19 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
     public function initialBalance(): HasOne
     {
         return $this->hasOne(UserInitialBalance::class);
+    }
+
+    /**
+     * Create or update the user's initial balance.
+     *
+     * @param  array<string, mixed>  $data  Form data with amount and optional base_date keys.
+     */
+    public function saveInitialBalance(array $data): UserInitialBalance
+    {
+        return $this->initialBalance()->updateOrCreate([], [
+            'amount' => $data['amount'],
+            'base_date' => $data['base_date'] ?? null,
+        ]);
     }
 
     /**
