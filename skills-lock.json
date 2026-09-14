@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "code-review": {
+      "source": "leandrocfe/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/code-review/SKILL.md",
+      "computedHash": "4f40f46555032a96846e905f0a5e5c61c0f5d7f4b2791215667241cf54f3027b"
+    },
+    "grilling": {
+      "source": "leandrocfe/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grilling/SKILL.md",
+      "computedHash": "71efa35abcfdc1c56bcd1f14f8cb7618e5ceb422a9fac206553136cba386a8a9"
+    },
+    "improve-codebase-architecture": {
+      "source": "leandrocfe/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
+      "computedHash": "4454b4e292a5a0acf4ee45dce1ff7f64367c1e0b7923dcc23b262b97332bc8ae"
+    },
+    "tdd": {
+      "source": "leandrocfe/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/tdd/SKILL.md",
+      "computedHash": "6bf5d8a75189850b35ef628c24ea4b5a9144a29d93d7f326473d0579a35d0eea"
+    }
+  }
+}
