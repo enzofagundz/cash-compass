@@ -35,7 +35,14 @@ class InitialBalanceSettings extends Page
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! (auth()->user()?->isAdmin() ?? true);
+        return static::canAccess();
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && ! $user->isAdmin();
     }
 
     public function mount(): void
@@ -94,10 +101,13 @@ class InitialBalanceSettings extends Page
     {
         $data = $this->form->getState();
 
-        auth()->user()->initialBalance()->updateOrCreate([], [
-            'amount' => $data['amount'],
-            'base_date' => $data['base_date'] ?? null,
-        ]);
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $user->saveInitialBalance($data);
 
         Notification::make()
             ->success()
