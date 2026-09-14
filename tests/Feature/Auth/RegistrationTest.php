@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
@@ -37,5 +38,21 @@ class RegistrationTest extends TestCase
             ->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
+    }
+
+    public function test_registration_ignores_admin_role_in_request(): void
+    {
+        $response = $this->post(route('register.store'), [
+            'name' => 'John Doe',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'admin',
+        ]);
+
+        $response->assertSessionHasNoErrors()
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertSame('user', User::where('email', 'test@example.com')->firstOrFail()->role);
     }
 }
