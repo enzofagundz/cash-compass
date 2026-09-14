@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
@@ -53,6 +54,6 @@ class RegistrationTest extends TestCase
         $response->assertSessionHasNoErrors()
             ->assertRedirect(route('dashboard', absolute: false));
 
-        $this->assertSame('user', User::where('email', 'test@example.com')->firstOrFail()->role);
+        $this->assertSame(UserRole::User->value, User::where('email', 'test@example.com')->firstOrFail()->role);
     }
 }

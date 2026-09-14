@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,6 +17,6 @@ class DatabaseSeederTest extends TestCase
 
         $admin = User::where('email', 'admin@example.com')->firstOrFail();
 
-        $this->assertSame('admin', $admin->role);
+        $this->assertSame(UserRole::Admin->value, $admin->role);
     }
 }
