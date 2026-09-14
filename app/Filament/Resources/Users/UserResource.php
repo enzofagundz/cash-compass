@@ -2,12 +2,11 @@
 
 namespace App\Filament\Resources\Users;
 
+use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\User;
 use BackedEnum;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -16,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Password;
 
 class UserResource extends Resource
 {
@@ -42,8 +42,8 @@ class UserResource extends Resource
                     ->required(),
                 Select::make('role')
                     ->options([
-                        'user' => 'User',
-                        'admin' => 'Admin',
+                        UserRole::User->value => 'User',
+                        UserRole::Admin->value => 'Admin',
                     ])
                     ->required(),
                 TextInput::make('password')
@@ -66,22 +66,26 @@ class UserResource extends Resource
                 TextColumn::make('role')
                     ->badge()
                     ->sortable(),
+                TextColumn::make('is_active')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Ativo' : 'Inativo')
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                Action::make('toggle_active')
+                    ->label(fn (User $record): string => $record->is_active ? 'Desativar' : 'Reativar')
+                    ->requiresConfirmation()
+                    ->action(fn (User $record): bool => $record->update(['is_active' => ! $record->is_active])),
+                Action::make('send_reset_link')
+                    ->label('Redefinir senha')
+                    ->requiresConfirmation()
+                    ->action(fn (User $record): string => Password::sendResetLink(['email' => $record->email])),
             ]);
     }
 
