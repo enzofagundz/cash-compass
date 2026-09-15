@@ -37,4 +37,20 @@ class UserPolicy
     {
         return $user->isAdmin();
     }
+
+    /**
+     * Determine whether the user can delete the model.
+     */
+    public function delete(User $user, User $model): bool
+    {
+        return $user->isAdmin() && ! $user->is($model);
+    }
+
+    /**
+     * Determine whether the user can delete any model.
+     */
+    public function deleteAny(User $user): bool
+    {
+        return false;
+    }
 }

@@ -25,7 +25,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
- * @property string $role
+ * @property UserRole $role
  * @property bool $is_active
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -51,6 +51,7 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
             'is_active' => 'boolean',
         ];
     }
@@ -60,7 +61,7 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
      */
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::Admin->value;
+        return $this->role === UserRole::Admin;
     }
 
     /**

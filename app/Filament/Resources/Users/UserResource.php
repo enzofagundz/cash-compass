@@ -41,10 +41,9 @@ class UserResource extends Resource
                     ->email()
                     ->required(),
                 Select::make('role')
-                    ->options([
-                        UserRole::User->value => 'User',
-                        UserRole::Admin->value => 'Admin',
-                    ])
+                    ->options(collect(UserRole::cases())
+                        ->mapWithKeys(fn (UserRole $role): array => [$role->value => $role->label()])
+                        ->all())
                     ->required(),
                 TextInput::make('password')
                     ->password()
@@ -64,7 +63,9 @@ class UserResource extends Resource
                     ->label('Email address')
                     ->searchable(),
                 TextColumn::make('role')
+                    ->label('Papel')
                     ->badge()
+                    ->formatStateUsing(fn (UserRole $state): string => $state->label())
                     ->sortable(),
                 TextColumn::make('is_active')
                     ->label('Status')
@@ -80,10 +81,12 @@ class UserResource extends Resource
                 EditAction::make(),
                 Action::make('toggle_active')
                     ->label(fn (User $record): string => $record->is_active ? 'Desativar' : 'Reativar')
+                    ->visible(fn (User $record): bool => auth()->user()?->can('update', $record) ?? false)
                     ->requiresConfirmation()
                     ->action(fn (User $record): bool => $record->update(['is_active' => ! $record->is_active])),
                 Action::make('send_reset_link')
                     ->label('Redefinir senha')
+                    ->visible(fn (User $record): bool => auth()->user()?->can('update', $record) ?? false)
                     ->requiresConfirmation()
                     ->action(fn (User $record): string => Password::sendResetLink(['email' => $record->email])),
             ]);
