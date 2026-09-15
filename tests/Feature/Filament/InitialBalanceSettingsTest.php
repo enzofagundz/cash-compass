@@ -1,64 +1,51 @@
 <?php
 
-namespace Tests\Feature\Filament;
-
 use App\Filament\Pages\InitialBalanceSettings;
 use App\Models\User;
 use Filament\Notifications\Notification;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use Tests\TestCase;
 
-class InitialBalanceSettingsTest extends TestCase
-{
-    use RefreshDatabase;
+it('lets users view initial balance settings', function () {
+    $this->actingAs(User::factory()->create());
 
-    public function test_user_can_view_initial_balance_settings(): void
-    {
-        $this->actingAs(User::factory()->create());
+    $this->get('/admin/initial-balance')->assertOk();
+});
 
-        $this->get('/admin/initial-balance')->assertOk();
-    }
+it('forbids admins from initial balance settings', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    public function test_admin_is_forbidden_from_initial_balance_settings(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
+    $this->get('/admin/initial-balance')->assertForbidden();
+});
 
-        $this->get('/admin/initial-balance')->assertForbidden();
-    }
+it('lets users update their own initial balance', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
 
-    public function test_user_can_update_own_initial_balance(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+    Livewire::test(InitialBalanceSettings::class)
+        ->set('data.amount', '5000.00')
+        ->set('data.base_date', '2026-01-01')
+        ->call('save')
+        ->assertHasNoErrors();
 
-        Livewire::test(InitialBalanceSettings::class)
-            ->set('data.amount', '5000.00')
-            ->set('data.base_date', '2026-01-01')
-            ->call('save')
-            ->assertHasNoErrors();
+    $balance = $user->initialBalance()->firstOrFail();
 
-        $balance = $user->initialBalance()->firstOrFail();
+    expect($balance->amount)->toBe('5000.00')
+        ->and($balance->base_date->format('Y-m-d'))->toBe('2026-01-01');
 
-        $this->assertSame('5000.00', $balance->amount);
-        $this->assertSame('2026-01-01', $balance->base_date->format('Y-m-d'));
+    Notification::assertNotified();
+});
 
-        Notification::assertNotified();
-    }
+it('makes the base date optional when saving the initial balance', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
 
-    public function test_base_date_is_optional_when_saving_initial_balance(): void
-    {
-        $user = User::factory()->create();
-        $this->actingAs($user);
+    Livewire::test(InitialBalanceSettings::class)
+        ->set('data.amount', '1000.00')
+        ->call('save')
+        ->assertHasNoErrors();
 
-        Livewire::test(InitialBalanceSettings::class)
-            ->set('data.amount', '1000.00')
-            ->call('save')
-            ->assertHasNoErrors();
+    $balance = $user->initialBalance()->firstOrFail();
 
-        $balance = $user->initialBalance()->firstOrFail();
-
-        $this->assertSame('1000.00', $balance->amount);
-        $this->assertNull($balance->base_date);
-    }
-}
+    expect($balance->amount)->toBe('1000.00')
+        ->and($balance->base_date)->toBeNull();
+});

@@ -1,75 +1,61 @@
 <?php
 
-namespace Tests\Feature\Filament;
-
 use App\Enums\UserRole;
 use App\Filament\Resources\Users\Pages\ManageUsers;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
-use Tests\TestCase;
 
-class UserResourceTest extends TestCase
-{
-    use RefreshDatabase;
+it('lets admins list users in the panel', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    public function test_admin_can_list_users_in_panel(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
+    $this->get('/admin/users')->assertOk();
+});
 
-        $this->get('/admin/users')->assertOk();
-    }
+it('forbids regular users from listing users in the panel', function () {
+    $this->actingAs(User::factory()->create());
 
-    public function test_regular_users_are_forbidden_from_listing_users_in_panel(): void
-    {
-        $this->actingAs(User::factory()->create());
+    $this->get('/admin/users')->assertForbidden();
+});
 
-        $this->get('/admin/users')->assertForbidden();
-    }
+it('lets admins create a user with the admin role in the panel', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    public function test_admin_can_create_user_with_admin_role_in_panel(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
+    Livewire::test(ManageUsers::class)
+        ->callAction('create', data: [
+            'name' => 'New Admin',
+            'email' => 'new-admin@example.com',
+            'role' => UserRole::Admin->value,
+            'password' => 'password',
+        ])
+        ->assertHasNoActionErrors();
 
-        Livewire::test(ManageUsers::class)
-            ->callAction('create', data: [
-                'name' => 'New Admin',
-                'email' => 'new-admin@example.com',
-                'role' => UserRole::Admin->value,
-                'password' => 'password',
-            ])
-            ->assertHasNoActionErrors();
+    expect(User::where('email', 'new-admin@example.com')->firstOrFail()->role)->toBe(UserRole::Admin->value);
+});
 
-        $this->assertSame(UserRole::Admin->value, User::where('email', 'new-admin@example.com')->firstOrFail()->role);
-    }
+it('lets admins deactivate a user in the panel', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    public function test_admin_can_deactivate_user_in_panel(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
+    $user = User::factory()->create();
 
-        $user = User::factory()->create();
+    Livewire::test(ManageUsers::class)
+        ->callTableAction('toggle_active', $user)
+        ->assertHasNoActionErrors();
 
-        Livewire::test(ManageUsers::class)
-            ->callTableAction('toggle_active', $user)
-            ->assertHasNoActionErrors();
+    expect($user->refresh()->is_active)->toBeFalse();
+});
 
-        $this->assertFalse($user->refresh()->is_active);
-    }
+it('lets admins send a password reset link in the panel', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    public function test_admin_can_send_password_reset_link_in_panel(): void
-    {
-        $this->actingAs(User::factory()->admin()->create());
+    $user = User::factory()->create();
 
-        $user = User::factory()->create();
+    Notification::fake();
 
-        Notification::fake();
+    Livewire::test(ManageUsers::class)
+        ->callTableAction('send_reset_link', $user)
+        ->assertHasNoActionErrors();
 
-        Livewire::test(ManageUsers::class)
-            ->callTableAction('send_reset_link', $user)
-            ->assertHasNoActionErrors();
-
-        Notification::assertSentTo($user, ResetPassword::class);
-    }
-}
+    Notification::assertSentTo($user, ResetPassword::class);
+});
