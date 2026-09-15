@@ -183,3 +183,26 @@ it('keeps linked manual transactions when cancelling the plan schedule', functio
         ->and($manual->account_plan_id)->toBe($plan->id)
         ->and($manual->status)->toBe(TransactionStatus::Pending);
 });
+
+it('does not regenerate an occurrence that was skipped', function () {
+    $this->travelTo('2026-01-01');
+    $this->actingAs(User::factory()->create());
+
+    $plan = AccountPlan::create([
+        'type' => 'income',
+        'description' => 'Salário',
+        'expected_amount' => 5000,
+        'frequency' => RecurrenceFrequency::Monthly,
+        'day_of_month' => 5,
+        'starts_at' => '2026-01-01',
+    ]);
+
+    $occurrence = $plan->dailyTransactions()->where('date', '2026-02-05')->firstOrFail();
+    $occurrence->update(['status' => TransactionStatus::Skipped]);
+
+    $this->travelTo('2026-02-05');
+    $this->artisan('recurrence:tick')->assertSuccessful();
+
+    expect($occurrence->refresh()->status)->toBe(TransactionStatus::Skipped)
+        ->and($plan->dailyTransactions()->where('date', '2026-02-05')->count())->toBe(1);
+});
