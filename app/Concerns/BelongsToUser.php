@@ -25,6 +25,22 @@ trait BelongsToUser
     }
 
     /**
+     * Query the records of a given user, bypassing the authenticated-user scope.
+     *
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    public function scopeForUser(Builder $query, User|int $user): Builder
+    {
+        return $query
+            ->withoutGlobalScope('user')
+            ->where(
+                $query->getModel()->getTable().'.user_id',
+                $user instanceof User ? $user->getKey() : $user,
+            );
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo

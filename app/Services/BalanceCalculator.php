@@ -1,0 +1,284 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
+use App\Models\DailyTransaction;
+use App\Models\User;
+use App\Models\UserInitialBalance;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+
+class BalanceCalculator
+{
+    private const GRID_DAYS = 31;
+
+    /**
+     * Realized balance up to the given date, clamped to today.
+     *
+     * Balance_d = initial balance + realized income − realized expenses since the
+     * base date, considering only transactions dated up to today.
+     */
+    public function realized(User $user, CarbonImmutable|string $date): string
+    {
+        $target = $this->limitToToday($this->toDate($date));
+
+        return $this->format($this->initialAmount($user) + $this->realizedDelta($user, $target));
+    }
+
+    /**
+     * Projected balance: today's realized balance plus the pending future
+     * transactions up to the given date.
+     */
+    public function projected(User $user, CarbonImmutable|string $date): string
+    {
+        $target = $this->toDate($date);
+        $today = $this->today();
+
+        $total = (float) $this->realized($user, $today);
+
+        if ($target->greaterThanOrEqualTo($today)) {
+            $total += $this->signedDelta($this->pendingUpTo($user, $target));
+        }
+
+        return $this->format($total);
+    }
+
+    /**
+     * Build the fixed 1–31 day grid for the given month in a single pass.
+     *
+     * The projection is only exposed on days that have at least one pending
+     * transaction up to them, so it is never mixed into the realized balance.
+     *
+     * @return array<int, array{day: int, date: string|null, income: string, expense: string, result: string, balance: string, projection: string|null}>
+     */
+    public function monthGrid(User $user, int $year, int $month): array
+    {
+        $first = CarbonImmutable::create($year, $month, 1)->startOfDay();
+        $last = $first->endOfMonth();
+        $today = $this->today();
+
+        $running = (float) $this->realized($user, $first->subDay());
+        $realizedToday = (float) $this->realized($user, $today);
+
+        /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
+        $realizedByDay = $this->groupByDay($this->realizedWithin($user, $first, $last));
+
+        /** @var Collection<string, Collection<int, DailyTransaction>> $pendingByDay */
+        $pendingByDay = $this->groupByDay($this->pendingWithin($user, $first, $last));
+
+        $pendingDelta = 0.0;
+        $hasPending = false;
+
+        $grid = [];
+
+        for ($day = 1; $day <= self::GRID_DAYS; $day++) {
+            if ($day > $last->day) {
+                $grid[] = $this->row($day, null, 0.0, 0.0, $running, null);
+
+                continue;
+            }
+
+            $date = $first->setDay($day);
+            $key = $date->toDateString();
+            $transactions = $realizedByDay->get($key, new Collection);
+
+            $income = $this->absoluteSum($transactions->whereStrict('type', TransactionType::Income));
+            $expense = $this->absoluteSum($transactions->whereStrict('type', TransactionType::Expense));
+
+            $running += $income - $expense;
+
+            $projection = null;
+
+            if ($date->greaterThan($today)) {
+                $pending = $pendingByDay->get($key, new Collection);
+
+                $hasPending = $hasPending || $pending->isNotEmpty();
+                $pendingDelta += $this->signedDelta($pending);
+
+                if ($hasPending) {
+                    $projection = $this->format($realizedToday + $pendingDelta);
+                }
+            }
+
+            $grid[] = $this->row($day, $key, $income, $expense, $running, $projection);
+        }
+
+        return $grid;
+    }
+
+    /**
+     * Sum the signed realized transactions of the user up to the given date.
+     */
+    private function realizedDelta(User $user, CarbonImmutable $upTo): float
+    {
+        return $this->signedDelta(
+            $this->withBaseDate($user, $this->transactions($user)
+                ->where('status', TransactionStatus::Realized)
+                ->where('date', '<=', $upTo->toDateString()))
+                ->get()
+        );
+    }
+
+    /**
+     * @return Collection<int, DailyTransaction>
+     */
+    private function realizedWithin(User $user, CarbonImmutable $first, CarbonImmutable $last): Collection
+    {
+        return $this->withBaseDate($user, $this->transactions($user)
+            ->where('status', TransactionStatus::Realized)
+            ->where('date', '<=', $this->today()->toDateString())
+            ->whereBetween('date', [$first->toDateString(), $last->toDateString()]))
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, DailyTransaction>
+     */
+    private function pendingWithin(User $user, CarbonImmutable $first, CarbonImmutable $last): Collection
+    {
+        $from = $first->greaterThan($this->today()) ? $first : $this->today();
+
+        return $this->withBaseDate($user, $this->transactions($user)
+            ->where('status', TransactionStatus::Pending)
+            ->whereBetween('date', [$from->toDateString(), $last->toDateString()]))
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, DailyTransaction>
+     */
+    private function pendingUpTo(User $user, CarbonImmutable $target): Collection
+    {
+        return $this->withBaseDate($user, $this->transactions($user)
+            ->where('status', TransactionStatus::Pending)
+            ->whereBetween('date', [$this->today()->toDateString(), $target->toDateString()]))
+            ->get();
+    }
+
+    /**
+     * @param  Builder<DailyTransaction>  $query
+     * @return Builder<DailyTransaction>
+     */
+    private function withBaseDate(User $user, Builder $query): Builder
+    {
+        $baseDate = $this->baseDate($user);
+
+        if ($baseDate !== null) {
+            $query->where('date', '>=', $baseDate->toDateString());
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return Builder<DailyTransaction>
+     */
+    private function transactions(User $user): Builder
+    {
+        return DailyTransaction::query()->forUser($user);
+    }
+
+    private function baseDate(User $user): ?CarbonImmutable
+    {
+        $balance = $this->initialBalance($user);
+
+        if ($balance === null || $balance->base_date === null) {
+            return null;
+        }
+
+        return CarbonImmutable::instance($balance->base_date)->startOfDay();
+    }
+
+    private function initialBalance(User $user): ?UserInitialBalance
+    {
+        return UserInitialBalance::query()->forUser($user)->first();
+    }
+
+    private function initialAmount(User $user): float
+    {
+        $balance = $this->initialBalance($user);
+
+        return $balance === null ? 0.0 : (float) $balance->amount;
+    }
+
+    /**
+     * @param  Collection<int, DailyTransaction>  $transactions
+     * @return Collection<string, Collection<int, DailyTransaction>>
+     */
+    private function groupByDay(Collection $transactions): Collection
+    {
+        return $transactions->groupBy(
+            fn (DailyTransaction $transaction): string => $transaction->date->format('Y-m-d')
+        );
+    }
+
+    /**
+     * @param  iterable<int, DailyTransaction>  $transactions
+     */
+    private function signedDelta(iterable $transactions): float
+    {
+        $total = 0.0;
+
+        foreach ($transactions as $transaction) {
+            $amount = (float) $transaction->amount;
+            $total += $transaction->type === TransactionType::Income ? $amount : -$amount;
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  iterable<int, DailyTransaction>  $transactions
+     */
+    private function absoluteSum(iterable $transactions): float
+    {
+        $total = 0.0;
+
+        foreach ($transactions as $transaction) {
+            $total += (float) $transaction->amount;
+        }
+
+        return $total;
+    }
+
+    /**
+     * @return array{day: int, date: string|null, income: string, expense: string, result: string, balance: string, projection: string|null}
+     */
+    private function row(int $day, ?string $date, float $income, float $expense, float $balance, ?string $projection): array
+    {
+        return [
+            'day' => $day,
+            'date' => $date,
+            'income' => $this->format($income),
+            'expense' => $this->format($expense),
+            'result' => $this->format($income - $expense),
+            'balance' => $this->format($balance),
+            'projection' => $projection,
+        ];
+    }
+
+    private function today(): CarbonImmutable
+    {
+        return CarbonImmutable::now()->startOfDay();
+    }
+
+    private function toDate(CarbonImmutable|string $date): CarbonImmutable
+    {
+        return ($date instanceof CarbonImmutable ? $date : CarbonImmutable::parse($date))->startOfDay();
+    }
+
+    private function limitToToday(CarbonImmutable $date): CarbonImmutable
+    {
+        $today = $this->today();
+
+        return $date->greaterThan($today) ? $today : $date;
+    }
+
+    private function format(float $value): string
+    {
+        return number_format($value, 2, '.', '');
+    }
+}
