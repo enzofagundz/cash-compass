@@ -151,3 +151,35 @@ it('removes pending but keeps manual transactions when deleting a plan without p
     expect(DailyTransaction::where('account_plan_id', $plan->id)->count())->toBe(0)
         ->and($manual->refresh()->account_plan_id)->toBeNull();
 });
+
+it('keeps linked manual transactions when cancelling the plan schedule', function () {
+    $this->travelTo('2026-01-01');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::create([
+        'type' => 'expense',
+        'description' => 'Academia',
+        'expected_amount' => 120,
+        'frequency' => RecurrenceFrequency::Monthly,
+        'day_of_month' => 5,
+        'starts_at' => '2026-01-01',
+    ]);
+
+    $manual = DailyTransaction::create([
+        'date' => '2026-01-20',
+        'type' => 'expense',
+        'amount' => 50,
+        'account_plan_id' => $plan->id,
+        'is_recurring' => false,
+        'status' => TransactionStatus::Pending,
+    ]);
+
+    $plan->update(['is_active' => false]);
+
+    $manual->refresh();
+
+    expect($manual->exists)->toBeTrue()
+        ->and($manual->account_plan_id)->toBe($plan->id)
+        ->and($manual->status)->toBe(TransactionStatus::Pending);
+});

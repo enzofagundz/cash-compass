@@ -3,6 +3,7 @@
 use App\Enums\RecurrenceFrequency;
 use App\Enums\TransactionStatus;
 use App\Models\AccountPlan;
+use App\Models\DailyTransaction;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 
@@ -39,4 +40,21 @@ it('schedules the recurrence tick daily', function () {
 
     expect($events)->toHaveCount(1)
         ->and($events->first()->getExpression())->toBe('0 0 * * *');
+});
+
+it('generates transactions for the plan owner without an authenticated user', function () {
+    $this->travelTo('2026-01-01');
+    $user = User::factory()->create();
+
+    $plan = AccountPlan::factory()->monthly(16)->create([
+        'user_id' => $user->id,
+        'starts_at' => '2026-01-01',
+    ]);
+
+    $transactions = DailyTransaction::withoutGlobalScopes()
+        ->where('account_plan_id', $plan->id)
+        ->get();
+
+    expect($transactions)->toHaveCount(12)
+        ->and($transactions->every(fn (DailyTransaction $transaction): bool => $transaction->user_id === $user->id))->toBeTrue();
 });

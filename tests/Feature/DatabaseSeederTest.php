@@ -8,5 +8,5 @@ it('creates an admin user', function () {
 
     $admin = User::where('email', 'admin@example.com')->firstOrFail();
 
-    expect($admin->role)->toBe(UserRole::Admin->value);
+    expect($admin->role)->toBe(UserRole::Admin);
 });

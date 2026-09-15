@@ -47,3 +47,9 @@ it('only lists their own account plans', function () {
     Livewire::test(ManageAccountPlans::class)
         ->assertDontSee('Plano de outro usuário');
 });
+
+it('forbids admins from the account plans panel', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    $this->get('/admin/account-plans')->assertForbidden();
+});

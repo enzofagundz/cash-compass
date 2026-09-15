@@ -36,5 +36,5 @@ it('ignores the admin role in the registration request', function () {
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('dashboard', absolute: false));
 
-    expect(User::where('email', 'test@example.com')->firstOrFail()->role)->toBe(UserRole::User->value);
+    expect(User::where('email', 'test@example.com')->firstOrFail()->role)->toBe(UserRole::User);
 });

@@ -31,7 +31,7 @@ it('lets admins create a user with the admin role in the panel', function () {
         ])
         ->assertHasNoActionErrors();
 
-    expect(User::where('email', 'new-admin@example.com')->firstOrFail()->role)->toBe(UserRole::Admin->value);
+    expect(User::where('email', 'new-admin@example.com')->firstOrFail()->role)->toBe(UserRole::Admin);
 });
 
 it('lets admins deactivate a user in the panel', function () {
