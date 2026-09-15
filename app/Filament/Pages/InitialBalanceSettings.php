@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -20,6 +21,8 @@ use Filament\Support\Icons\Heroicon;
  */
 class InitialBalanceSettings extends Page
 {
+    use VisibleToNonAdmins;
+
     protected string $view = 'filament.pages.initial-balance-settings';
 
     protected static ?string $slug = 'initial-balance';
@@ -32,18 +35,6 @@ class InitialBalanceSettings extends Page
      * @var array<string, mixed> | null
      */
     public ?array $data = [];
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return static::canAccess();
-    }
-
-    public static function canAccess(): bool
-    {
-        $user = auth()->user();
-
-        return $user instanceof User && ! $user->isAdmin();
-    }
 
     public function mount(): void
     {

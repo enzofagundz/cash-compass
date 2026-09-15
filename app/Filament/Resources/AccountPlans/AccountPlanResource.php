@@ -3,12 +3,12 @@
 namespace App\Filament\Resources\AccountPlans;
 
 use App\Enums\RecurrenceFrequency;
+use App\Enums\TransactionType;
+use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Resources\AccountPlans\Pages\ManageAccountPlans;
 use App\Models\AccountPlan;
 use BackedEnum;
-use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -27,6 +27,8 @@ use Filament\Tables\Table;
 
 class AccountPlanResource extends Resource
 {
+    use VisibleToNonAdmins;
+
     protected static ?string $model = AccountPlan::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
@@ -41,10 +43,9 @@ class AccountPlanResource extends Resource
             ->components([
                 Select::make('type')
                     ->label('Tipo')
-                    ->options([
-                        'income' => 'Entrada',
-                        'expense' => 'Saída',
-                    ])
+                    ->options(collect(TransactionType::cases())
+                        ->mapWithKeys(fn (TransactionType $type): array => [$type->value => $type->label()])
+                        ->all())
                     ->required(),
                 TextInput::make('description')
                     ->label('Descrição')
@@ -59,14 +60,7 @@ class AccountPlanResource extends Resource
                     ->label('Frequência')
                     ->options(collect(RecurrenceFrequency::cases())
                         ->mapWithKeys(fn (RecurrenceFrequency $frequency): array => [
-                            $frequency->value => match ($frequency) {
-                                RecurrenceFrequency::Daily => 'Diária',
-                                RecurrenceFrequency::Weekly => 'Semanal',
-                                RecurrenceFrequency::Biweekly => 'Quinzenal',
-                                RecurrenceFrequency::Monthly => 'Mensal',
-                                RecurrenceFrequency::Yearly => 'Anual',
-                                RecurrenceFrequency::Installment => 'Parcelada',
-                            },
+                            $frequency->value => $frequency->label(),
                         ])
                         ->all())
                     ->required()
@@ -82,6 +76,7 @@ class AccountPlanResource extends Resource
                     ->numeric()
                     ->minValue(1)
                     ->maxValue(31)
+                    ->helperText('Dias inexistentes caem no último dia do mês (ex.: 31 vira 28/29 em fevereiro).')
                     ->visible(fn (Get $get): bool => in_array($get('frequency'), [
                         RecurrenceFrequency::Monthly->value,
                         RecurrenceFrequency::Yearly->value,
@@ -106,12 +101,13 @@ class AccountPlanResource extends Resource
                     ->label('Início')
                     ->required(),
                 DatePicker::make('ends_at')
-                    ->label('Fim'),
+                    ->label('Fim')
+                    ->helperText('Alternativa ao número de ocorrências.'),
                 TextInput::make('occurrences')
-                    ->label('Nº de parcelas')
+                    ->label('Nº de ocorrências')
                     ->numeric()
                     ->minValue(1)
-                    ->visible(fn (Get $get): bool => $get('frequency') === RecurrenceFrequency::Installment->value),
+                    ->helperText('Deixe vazio para repetir sem limite.'),
                 Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),
@@ -126,7 +122,7 @@ class AccountPlanResource extends Resource
                 TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => $state === 'income' ? 'Entrada' : 'Saída'),
+                    ->formatStateUsing(fn (TransactionType $state): string => $state->label()),
                 TextColumn::make('description')
                     ->label('Descrição')
                     ->searchable(),
@@ -136,7 +132,8 @@ class AccountPlanResource extends Resource
                     ->sortable(),
                 TextColumn::make('frequency')
                     ->label('Frequência')
-                    ->badge(),
+                    ->badge()
+                    ->formatStateUsing(fn (RecurrenceFrequency $state): string => $state->label()),
                 TextColumn::make('starts_at')
                     ->label('Início')
                     ->date('d/m/Y')
@@ -148,14 +145,15 @@ class AccountPlanResource extends Resource
             ->filters([
                 SelectFilter::make('type')
                     ->label('Tipo')
-                    ->options([
-                        'income' => 'Entrada',
-                        'expense' => 'Saída',
-                    ]),
+                    ->options(collect(TransactionType::cases())
+                        ->mapWithKeys(fn (TransactionType $type): array => [$type->value => $type->label()])
+                        ->all()),
                 SelectFilter::make('frequency')
                     ->label('Frequência')
                     ->options(collect(RecurrenceFrequency::cases())
-                        ->mapWithKeys(fn (RecurrenceFrequency $frequency): array => [$frequency->value => $frequency->value])
+                        ->mapWithKeys(fn (RecurrenceFrequency $frequency): array => [
+                            $frequency->value => $frequency->label(),
+                        ])
                         ->all()),
                 TernaryFilter::make('is_active')
                     ->label('Ativo'),
@@ -164,28 +162,21 @@ class AccountPlanResource extends Resource
                 EditAction::make(),
                 DeleteAction::make()
                     ->action(function (AccountPlan $record): void {
-                        if ($record->hasPastRealizedTransactions()) {
+                        if ($record->delete() === false) {
                             Notification::make()
                                 ->danger()
                                 ->title('Plano não pode ser excluído')
-                                ->body('Existem lançamentos realizados no passado vinculados a este plano. Desative-o em vez de excluir.')
+                                ->body('Existem lançamentos realizados até hoje vinculados a este plano. Desative-o em vez de excluir.')
                                 ->send();
 
                             return;
                         }
-
-                        $record->delete();
 
                         Notification::make()
                             ->success()
                             ->title('Plano excluído')
                             ->send();
                     }),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 
