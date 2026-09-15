@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:ping-scheduler')->daily();
+Schedule::command('recurrence:tick')->daily();
