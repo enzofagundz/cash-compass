@@ -13,7 +13,12 @@ class RecurrenceGenerator
     ) {}
 
     /**
-     * Fill the plan's pending transactions for the twelve months after a reference date.
+     * Create the missing pending transactions for the plan's horizon.
+     *
+     * Existing transactions are left untouched so that per-occurrence edits
+     * survive a later run of the daily tick.
+     *
+     * @return int Number of transactions created.
      */
     public function generate(AccountPlan $plan, ?CarbonImmutable $asOf = null): int
     {
@@ -22,7 +27,7 @@ class RecurrenceGenerator
         }
 
         $asOf = ($asOf ?? CarbonImmutable::now())->startOfDay();
-        $horizon = $asOf->addMonths(12);
+        $horizon = $asOf->addMonths(RecurrenceCalculator::DEFAULT_HORIZON_MONTHS);
         $limit = $plan->ends_at === null
             ? $horizon
             : $horizon->min(CarbonImmutable::instance($plan->ends_at));
@@ -37,24 +42,30 @@ class RecurrenceGenerator
             occurrences: $plan->occurrences,
         );
 
+        $created = 0;
+
         foreach ($dates as $date) {
             if ($date->lessThan($asOf)) {
                 continue;
             }
 
-            $plan->dailyTransactions()->updateOrCreate(
-                ['date' => $date->toDateString()],
-                [
-                    'user_id' => $plan->user_id,
-                    'type' => $plan->type,
-                    'amount' => $plan->expected_amount,
-                    'description' => $plan->description,
-                    'is_recurring' => true,
-                    'status' => TransactionStatus::Pending,
-                ],
-            );
+            $transaction = $plan->dailyTransactions()->firstOrNew(['date' => $date->toDateString()]);
+
+            if ($transaction->exists) {
+                continue;
+            }
+
+            $transaction->user_id = $plan->user_id;
+            $transaction->type = $plan->type;
+            $transaction->amount = $plan->expected_amount;
+            $transaction->description = $plan->description;
+            $transaction->is_recurring = true;
+            $transaction->status = TransactionStatus::Pending;
+            $transaction->save();
+
+            $created++;
         }
 
-        return count($dates);
+        return $created;
     }
 }

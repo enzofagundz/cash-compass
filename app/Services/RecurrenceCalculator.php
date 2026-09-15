@@ -7,6 +7,8 @@ use Carbon\CarbonImmutable;
 
 class RecurrenceCalculator
 {
+    public const DEFAULT_HORIZON_MONTHS = 12;
+
     /**
      * Calculate every occurrence date between the start date and a boundary.
      *
@@ -24,7 +26,7 @@ class RecurrenceCalculator
         ?int $occurrences = null,
     ): array {
         $interval = max(1, $interval);
-        $until ??= $startsAt->addMonths(12);
+        $until ??= $startsAt->addMonths(self::DEFAULT_HORIZON_MONTHS);
 
         $dates = [];
 
