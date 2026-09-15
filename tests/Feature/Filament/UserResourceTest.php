@@ -10,13 +10,13 @@ use Livewire\Livewire;
 it('lets admins list users in the panel', function () {
     $this->actingAs(User::factory()->admin()->create());
 
-    $this->get('/admin/users')->assertOk();
+    $this->get('/users')->assertOk();
 });
 
 it('forbids regular users from listing users in the panel', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get('/admin/users')->assertForbidden();
+    $this->get('/users')->assertForbidden();
 });
 
 it('lets admins create a user with the admin role in the panel', function () {

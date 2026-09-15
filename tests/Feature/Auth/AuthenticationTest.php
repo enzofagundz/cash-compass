@@ -1,72 +1,55 @@
 <?php
 
 use App\Models\User;
-use Laravel\Fortify\Features;
+use Filament\Auth\Pages\Login;
+use Livewire\Livewire;
 
 it('renders the login screen', function () {
-    $this->get(route('login'))->assertOk();
+    $this->get(route('filament.app.auth.login'))->assertOk();
 });
 
-it('authenticates users using the login screen', function () {
+it('authenticates users through the panel login', function () {
     $user = User::factory()->create();
 
-    $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+    Livewire::test(Login::class)
+        ->set('data.email', $user->email)
+        ->set('data.password', 'password')
+        ->call('authenticate')
+        ->assertHasNoFormErrors();
 
-    $this->assertAuthenticated();
+    $this->assertAuthenticatedAs($user);
 });
 
 it('does not authenticate users with an invalid password', function () {
     $user = User::factory()->create();
 
-    $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ])->assertSessionHasErrorsIn('email');
+    Livewire::test(Login::class)
+        ->set('data.email', $user->email)
+        ->set('data.password', 'wrong-password')
+        ->call('authenticate')
+        ->assertHasFormErrors(['email']);
 
     $this->assertGuest();
 });
 
 it('does not authenticate deactivated users', function () {
-    $user = User::factory()->create();
-    $user->is_active = false;
-    $user->save();
+    $user = User::factory()->inactive()->create();
 
-    $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ])->assertSessionHasErrorsIn('email');
-
-    $this->assertGuest();
-});
-
-it('redirects users with two factor enabled to the two factor challenge', function () {
-    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-
-    Features::twoFactorAuthentication([
-        'confirm' => true,
-        'confirmPassword' => true,
-    ]);
-
-    $user = User::factory()->withTwoFactor()->create();
-
-    $this->post(route('login.store'), [
-        'email' => $user->email,
-        'password' => 'password',
-    ])->assertRedirect(route('two-factor.login'));
+    Livewire::test(Login::class)
+        ->set('data.email', $user->email)
+        ->set('data.password', 'password')
+        ->call('authenticate')
+        ->assertHasFormErrors(['email']);
 
     $this->assertGuest();
 });
 
-it('logs users out', function () {
+it('logs authenticated users out', function () {
     $user = User::factory()->create();
 
-    $this->actingAs($user)->post(route('logout'))
-        ->assertRedirect(route('home'));
+    $this->actingAs($user)
+        ->post(route('filament.app.auth.logout'))
+        ->assertRedirect(route('filament.app.auth.login'));
 
     $this->assertGuest();
 });

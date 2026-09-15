@@ -51,5 +51,5 @@ it('only lists their own account plans', function () {
 it('forbids admins from the account plans panel', function () {
     $this->actingAs(User::factory()->admin()->create());
 
-    $this->get('/admin/account-plans')->assertForbidden();
+    $this->get('/account-plans')->assertForbidden();
 });

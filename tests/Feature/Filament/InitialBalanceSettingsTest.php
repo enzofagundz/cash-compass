@@ -8,13 +8,13 @@ use Livewire\Livewire;
 it('lets users view initial balance settings', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get('/admin/initial-balance')->assertOk();
+    $this->get('/initial-balance')->assertOk();
 });
 
 it('forbids admins from initial balance settings', function () {
     $this->actingAs(User::factory()->admin()->create());
 
-    $this->get('/admin/initial-balance')->assertForbidden();
+    $this->get('/initial-balance')->assertForbidden();
 });
 
 it('lets users update their own initial balance', function () {

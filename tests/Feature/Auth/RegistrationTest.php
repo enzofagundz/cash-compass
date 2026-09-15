@@ -2,39 +2,36 @@
 
 use App\Enums\UserRole;
 use App\Models\User;
-use Laravel\Fortify\Features;
-
-beforeEach(function () {
-    $this->skipUnlessFortifyHas(Features::registration());
-});
+use Filament\Auth\Pages\Register;
+use Livewire\Livewire;
 
 it('renders the registration screen', function () {
-    $this->get(route('register'))->assertOk();
+    $this->get(route('filament.app.auth.register'))->assertOk();
 });
 
-it('lets new users register', function () {
-    $this->post(route('register.store'), [
-        'name' => 'John Doe',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+it('registers new users as regular users', function () {
+    Livewire::test(Register::class)
+        ->set('data.name', 'John Doe')
+        ->set('data.email', 'john@example.com')
+        ->set('data.password', 'password')
+        ->set('data.passwordConfirmation', 'password')
+        ->call('register')
+        ->assertHasNoFormErrors();
 
-    $this->assertAuthenticated();
+    $user = User::where('email', 'john@example.com')->firstOrFail();
+
+    expect($user->role)->toBe(UserRole::User);
+    $this->assertAuthenticatedAs($user);
 });
 
-it('ignores the admin role in the registration request', function () {
-    $this->post(route('register.store'), [
-        'name' => 'John Doe',
-        'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-        'role' => 'admin',
-    ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+it('rejects a duplicate email', function () {
+    User::factory()->create(['email' => 'taken@example.com']);
 
-    expect(User::where('email', 'test@example.com')->firstOrFail()->role)->toBe(UserRole::User);
+    Livewire::test(Register::class)
+        ->set('data.name', 'John Doe')
+        ->set('data.email', 'taken@example.com')
+        ->set('data.password', 'password')
+        ->set('data.passwordConfirmation', 'password')
+        ->call('register')
+        ->assertHasFormErrors(['email']);
 });
