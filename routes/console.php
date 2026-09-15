@@ -8,5 +8,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('app:ping-scheduler')->daily();
-Schedule::command('recurrence:tick')->daily();
+Schedule::command('app:ping-scheduler')
+    ->daily()
+    ->onOneServer()
+    ->withoutOverlapping();
+
+Schedule::command('recurrence:tick')
+    ->daily()
+    ->onOneServer()
+    ->withoutOverlapping();
