@@ -1,97 +1,72 @@
 <?php
 
-namespace Tests\Feature\Auth;
-
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
-use Tests\TestCase;
 
-class AuthenticationTest extends TestCase
-{
-    use RefreshDatabase;
+it('renders the login screen', function () {
+    $this->get(route('login'))->assertOk();
+});
 
-    public function test_login_screen_can_be_rendered(): void
-    {
-        $response = $this->get(route('login'));
+it('authenticates users using the login screen', function () {
+    $user = User::factory()->create();
 
-        $response->assertOk();
-    }
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
 
-    public function test_users_can_authenticate_using_the_login_screen(): void
-    {
-        $user = User::factory()->create();
+    $this->assertAuthenticated();
+});
 
-        $response = $this->post(route('login.store'), [
-            'email' => $user->email,
-            'password' => 'password',
-        ]);
+it('does not authenticate users with an invalid password', function () {
+    $user = User::factory()->create();
 
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ])->assertSessionHasErrorsIn('email');
 
-        $this->assertAuthenticated();
-    }
+    $this->assertGuest();
+});
 
-    public function test_users_can_not_authenticate_with_invalid_password(): void
-    {
-        $user = User::factory()->create();
+it('does not authenticate deactivated users', function () {
+    $user = User::factory()->create();
+    $user->is_active = false;
+    $user->save();
 
-        $response = $this->post(route('login.store'), [
-            'email' => $user->email,
-            'password' => 'wrong-password',
-        ]);
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertSessionHasErrorsIn('email');
 
-        $response->assertSessionHasErrorsIn('email');
+    $this->assertGuest();
+});
 
-        $this->assertGuest();
-    }
+it('redirects users with two factor enabled to the two factor challenge', function () {
+    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
-    public function test_deactivated_users_can_not_authenticate(): void
-    {
-        $user = User::factory()->create();
-        $user->is_active = false;
-        $user->save();
+    Features::twoFactorAuthentication([
+        'confirm' => true,
+        'confirmPassword' => true,
+    ]);
 
-        $response = $this->post(route('login.store'), [
-            'email' => $user->email,
-            'password' => 'password',
-        ]);
+    $user = User::factory()->withTwoFactor()->create();
 
-        $response->assertSessionHasErrorsIn('email');
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('two-factor.login'));
 
-        $this->assertGuest();
-    }
+    $this->assertGuest();
+});
 
-    public function test_users_with_two_factor_enabled_are_redirected_to_two_factor_challenge(): void
-    {
-        $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+it('logs users out', function () {
+    $user = User::factory()->create();
 
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-        ]);
+    $this->actingAs($user)->post(route('logout'))
+        ->assertRedirect(route('home'));
 
-        $user = User::factory()->withTwoFactor()->create();
-
-        $response = $this->post(route('login.store'), [
-            'email' => $user->email,
-            'password' => 'password',
-        ]);
-
-        $response->assertRedirect(route('two-factor.login'));
-        $this->assertGuest();
-    }
-
-    public function test_users_can_logout(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->post(route('logout'));
-
-        $response->assertRedirect(route('home'));
-
-        $this->assertGuest();
-    }
-}
+    $this->assertGuest();
+});

@@ -1,59 +1,40 @@
 <?php
 
-namespace Tests\Feature\Auth;
-
 use App\Enums\UserRole;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
-use Tests\TestCase;
 
-class RegistrationTest extends TestCase
-{
-    use RefreshDatabase;
+beforeEach(function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+it('renders the registration screen', function () {
+    $this->get(route('register'))->assertOk();
+});
 
-        $this->skipUnlessFortifyHas(Features::registration());
-    }
+it('lets new users register', function () {
+    $this->post(route('register.store'), [
+        'name' => 'John Doe',
+        'email' => 'test@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
 
-    public function test_registration_screen_can_be_rendered(): void
-    {
-        $response = $this->get(route('register'));
+    $this->assertAuthenticated();
+});
 
-        $response->assertOk();
-    }
+it('ignores the admin role in the registration request', function () {
+    $this->post(route('register.store'), [
+        'name' => 'John Doe',
+        'email' => 'test@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+        'role' => 'admin',
+    ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
 
-    public function test_new_users_can_register(): void
-    {
-        $response = $this->post(route('register.store'), [
-            'name' => 'John Doe',
-            'email' => 'test@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ]);
-
-        $response->assertSessionHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertAuthenticated();
-    }
-
-    public function test_registration_ignores_admin_role_in_request(): void
-    {
-        $response = $this->post(route('register.store'), [
-            'name' => 'John Doe',
-            'email' => 'test@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-            'role' => 'admin',
-        ]);
-
-        $response->assertSessionHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertSame(UserRole::User->value, User::where('email', 'test@example.com')->firstOrFail()->role);
-    }
-}
+    expect(User::where('email', 'test@example.com')->firstOrFail()->role)->toBe(UserRole::User->value);
+});

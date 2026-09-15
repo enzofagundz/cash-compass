@@ -1,42 +1,26 @@
 <?php
 
-namespace Tests\Feature\Auth;
-
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
-use Tests\TestCase;
 
-class TwoFactorChallengeTest extends TestCase
-{
-    use RefreshDatabase;
+beforeEach(function () {
+    $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+it('redirects the two factor challenge to login when not authenticated', function () {
+    $this->get(route('two-factor.login'))->assertRedirect(route('login'));
+});
 
-        $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-    }
+it('renders the two factor challenge', function () {
+    Features::twoFactorAuthentication([
+        'confirm' => true,
+        'confirmPassword' => true,
+    ]);
 
-    public function test_two_factor_challenge_redirects_to_login_when_not_authenticated(): void
-    {
-        $response = $this->get(route('two-factor.login'));
+    $user = User::factory()->withTwoFactor()->create();
 
-        $response->assertRedirect(route('login'));
-    }
-
-    public function test_two_factor_challenge_can_be_rendered(): void
-    {
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-        ]);
-
-        $user = User::factory()->withTwoFactor()->create();
-
-        $this->post(route('login.store'), [
-            'email' => $user->email,
-            'password' => 'password',
-        ])->assertRedirect(route('two-factor.login'));
-    }
-}
+    $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('two-factor.login'));
+});
