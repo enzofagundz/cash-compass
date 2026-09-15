@@ -1,15 +1,7 @@
 <?php
 
-namespace Tests\Feature;
-
-use Tests\TestCase;
-
-class BaselineConfigurationTest extends TestCase
-{
-    public function test_application_uses_sao_paulo_timezone_and_brazilian_locale(): void
-    {
-        $this->assertSame('America/Sao_Paulo', config('app.timezone'));
-        $this->assertSame('pt_BR', config('app.locale'));
-        $this->assertSame('pt_BR', config('app.faker_locale'));
-    }
-}
+it('uses the sao paulo timezone and brazilian locale', function () {
+    expect(config('app.timezone'))->toBe('America/Sao_Paulo')
+        ->and(config('app.locale'))->toBe('pt_BR')
+        ->and(config('app.faker_locale'))->toBe('pt_BR');
+});
