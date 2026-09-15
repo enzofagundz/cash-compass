@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Concerns\BelongsToUser;
+use Database\Factories\UserInitialBalanceFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -17,6 +19,9 @@ use Illuminate\Support\Carbon;
 class UserInitialBalance extends Model
 {
     use BelongsToUser;
+
+    /** @use HasFactory<UserInitialBalanceFactory> */
+    use HasFactory;
 
     protected $fillable = [
         'amount',

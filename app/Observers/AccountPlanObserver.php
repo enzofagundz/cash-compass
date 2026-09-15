@@ -2,7 +2,6 @@
 
 namespace App\Observers;
 
-use App\Enums\TransactionStatus;
 use App\Models\AccountPlan;
 use App\Services\RecurrenceGenerator;
 use Carbon\CarbonImmutable;
@@ -43,23 +42,18 @@ class AccountPlanObserver
             return;
         }
 
-        $plan->dailyTransactions()
-            ->where('status', TransactionStatus::Pending)
-            ->where('date', '>=', CarbonImmutable::now()->startOfDay()->toDateString())
-            ->delete();
+        $plan->cancelPendingRecurringTransactions(CarbonImmutable::now());
 
         $this->generator->generate($plan);
     }
 
     public function deleting(AccountPlan $plan): bool
     {
-        if ($plan->hasPastRealizedTransactions()) {
+        if ($plan->hasRealizedTransactionsUpToToday()) {
             return false;
         }
 
-        $plan->dailyTransactions()
-            ->where('status', TransactionStatus::Pending)
-            ->delete();
+        $plan->cancelPendingRecurringTransactions();
 
         return true;
     }

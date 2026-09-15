@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Concerns\BelongsToUser;
 use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
+use Database\Factories\DailyTransactionFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -12,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $user_id
  * @property Carbon $date
- * @property string $type
+ * @property TransactionType $type
  * @property string $amount
  * @property string|null $description
  * @property int|null $account_plan_id
@@ -24,6 +27,9 @@ use Illuminate\Support\Carbon;
 class DailyTransaction extends Model
 {
     use BelongsToUser;
+
+    /** @use HasFactory<DailyTransactionFactory> */
+    use HasFactory;
 
     protected $fillable = [
         'date',
@@ -39,6 +45,7 @@ class DailyTransaction extends Model
     {
         return [
             'date' => 'date:Y-m-d',
+            'type' => TransactionType::class,
             'amount' => 'decimal:2',
             'is_recurring' => 'boolean',
             'status' => TransactionStatus::class,
