@@ -18,7 +18,9 @@ trait BelongsToUser
         });
 
         static::addGlobalScope('user', function (Builder $query): void {
-            $query->where($query->getModel()->getTable().'.user_id', auth()->id());
+            if (auth()->hasUser()) {
+                $query->where($query->getModel()->getTable().'.user_id', auth()->id());
+            }
         });
     }
 
