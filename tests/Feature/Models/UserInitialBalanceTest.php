@@ -1,44 +1,33 @@
 <?php
 
-namespace Tests\Feature\Models;
-
 use App\Models\User;
 use App\Models\UserInitialBalance;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class UserInitialBalanceTest extends TestCase
-{
-    use RefreshDatabase;
+it('only lets users see their own initial balance', function () {
+    $userA = User::factory()->create();
+    $userB = User::factory()->create();
 
-    public function test_users_only_see_their_own_initial_balance(): void
-    {
-        $userA = User::factory()->create();
-        $userB = User::factory()->create();
+    $this->actingAs($userA);
+    UserInitialBalance::create(['amount' => 5000, 'base_date' => '2026-01-01']);
 
-        $this->actingAs($userA);
-        UserInitialBalance::create(['amount' => 5000, 'base_date' => '2026-01-01']);
+    $this->actingAs($userB);
+    UserInitialBalance::create(['amount' => 9000, 'base_date' => '2026-01-01']);
 
-        $this->actingAs($userB);
-        UserInitialBalance::create(['amount' => 9000, 'base_date' => '2026-01-01']);
+    $this->actingAs($userA);
+    $balances = UserInitialBalance::all();
 
-        $this->actingAs($userA);
-        $balances = UserInitialBalance::all();
+    expect($balances)->toHaveCount(1)
+        ->and($balances->first()->amount)->toBe('5000.00');
+});
 
-        $this->assertCount(1, $balances);
-        $this->assertSame('5000.00', $balances->first()->amount);
-    }
+it('does not let users find another users initial balance', function () {
+    $userA = User::factory()->create();
+    $userB = User::factory()->create();
 
-    public function test_users_can_not_find_another_users_initial_balance(): void
-    {
-        $userA = User::factory()->create();
-        $userB = User::factory()->create();
+    $this->actingAs($userB);
+    $balance = UserInitialBalance::create(['amount' => 9000, 'base_date' => '2026-01-01']);
 
-        $this->actingAs($userB);
-        $balance = UserInitialBalance::create(['amount' => 9000, 'base_date' => '2026-01-01']);
+    $this->actingAs($userA);
 
-        $this->actingAs($userA);
-
-        $this->assertNull(UserInitialBalance::find($balance->id));
-    }
-}
+    expect(UserInitialBalance::find($balance->id))->toBeNull();
+});
