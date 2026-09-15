@@ -55,6 +55,8 @@ class AccountPlanResource extends Resource
                     ->label('Valor esperado (R$)')
                     ->numeric()
                     ->prefix('R$')
+                    ->minValue(0.01)
+                    ->rules(['gt:0'])
                     ->required(),
                 Select::make('frequency')
                     ->label('Frequência')
