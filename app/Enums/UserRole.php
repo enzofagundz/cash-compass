@@ -6,4 +6,12 @@ enum UserRole: string
 {
     case User = 'user';
     case Admin = 'admin';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::User => 'Usuário',
+            self::Admin => 'Administrador',
+        };
+    }
 }
