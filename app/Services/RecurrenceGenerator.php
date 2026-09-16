@@ -15,8 +15,10 @@ class RecurrenceGenerator
     /**
      * Create the missing pending transactions for the plan's horizon.
      *
-     * Existing transactions are left untouched so that per-occurrence edits
-     * survive a later run of the daily tick.
+     * Existing transactions keep their own values so that per-occurrence edits
+     * survive a later run of the daily tick, except for tags: the plan stays
+     * the source of truth and its tags are synced to its pending recurring
+     * occurrences.
      *
      * @return int Number of transactions created.
      */
@@ -43,6 +45,7 @@ class RecurrenceGenerator
         );
 
         $created = 0;
+        $tagIds = $plan->tags()->pluck('tags.id')->all();
 
         foreach ($dates as $date) {
             if ($date->lessThan($asOf)) {
@@ -52,6 +55,10 @@ class RecurrenceGenerator
             $transaction = $plan->dailyTransactions()->firstOrNew(['date' => $date->toDateString()]);
 
             if ($transaction->exists) {
+                if ($transaction->is_recurring && $transaction->status === TransactionStatus::Pending) {
+                    $transaction->tags()->sync($tagIds);
+                }
+
                 continue;
             }
 
@@ -62,6 +69,7 @@ class RecurrenceGenerator
             $transaction->is_recurring = true;
             $transaction->status = TransactionStatus::Pending;
             $transaction->save();
+            $transaction->tags()->sync($tagIds);
 
             $created++;
         }

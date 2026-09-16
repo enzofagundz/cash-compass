@@ -10,6 +10,7 @@ use Database\Factories\DailyTransactionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 
@@ -86,5 +87,13 @@ class DailyTransaction extends Model
     public function accountPlan(): BelongsTo
     {
         return $this->belongsTo(AccountPlan::class);
+    }
+
+    /**
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->withTimestamps();
     }
 }

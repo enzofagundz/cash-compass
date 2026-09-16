@@ -128,9 +128,11 @@ class ThermometerPage extends Page implements HasTable
             Action::make('create')
                 ->label('Novo lançamento')
                 ->icon(Heroicon::OutlinedPlus)
+                ->model(DailyTransaction::class)
                 ->schema(DailyTransactionResource::formComponents())
-                ->action(function (array $data): void {
-                    DailyTransaction::create($data);
+                ->action(function (array $data, Schema $schema): void {
+                    $transaction = DailyTransaction::create($data);
+                    $schema->model($transaction)->saveRelationships();
 
                     Notification::make()
                         ->success()

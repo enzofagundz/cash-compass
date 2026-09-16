@@ -9,6 +9,7 @@ use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Resources\DailyTransactions\Pages\ManageDailyTransactions;
 use App\Models\AccountPlan;
 use App\Models\DailyTransaction;
+use App\Models\Tag;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -26,6 +27,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Unique;
 
 class DailyTransactionResource extends Resource
 {
@@ -83,6 +85,20 @@ class DailyTransactionResource extends Resource
                     ->all())
                 ->searchable()
                 ->preload(),
+            Select::make('tags')
+                ->label('Tags')
+                ->relationship('tags', 'name')
+                ->multiple()
+                ->searchable()
+                ->preload()
+                ->createOptionForm([
+                    TextInput::make('name')
+                        ->label('Nome')
+                        ->required()
+                        ->maxLength(255)
+                        ->unique('tags', 'name', modifyRuleUsing: fn (Unique $rule): Unique => $rule->where('user_id', auth()->id())),
+                ])
+                ->createOptionUsing(fn (array $data): int => Tag::create($data)->getKey()),
             Select::make('status')
                 ->label('Status')
                 ->options(collect(TransactionStatus::cases())

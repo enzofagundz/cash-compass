@@ -12,6 +12,7 @@ use Database\Factories\AccountPlanFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -84,6 +85,14 @@ class AccountPlan extends Model
     public function dailyTransactions(): HasMany
     {
         return $this->hasMany(DailyTransaction::class);
+    }
+
+    /**
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->withTimestamps();
     }
 
     public function hasRealizedTransactionsUpToToday(): bool
