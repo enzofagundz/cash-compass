@@ -127,6 +127,7 @@ class BalanceCalculator
         $today = $this->today();
 
         $running = $this->initialAmount($user) + $this->realizedDelta($user, $start->subDay());
+        $running += $this->signedDelta($this->pendingUpTo($user, $start->subDay()));
 
         /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
         $realizedByDay = $this->groupByDay($this->withBaseDate($user, $this->transactions($user)
