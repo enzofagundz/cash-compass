@@ -493,3 +493,37 @@ it('does not attach another users tag to a movement', function () {
 
     expect(DailyTransaction::count())->toBe(0);
 });
+
+it('colors the balance column by range', function (string $balance, string $color) {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => $balance, 'base_date' => '2026-09-01']);
+
+    Livewire::test(ThermometerPage::class)
+        ->assertSeeHtml('data-balance-color="'.$color.'"');
+})->with([
+    'well below -500' => ['-600.00', 'dark-red'],
+    'one cent below -500' => ['-500.01', 'dark-red'],
+    'exactly -500' => ['-500.00', 'dark-red'],
+    'one cent above -500' => ['-499.99', 'light-red'],
+    'exactly zero' => ['0.00', 'light-red'],
+    'one cent above zero' => ['0.01', 'light-yellow'],
+    'exactly 1000' => ['1000.00', 'light-yellow'],
+    'one cent above 1000' => ['1000.01', 'light-green'],
+    'exactly 2000' => ['2000.00', 'light-green'],
+    'one cent above 2000' => ['2000.01', 'dark-green'],
+    'well above 2000' => ['2500.00', 'dark-green'],
+]);
+
+it('colors balance cells outside the current month', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 2500, 'base_date' => '2026-09-01']);
+
+    Livewire::test(ThermometerPage::class)
+        ->set('month', 10)
+        ->set('months', 1)
+        ->assertSeeHtml('data-balance-color="dark-green"');
+});
