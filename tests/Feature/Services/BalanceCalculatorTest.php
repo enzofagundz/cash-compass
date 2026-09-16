@@ -310,6 +310,80 @@ it('projects future pending movements and ignores skipped ones in the horizon', 
         ->and($days[17]['balance'])->toBe('1150.00');
 });
 
+it('carries pending movements before a future horizon start into its opening balance', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+
+    DailyTransaction::create(['date' => '2026-09-20', 'type' => TransactionType::Expense->value, 'amount' => 100]);
+    DailyTransaction::create([
+        'date' => '2026-10-05',
+        'type' => TransactionType::Daily->value,
+        'amount' => 50,
+        'status' => TransactionStatus::Pending->value,
+        'is_recurring' => true,
+    ]);
+
+    $november = app(BalanceCalculator::class)->horizonGrid($user, 2026, 11, 1)[0];
+
+    expect($november['days'][0]['balance'])->toBe('850.00');
+});
+
+it('keeps the same day balance across overlapping horizons', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+
+    DailyTransaction::create(['date' => '2026-09-20', 'type' => TransactionType::Expense->value, 'amount' => 100]);
+    DailyTransaction::create([
+        'date' => '2026-10-05',
+        'type' => TransactionType::Daily->value,
+        'amount' => 50,
+        'status' => TransactionStatus::Pending->value,
+        'is_recurring' => true,
+    ]);
+
+    $calculator = app(BalanceCalculator::class);
+    $full = $calculator->horizonGrid($user, 2026, 9, 12);
+    $late = $calculator->horizonGrid($user, 2026, 11, 3);
+
+    expect($late[0]['days'][0]['balance'])->toBe($full[2]['days'][0]['balance'])
+        ->and($late[0]['days'][0]['balance'])->toBe('850.00');
+});
+
+it('marks the day types that include pending movements in the horizon', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+
+    DailyTransaction::create(['date' => '2026-09-16', 'type' => TransactionType::Income->value, 'amount' => 500]);
+    DailyTransaction::create([
+        'date' => '2026-09-16',
+        'type' => TransactionType::Daily->value,
+        'amount' => 50,
+        'status' => TransactionStatus::Pending->value,
+        'is_recurring' => true,
+    ]);
+    DailyTransaction::create(['date' => '2026-09-17', 'type' => TransactionType::Expense->value, 'amount' => 20]);
+    DailyTransaction::create([
+        'date' => '2026-09-17',
+        'type' => TransactionType::Expense->value,
+        'amount' => 100,
+        'status' => TransactionStatus::Pending->value,
+        'is_recurring' => true,
+    ]);
+
+    $days = collect(app(BalanceCalculator::class)->horizonGrid($user, 2026, 9, 1)[0]['days'])->keyBy('day');
+
+    expect($days[15]['pending_types'])->toBe([])
+        ->and($days[16]['pending_types'])->toBe(['daily'])
+        ->and($days[17]['pending_types'])->toBe(['expense'])
+        ->and($days[17]['expense'])->toBe('120.00');
+});
+
 it('totals every movement type per month in the horizon', function () {
     $this->travelTo('2026-09-15');
     $user = User::factory()->create();
