@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\Month;
 use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use App\Models\DailyTransaction;
 use App\Models\User;
 use App\Models\UserInitialBalance;
@@ -156,7 +157,10 @@ class BalanceCalculator
                 $key = $date->toDateString();
                 $values = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
 
-                foreach ([$realizedByDay->get($key, new Collection), $pendingByDay->get($key, new Collection)] as $transactions) {
+                $realizedOnDay = $realizedByDay->get($key, new Collection);
+                $pendingOnDay = $pendingByDay->get($key, new Collection);
+
+                foreach ([$realizedOnDay, $pendingOnDay] as $transactions) {
                     foreach ($transactions as $transaction) {
                         $amount = (float) $transaction->amount;
                         $values[$transaction->type->value] += $amount;
@@ -167,6 +171,10 @@ class BalanceCalculator
                 foreach ($values as $type => $amount) {
                     $totals[$type] += $amount;
                 }
+
+                $pendingTypeValues = $pendingOnDay
+                    ->map(fn (DailyTransaction $transaction): string => $transaction->type->value)
+                    ->unique();
 
                 $days[] = [
                     'day' => $day,
@@ -179,6 +187,10 @@ class BalanceCalculator
                     'balance' => $this->format($running),
                     'is_today' => $date->equalTo($today),
                     'is_future' => $date->greaterThan($today),
+                    'pending_types' => array_values(array_filter(
+                        TransactionType::values(),
+                        fn (string $value): bool => $pendingTypeValues->contains($value),
+                    )),
                 ];
             }
 
