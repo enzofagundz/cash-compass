@@ -12,7 +12,6 @@
         --tmb-card: #7b3dec;
         --tmb-today: #232428;
         --tmb-weekend: #ececed;
-        --tmb-balance: #fce8b4;
         --tmb-border: #dddddd;
         --tmb-text: #232428;
         --tmb-muted: #6b7280;
@@ -24,7 +23,6 @@
     .dark .thermometer {
         --tmb-today: #f3f4f6;
         --tmb-weekend: #1f2937;
-        --tmb-balance: #4a3410;
         --tmb-border: #374151;
         --tmb-text: #f3f4f6;
         --tmb-muted: #9ca3af;
@@ -273,8 +271,54 @@
         }
     }
 
-    .thermometer-balance-cell {
-        background: color-mix(in srgb, var(--tmb-balance) 35%, transparent);
+    .thermometer-balance-cell[data-balance-color='dark-red'] {
+        background: #991b1b;
+        color: #ffffff;
+    }
+
+    .thermometer-balance-cell[data-balance-color='light-red'] {
+        background: #fee2e2;
+        color: #7f1d1d;
+    }
+
+    .thermometer-balance-cell[data-balance-color='light-yellow'] {
+        background: #fef3c7;
+        color: #78350f;
+    }
+
+    .thermometer-balance-cell[data-balance-color='light-green'] {
+        background: #dcfce7;
+        color: #14532d;
+    }
+
+    .thermometer-balance-cell[data-balance-color='dark-green'] {
+        background: #166534;
+        color: #ffffff;
+    }
+
+    .dark .thermometer-balance-cell[data-balance-color='dark-red'] {
+        background: #450a0a;
+        color: #fca5a5;
+    }
+
+    .dark .thermometer-balance-cell[data-balance-color='light-red'] {
+        background: #7f1d1d;
+        color: #fecaca;
+    }
+
+    .dark .thermometer-balance-cell[data-balance-color='light-yellow'] {
+        background: #713f12;
+        color: #fef3c7;
+    }
+
+    .dark .thermometer-balance-cell[data-balance-color='light-green'] {
+        background: #14532d;
+        color: #dcfce7;
+    }
+
+    .dark .thermometer-balance-cell[data-balance-color='dark-green'] {
+        background: #166534;
+        color: #f0fdf4;
     }
 
     .thermometer-balance-button {
@@ -287,16 +331,8 @@
         font-weight: 600;
         cursor: pointer;
         border-radius: 0.25rem;
-        color: var(--tmb-text);
+        color: inherit;
         white-space: nowrap;
-    }
-
-    .thermometer-balance-negative {
-        color: #991b1b;
-    }
-
-    .dark .thermometer-balance-negative {
-        color: #fca5a5;
     }
 
     .thermometer-badge {

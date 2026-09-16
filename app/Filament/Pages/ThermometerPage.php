@@ -211,6 +211,36 @@ class ThermometerPage extends Page
         return 'R$ '.number_format((float) $value, 2, ',', '.');
     }
 
+    /**
+     * Background range identifier for a daily accumulated balance.
+     */
+    public function balanceColor(string $balance): string
+    {
+        $cents = (int) (preg_replace('/[^0-9]/', '', $balance) ?? '');
+
+        if (str_starts_with($balance, '-')) {
+            $cents = -$cents;
+        }
+
+        if ($cents <= -50000) {
+            return 'dark-red';
+        }
+
+        if ($cents <= 0) {
+            return 'light-red';
+        }
+
+        if ($cents <= 100000) {
+            return 'light-yellow';
+        }
+
+        if ($cents <= 200000) {
+            return 'light-green';
+        }
+
+        return 'dark-green';
+    }
+
     public function longDayLabel(string $date): string
     {
         $day = $this->sanitizeDate($date);
