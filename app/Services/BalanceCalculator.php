@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\Month;
 use App\Enums\TransactionStatus;
-use App\Enums\TransactionType;
 use App\Models\DailyTransaction;
 use App\Models\User;
 use App\Models\UserInitialBalance;
@@ -85,8 +85,8 @@ class BalanceCalculator
             $key = $date->toDateString();
             $transactions = $realizedByDay->get($key, new Collection);
 
-            $income = $this->absoluteSum($transactions->whereStrict('type', TransactionType::Income));
-            $expense = $this->absoluteSum($transactions->whereStrict('type', TransactionType::Expense));
+            $income = $this->absoluteSum($transactions->filter(fn (DailyTransaction $transaction): bool => $transaction->type->isIncome()));
+            $expense = $this->absoluteSum($transactions->filter(fn (DailyTransaction $transaction): bool => ! $transaction->type->isIncome()));
 
             $running += $income - $expense;
 
@@ -107,6 +107,96 @@ class BalanceCalculator
         }
 
         return $grid;
+    }
+
+    /**
+     * Build a multi-month horizon grid with per-type day values and a single
+     * projected balance column.
+     *
+     * Realized transactions always count on their date; pending ones only from
+     * today onward; skipped ones never count. The balance is continuous across
+     * months, so every day satisfies: balance = previous balance + day columns.
+     *
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
+     */
+    public function horizonGrid(User $user, int $year, int $month, int $months): array
+    {
+        $months = max(1, $months);
+        $start = CarbonImmutable::create($year, $month, 1)->startOfDay();
+        $end = $start->addMonthsNoOverflow($months - 1)->endOfMonth();
+        $today = $this->today();
+
+        $running = $this->initialAmount($user) + $this->realizedDelta($user, $start->subDay());
+
+        /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
+        $realizedByDay = $this->groupByDay($this->withBaseDate($user, $this->transactions($user)
+            ->where('status', TransactionStatus::Realized)
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()]))
+            ->get());
+
+        $pendingFrom = $start->greaterThan($today) ? $start : $today;
+
+        /** @var Collection<string, Collection<int, DailyTransaction>> $pendingByDay */
+        $pendingByDay = $this->groupByDay($this->withBaseDate($user, $this->transactions($user)
+            ->where('status', TransactionStatus::Pending)
+            ->whereBetween('date', [$pendingFrom->toDateString(), $end->toDateString()]))
+            ->get());
+
+        $horizon = [];
+
+        for ($offset = 0; $offset < $months; $offset++) {
+            $first = $start->addMonthsNoOverflow($offset);
+            $last = $first->endOfMonth();
+            $days = [];
+            $totals = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+
+            for ($day = 1; $day <= $last->day; $day++) {
+                $date = $first->setDay($day);
+                $key = $date->toDateString();
+                $values = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+
+                foreach ([$realizedByDay->get($key, new Collection), $pendingByDay->get($key, new Collection)] as $transactions) {
+                    foreach ($transactions as $transaction) {
+                        $amount = (float) $transaction->amount;
+                        $values[$transaction->type->value] += $amount;
+                        $running += $transaction->type->sign() * $amount;
+                    }
+                }
+
+                foreach ($values as $type => $amount) {
+                    $totals[$type] += $amount;
+                }
+
+                $days[] = [
+                    'day' => $day,
+                    'date' => $key,
+                    'income' => $this->format($values['income']),
+                    'expense' => $this->format($values['expense']),
+                    'daily' => $this->format($values['daily']),
+                    'savings' => $this->format($values['savings']),
+                    'card' => $this->format($values['card']),
+                    'balance' => $this->format($running),
+                    'is_today' => $date->equalTo($today),
+                    'is_future' => $date->greaterThan($today),
+                ];
+            }
+
+            $horizon[] = [
+                'year' => $first->year,
+                'month' => $first->month,
+                'label' => $this->monthLabel($first),
+                'days' => $days,
+                'totals' => [
+                    'income' => $this->format($totals['income']),
+                    'expense' => $this->format($totals['expense']),
+                    'daily' => $this->format($totals['daily']),
+                    'savings' => $this->format($totals['savings']),
+                    'card' => $this->format($totals['card']),
+                ],
+            ];
+        }
+
+        return $horizon;
     }
 
     /**
@@ -224,7 +314,7 @@ class BalanceCalculator
 
         foreach ($transactions as $transaction) {
             $amount = (float) $transaction->amount;
-            $total += $transaction->type === TransactionType::Income ? $amount : -$amount;
+            $total += $transaction->type->sign() * $amount;
         }
 
         return $total;
@@ -280,5 +370,10 @@ class BalanceCalculator
     private function format(float $value): string
     {
         return number_format($value, 2, '.', '');
+    }
+
+    private function monthLabel(CarbonImmutable $date): string
+    {
+        return mb_strtolower(Month::from($date->month)->label(), 'UTF-8').' de '.$date->year;
     }
 }
