@@ -6,6 +6,7 @@ use App\Enums\TransactionType;
 use App\Filament\Resources\DailyTransactions\Pages\ManageDailyTransactions;
 use App\Models\AccountPlan;
 use App\Models\DailyTransaction;
+use App\Models\Tag;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Livewire\Livewire;
@@ -31,6 +32,50 @@ it('lets users create a manual transaction from the panel', function () {
         ->and($transaction->amount)->toBe('1000.00')
         ->and($transaction->is_recurring)->toBeFalse()
         ->and($transaction->status)->toBe(TransactionStatus::Realized);
+});
+
+it('creates a transaction with tags', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Saúde']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-05',
+            'type' => TransactionType::Expense->value,
+            'amount' => 150,
+            'description' => 'Psicólogo',
+            'status' => TransactionStatus::Realized->value,
+            'tags' => [$tag->id],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(DailyTransaction::firstOrFail()->tags->pluck('name')->all())->toBe(['Saúde']);
+});
+
+it('does not attach another users tag to a transaction', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    $this->actingAs($other);
+    $foreign = Tag::create(['name' => 'Lazer']);
+
+    $this->actingAs($user);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-05',
+            'type' => TransactionType::Expense->value,
+            'amount' => 150,
+            'status' => TransactionStatus::Realized->value,
+            'tags' => [$foreign->id],
+        ])
+        ->assertHasActionErrors(['tags.0']);
+
+    expect(DailyTransaction::count())->toBe(0);
 });
 
 it('rejects a non-positive amount', function (float $amount) {

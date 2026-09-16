@@ -4,6 +4,7 @@ use App\Enums\RecurrenceFrequency;
 use App\Enums\TransactionStatus;
 use App\Models\AccountPlan;
 use App\Models\DailyTransaction;
+use App\Models\Tag;
 use App\Models\User;
 use App\Services\RecurrenceGenerator;
 use Carbon\CarbonImmutable;
@@ -182,6 +183,31 @@ it('keeps linked manual transactions when cancelling the plan schedule', functio
     expect($manual->exists)->toBeTrue()
         ->and($manual->account_plan_id)->toBe($plan->id)
         ->and($manual->status)->toBe(TransactionStatus::Pending);
+});
+
+it('copies the plan tags to the generated transactions', function () {
+    $this->travelTo('2026-01-01');
+    $this->actingAs(User::factory()->create());
+
+    $tag = Tag::create(['name' => 'Assinaturas']);
+
+    $plan = AccountPlan::create([
+        'type' => 'expense',
+        'description' => 'Streaming',
+        'expected_amount' => 50,
+        'frequency' => RecurrenceFrequency::Monthly,
+        'day_of_month' => 5,
+        'starts_at' => '2026-01-01',
+    ]);
+    $plan->tags()->attach($tag->id);
+
+    app(RecurrenceGenerator::class)->generate($plan, CarbonImmutable::parse('2026-01-01'));
+
+    $transactions = $plan->dailyTransactions()->orderBy('date')->get();
+
+    expect($transactions)->toHaveCount(12)
+        ->and($transactions->first()->tags->pluck('name')->all())->toBe(['Assinaturas'])
+        ->and($transactions->last()->tags->pluck('name')->all())->toBe(['Assinaturas']);
 });
 
 it('does not regenerate an occurrence that was skipped', function () {
