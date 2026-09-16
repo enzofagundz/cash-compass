@@ -35,6 +35,24 @@ enum Month: int
         };
     }
 
+    public function shortLabel(): string
+    {
+        return match ($this) {
+            self::January => 'jan',
+            self::February => 'fev',
+            self::March => 'mar',
+            self::April => 'abr',
+            self::May => 'mai',
+            self::June => 'jun',
+            self::July => 'jul',
+            self::August => 'ago',
+            self::September => 'set',
+            self::October => 'out',
+            self::November => 'nov',
+            self::December => 'dez',
+        };
+    }
+
     /**
      * @return array<int, string>
      */
