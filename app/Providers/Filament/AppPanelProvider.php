@@ -36,6 +36,14 @@ class AppPanelProvider extends PanelProvider
             ->profile()
             ->colors([
                 'primary' => Color::Amber,
+                'red' => Color::Red,
+                'orange' => Color::Orange,
+                'yellow' => Color::Yellow,
+                'green' => Color::Green,
+                'teal' => Color::Teal,
+                'blue' => Color::Blue,
+                'indigo' => Color::Indigo,
+                'purple' => Color::Purple,
             ])
             ->viteTheme('resources/css/filament/app/theme.css')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
