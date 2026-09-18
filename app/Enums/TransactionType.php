@@ -6,7 +6,6 @@ enum TransactionType: string
 {
     case Income = 'income';
     case Expense = 'expense';
-    case Daily = 'daily';
     case Savings = 'savings';
     case Card = 'card';
 
@@ -15,7 +14,6 @@ enum TransactionType: string
         return match ($this) {
             self::Income => 'Entrada',
             self::Expense => 'Saída',
-            self::Daily => 'Diário',
             self::Savings => 'Economia',
             self::Card => 'Cartão',
         };
@@ -26,7 +24,6 @@ enum TransactionType: string
         return match ($this) {
             self::Income => 'Entradas',
             self::Expense => 'Saídas',
-            self::Daily => 'Diários',
             self::Savings => 'Economias',
             self::Card => 'Cartão',
         };
