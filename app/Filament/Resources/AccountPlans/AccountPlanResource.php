@@ -4,10 +4,10 @@ namespace App\Filament\Resources\AccountPlans;
 
 use App\Enums\RecurrenceFrequency;
 use App\Enums\TransactionType;
+use App\Filament\Concerns\HasTagSelector;
 use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Resources\AccountPlans\Pages\ManageAccountPlans;
 use App\Models\AccountPlan;
-use App\Models\Tag;
 use App\Services\RecurrenceGenerator;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
@@ -24,13 +24,15 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
-use Illuminate\Validation\Rules\Unique;
+use Illuminate\Database\Eloquent\Builder;
 
 class AccountPlanResource extends Resource
 {
+    use HasTagSelector;
     use VisibleToNonAdmins;
 
     protected static ?string $model = AccountPlan::class;
@@ -127,20 +129,7 @@ class AccountPlanResource extends Resource
             Toggle::make('is_active')
                 ->label('Ativo')
                 ->default(true),
-            Select::make('tags')
-                ->label('Tags')
-                ->relationship('tags', 'name')
-                ->multiple()
-                ->searchable()
-                ->preload()
-                ->createOptionForm([
-                    TextInput::make('name')
-                        ->label('Nome')
-                        ->required()
-                        ->maxLength(255)
-                        ->unique('tags', 'name', modifyRuleUsing: fn (Unique $rule): Unique => $rule->where('user_id', auth()->id())),
-                ])
-                ->createOptionUsing(fn (array $data): int => Tag::create($data)->getKey()),
+            self::tagSelector(),
         ];
     }
 
@@ -156,6 +145,9 @@ class AccountPlanResource extends Resource
                 TextColumn::make('description')
                     ->label('Descrição')
                     ->searchable(),
+                ViewColumn::make('tags')
+                    ->label('Tags')
+                    ->view('filament.tables.columns.tag-list'),
                 TextColumn::make('expected_amount')
                     ->label('Valor esperado')
                     ->money('BRL')
@@ -209,6 +201,11 @@ class AccountPlanResource extends Resource
                             ->send();
                     }),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('tags');
     }
 
     public static function getPages(): array
