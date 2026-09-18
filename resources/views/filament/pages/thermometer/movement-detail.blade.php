@@ -33,7 +33,7 @@
             >
                 <option value="">Todos os tipos</option>
 
-                @foreach ($this->columns as $type)
+                @foreach ($this->movementTypes as $type)
                     <option value="{{ $type->value }}">{{ $type->columnLabel() }}</option>
                 @endforeach
             </select>

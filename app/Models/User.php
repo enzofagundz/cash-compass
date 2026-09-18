@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
  * @property string $password
  * @property UserRole $role
  * @property bool $is_active
+ * @property int|null $forecast_divisor_days
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -47,6 +48,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'password' => 'hashed',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'forecast_divisor_days' => 'integer',
         ];
     }
 

@@ -8,7 +8,7 @@
     </div>
 @else
     <p class="thermometer-legend">
-        O saldo acumulado soma entradas e subtrai saídas, diários, economias e cartão.
+        O saldo acumulado soma entradas e subtrai saídas, economias, cartão e a previsão diária.
         Lançamentos pendentes entram a partir de hoje e aparecem marcados como projeção.
     </p>
 

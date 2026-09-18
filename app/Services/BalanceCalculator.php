@@ -16,6 +16,10 @@ class BalanceCalculator
 {
     private const GRID_DAYS = 31;
 
+    public function __construct(
+        private readonly DailyForecastCalculator $forecastCalculator,
+    ) {}
+
     /**
      * Realized balance up to the given date, clamped to today.
      *
@@ -31,17 +35,23 @@ class BalanceCalculator
 
     /**
      * Projected balance: today's realized balance plus the pending future
-     * transactions up to the given date.
+     * transactions and the daily forecast up to the given date.
      */
     public function projected(User $user, CarbonImmutable|string $date): string
     {
         $target = $this->toDate($date);
         $today = $this->today();
+        $forecastFrom = $this->forecastStart($user);
 
         $total = (float) $this->realized($user, $today);
 
         if ($target->greaterThanOrEqualTo($today)) {
             $total += $this->signedDelta($this->pendingUpTo($user, $target));
+        }
+
+        if ($target->greaterThanOrEqualTo($forecastFrom)) {
+            $days = $this->forecastDays($forecastFrom, $target);
+            $total -= $days * (float) $this->forecastCalculator->dailyAmount($user);
         }
 
         return $this->format($total);
@@ -115,10 +125,13 @@ class BalanceCalculator
      * projected balance column.
      *
      * Realized transactions always count on their date; pending ones only from
-     * today onward; skipped ones never count. The balance is continuous across
-     * months, so every day satisfies: balance = previous balance + day columns.
+     * today onward; skipped ones never count. The daily forecast subtracts its
+     * daily amount from today onward — or from the initial balance base date,
+     * when that date is in the future — and never becomes realized. The balance
+     * is continuous across months, so every day satisfies:
+     * balance = previous balance + day columns.
      *
-     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, forecast: string, savings: string, card: string, balance: string, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, forecast: string, savings: string, card: string}}>
      */
     public function horizonGrid(User $user, int $year, int $month, int $months): array
     {
@@ -126,9 +139,15 @@ class BalanceCalculator
         $start = CarbonImmutable::create($year, $month, 1)->startOfDay();
         $end = $start->addMonthsNoOverflow($months - 1)->endOfMonth();
         $today = $this->today();
+        $forecastFrom = $this->forecastStart($user);
+        $forecastDaily = (float) $this->forecastCalculator->dailyAmount($user);
 
         $running = $this->initialAmount($user) + $this->realizedDelta($user, $start->subDay());
         $running += $this->signedDelta($this->pendingUpTo($user, $start->subDay()));
+
+        if ($start->greaterThan($forecastFrom)) {
+            $running -= $this->forecastDays($forecastFrom, $start->subDay()) * $forecastDaily;
+        }
 
         /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
         $realizedByDay = $this->groupByDay($this->withBaseDate($user, $this->transactions($user)
@@ -150,12 +169,12 @@ class BalanceCalculator
             $first = $start->addMonthsNoOverflow($offset);
             $last = $first->endOfMonth();
             $days = [];
-            $totals = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+            $totals = ['income' => 0.0, 'expense' => 0.0, 'forecast' => 0.0, 'savings' => 0.0, 'card' => 0.0];
 
             for ($day = 1; $day <= $last->day; $day++) {
                 $date = $first->setDay($day);
                 $key = $date->toDateString();
-                $values = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+                $values = ['income' => 0.0, 'expense' => 0.0, 'forecast' => 0.0, 'savings' => 0.0, 'card' => 0.0];
 
                 $realizedOnDay = $realizedByDay->get($key, new Collection);
                 $pendingOnDay = $pendingByDay->get($key, new Collection);
@@ -167,6 +186,10 @@ class BalanceCalculator
                         $running += $transaction->type->sign() * $amount;
                     }
                 }
+
+                $forecast = $date->greaterThanOrEqualTo($forecastFrom) ? $forecastDaily : 0.0;
+                $values['forecast'] = $forecast;
+                $running -= $forecast;
 
                 foreach ($values as $type => $amount) {
                     $totals[$type] += $amount;
@@ -181,7 +204,7 @@ class BalanceCalculator
                     'date' => $key,
                     'income' => $this->format($values['income']),
                     'expense' => $this->format($values['expense']),
-                    'daily' => $this->format($values['daily']),
+                    'forecast' => $this->format($values['forecast']),
                     'savings' => $this->format($values['savings']),
                     'card' => $this->format($values['card']),
                     'balance' => $this->format($running),
@@ -202,7 +225,7 @@ class BalanceCalculator
                 'totals' => [
                     'income' => $this->format($totals['income']),
                     'expense' => $this->format($totals['expense']),
-                    'daily' => $this->format($totals['daily']),
+                    'forecast' => $this->format($totals['forecast']),
                     'savings' => $this->format($totals['savings']),
                     'card' => $this->format($totals['card']),
                 ],
@@ -259,6 +282,26 @@ class BalanceCalculator
             ->where('status', TransactionStatus::Pending)
             ->whereBetween('date', [$this->today()->toDateString(), $target->toDateString()]))
             ->get();
+    }
+
+    /**
+     * First day the daily forecast applies: the initial balance base date when
+     * it is in the future, today otherwise.
+     */
+    private function forecastStart(User $user): CarbonImmutable
+    {
+        $today = $this->today();
+        $baseDate = $this->baseDate($user);
+
+        return $baseDate !== null && $baseDate->greaterThan($today) ? $baseDate : $today;
+    }
+
+    /**
+     * Number of calendar days in the inclusive range.
+     */
+    private function forecastDays(CarbonImmutable $from, CarbonImmutable $to): int
+    {
+        return (int) $from->diffInDays($to) + 1;
     }
 
     /**

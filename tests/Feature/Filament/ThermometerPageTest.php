@@ -1,9 +1,11 @@
 <?php
 
+use App\Enums\ThermometerColumn;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Pages\ThermometerPage;
 use App\Models\AccountPlan;
+use App\Models\DailyForecast;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
 use App\Models\Tag;
@@ -334,19 +336,19 @@ it('prefills the creation form with the clicked date and type', function () {
     Livewire::test(ThermometerPage::class)
         ->callAction('addMovement', data: [
             'date' => '2026-01-08',
-            'type' => TransactionType::Daily->value,
+            'type' => TransactionType::Savings->value,
             'amount' => 30,
             'status' => TransactionStatus::Realized->value,
         ], arguments: [
             'date' => '2026-01-08',
-            'type' => TransactionType::Daily->value,
+            'type' => TransactionType::Savings->value,
         ])
         ->assertHasNoActionErrors();
 
     $movement = DailyTransaction::firstOrFail();
 
     expect($movement->date->toDateString())->toBe('2026-01-08')
-        ->and($movement->type)->toBe(TransactionType::Daily);
+        ->and($movement->type)->toBe(TransactionType::Savings);
 });
 
 it('rejects a non positive amount from the grid', function () {
@@ -356,10 +358,10 @@ it('rejects a non positive amount from the grid', function () {
     Livewire::test(ThermometerPage::class)
         ->callAction('addMovement', data: [
             'date' => '2026-01-08',
-            'type' => TransactionType::Daily->value,
+            'type' => TransactionType::Savings->value,
             'amount' => 0,
             'status' => TransactionStatus::Realized->value,
-        ], arguments: ['date' => '2026-01-08', 'type' => TransactionType::Daily->value])
+        ], arguments: ['date' => '2026-01-08', 'type' => TransactionType::Savings->value])
         ->assertHasActionErrors(['amount']);
 
     expect(DailyTransaction::count())->toBe(0);
@@ -424,8 +426,8 @@ it('keeps a skipped recurring occurrence out of the next generator run', functio
     $this->actingAs($user);
 
     $plan = AccountPlan::create([
-        'type' => TransactionType::Daily,
-        'description' => 'Diário',
+        'type' => TransactionType::Expense,
+        'description' => 'Assinatura diária',
         'expected_amount' => 49.67,
         'frequency' => 'daily',
         'starts_at' => '2026-09-10',
@@ -550,4 +552,34 @@ it('colors balance cells outside the current month', function () {
         ->set('month', 10)
         ->set('months', 1)
         ->assertSeeHtml('data-balance-color="dark-green"');
+});
+
+it('replaces the daily column with a read only daily forecast column', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+    DailyForecast::create(['description' => 'Mercado', 'amount' => 300]);
+
+    $component = Livewire::test(ThermometerPage::class);
+
+    expect($component->instance()->columns)->toBe(ThermometerColumn::cases());
+
+    $component
+        ->assertSee('Previsão diária')
+        ->assertDontSee('Diários')
+        ->assertSee('R$ 10,00')
+        ->assertSeeHtml('thermometer-value-static')
+        ->assertSeeHtml('data-type="forecast"')
+        ->assertDontSeeHtml("type: 'forecast'");
+});
+
+it('shows zero in the forecast column when there are no items', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ThermometerPage::class)
+        ->assertSee('Previsão diária')
+        ->assertSee('R$ 0,00');
 });

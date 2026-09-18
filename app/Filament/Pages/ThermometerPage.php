@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Enums\Month;
+use App\Enums\ThermometerColumn;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Concerns\VisibleToNonAdmins;
@@ -125,10 +126,21 @@ class ThermometerPage extends Page
     }
 
     /**
-     * @return array<int, TransactionType>
+     * @return array<int, ThermometerColumn>
      */
     #[Computed]
     public function columns(): array
+    {
+        return ThermometerColumn::cases();
+    }
+
+    /**
+     * Real transaction types available in the movement detail panel.
+     *
+     * @return array<int, TransactionType>
+     */
+    #[Computed]
+    public function movementTypes(): array
     {
         return TransactionType::cases();
     }
