@@ -242,19 +242,23 @@ it('lists the movements of a cell in the detail panel', function () {
     $this->actingAs($user);
     $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
 
-    $tag = Tag::create(['name' => 'Saúde']);
+    $tag = Tag::create(['name' => 'Saúde', 'color' => 'purple']);
+    $secondTag = Tag::create(['name' => 'Casa', 'color' => 'teal']);
     $movement = DailyTransaction::create([
         'date' => '2026-09-05',
         'type' => TransactionType::Expense->value,
         'amount' => 150,
         'description' => 'Psicólogo',
     ]);
-    $movement->tags()->attach($tag);
+    $movement->tags()->attach([$tag->id, $secondTag->id]);
 
     Livewire::test(ThermometerPage::class)
         ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Expense->value])
         ->assertMountedActionModalSee('Psicólogo')
         ->assertMountedActionModalSee('Saúde')
+        ->assertMountedActionModalSee('Casa')
+        ->assertMountedActionModalSeeHtml('fi-color-purple')
+        ->assertMountedActionModalSeeHtml('fi-color-teal')
         ->assertMountedActionModalSee('R$ 150,00');
 });
 
@@ -266,6 +270,22 @@ it('shows the empty state when a cell has no movements', function () {
     Livewire::test(ThermometerPage::class)
         ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
         ->assertMountedActionModalSee('Sem movimentações por aqui');
+});
+
+it('does not show tags in the thermometer grid', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Saúde']);
+    $movement = DailyTransaction::factory()->create([
+        'user_id' => $user->id,
+        'date' => '2026-09-05',
+    ]);
+    $movement->tags()->attach($tag);
+
+    Livewire::test(ThermometerPage::class)
+        ->assertDontSee('Saúde');
 });
 
 it('filters the detail panel by type', function () {

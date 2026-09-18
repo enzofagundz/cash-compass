@@ -55,6 +55,61 @@ it('creates a transaction with tags', function () {
     expect(DailyTransaction::firstOrFail()->tags->pluck('name')->all())->toBe(['Saúde']);
 });
 
+it('creates a tag with a color from the transaction selector', function () {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->callAction(TestAction::make('createOption')->schemaComponent('tags'), data: [
+            'name' => 'Academia',
+            'color' => 'purple',
+        ]);
+
+    expect(Tag::firstOrFail()->name)->toBe('Academia')
+        ->and(Tag::firstOrFail()->color->value)->toBe('purple');
+});
+
+it('reuses an active tag when quick creation receives an equivalent name', function () {
+    $this->actingAs(User::factory()->create());
+    $tag = Tag::create(['name' => 'Academia', 'color' => 'blue']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->callAction(TestAction::make('createOption')->schemaComponent('tags'), data: [
+            'name' => '  academia ',
+            'color' => 'purple',
+        ]);
+
+    expect(Tag::count())->toBe(1)
+        ->and($tag->refresh()->color->value)->toBe('blue');
+});
+
+it('uses the neutral color by default when quickly creating a tag', function () {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->callAction(TestAction::make('createOption')->schemaComponent('tags'), data: [
+            'name' => 'Academia',
+        ]);
+
+    expect(Tag::firstOrFail()->color->value)->toBe('neutral');
+});
+
+it('rejects quick creation when the equivalent tag is archived', function () {
+    $this->actingAs(User::factory()->create());
+    $tag = Tag::create(['name' => 'Academia']);
+    $tag->archive();
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->callAction(TestAction::make('createOption')->schemaComponent('tags'), data: [
+            'name' => 'academia',
+            'color' => 'purple',
+        ])
+        ->assertHasActionErrors();
+});
+
 it('does not attach another users tag to a transaction', function () {
     $this->travelTo('2026-01-31');
     $user = User::factory()->create();
@@ -78,6 +133,28 @@ it('does not attach another users tag to a transaction', function () {
     expect(DailyTransaction::count())->toBe(0);
 });
 
+it('shows up to two colored tags and an overflow count in the transaction table', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $transaction = DailyTransaction::factory()->create([
+        'user_id' => $user->id,
+        'description' => 'Compra',
+    ]);
+    $first = Tag::create(['name' => 'Casa', 'color' => 'blue']);
+    $second = Tag::create(['name' => 'Lazer', 'color' => 'purple']);
+    $third = Tag::create(['name' => 'Saúde', 'color' => 'teal']);
+    $transaction->tags()->attach([$first->id, $second->id, $third->id]);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->assertSee('Casa')
+        ->assertSee('Lazer')
+        ->assertSee('+1')
+        ->assertSeeHtml('fi-color-blue')
+        ->assertSeeHtml('fi-color-purple')
+        ->assertDontSee('fi-color-teal');
+});
+
 it('rejects a non-positive amount', function (float $amount) {
     $this->actingAs(User::factory()->create());
 
@@ -92,6 +169,66 @@ it('rejects a non-positive amount', function (float $amount) {
 
     expect(DailyTransaction::count())->toBe(0);
 })->with([0, -10]);
+
+it('shows an archived linked tag while editing a transaction', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Academia']);
+    $tag->archive();
+    $transaction = DailyTransaction::factory()->create(['user_id' => $user->id]);
+    $transaction->tags()->attach($tag);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction(TestAction::make('edit')->table($transaction))
+        ->assertMountedActionModalSee('Academia')
+        ->assertMountedActionModalSee('arquivada');
+});
+
+it('does not attach an archived tag to a new transaction', function () {
+    $this->actingAs(User::factory()->create());
+    $tag = Tag::create(['name' => 'Academia']);
+    $tag->archive();
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-05',
+            'type' => TransactionType::Expense->value,
+            'amount' => 150,
+            'status' => TransactionStatus::Realized->value,
+            'tags' => [$tag->id],
+        ])
+        ->assertHasActionErrors(['tags.0']);
+
+    expect(DailyTransaction::count())->toBe(0);
+});
+
+it('preserves an archived linked tag when editing another transaction field', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Academia']);
+    $tag->archive();
+    $transaction = DailyTransaction::factory()->create([
+        'user_id' => $user->id,
+        'description' => 'Original',
+    ]);
+    $transaction->tags()->attach($tag);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($transaction), data: [
+            'date' => $transaction->date->toDateString(),
+            'type' => $transaction->type->value,
+            'amount' => $transaction->amount,
+            'description' => 'Atualizado',
+            'status' => $transaction->status->value,
+            'tags' => [$tag->id],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($transaction->refresh()->description)->toBe('Atualizado')
+        ->and($transaction->tags->pluck('id')->all())->toBe([$tag->id]);
+});
 
 it('allows several manual transactions on the same day alongside a generated one', function () {
     $this->travelTo('2026-01-01');
