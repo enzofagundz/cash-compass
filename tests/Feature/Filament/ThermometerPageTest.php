@@ -170,7 +170,11 @@ it('marks pending movements as projections and keeps them in the balance', funct
         ->and($days[16]['balance'])->toBe('6000.00')
         ->and($days[16]['pending_types'])->toBe(['income']);
 
-    $component->assertSee('proj.');
+    $component
+        ->assertSeeHtml('<span class="thermometer-value">R$ 1.000,00</span>')
+        ->assertSeeHtml('<span class="thermometer-value thermometer-value-projection">R$ 5.000,00</span>')
+        ->assertSeeHtml('total R$ 5.000,00, com projeções')
+        ->assertDontSee('proj.');
 });
 
 it('does not show another users movement', function () {
