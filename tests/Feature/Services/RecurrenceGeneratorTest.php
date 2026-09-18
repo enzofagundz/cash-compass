@@ -210,6 +210,29 @@ it('copies the plan tags to the generated transactions', function () {
         ->and($transactions->last()->tags->pluck('name')->all())->toBe(['Assinaturas']);
 });
 
+it('keeps archived plan tags on pending generated transactions', function () {
+    $this->travelTo('2026-01-01');
+    $this->actingAs(User::factory()->create());
+
+    $tag = Tag::create(['name' => 'Assinaturas']);
+    $plan = AccountPlan::create([
+        'type' => 'expense',
+        'description' => 'Streaming',
+        'expected_amount' => 50,
+        'frequency' => RecurrenceFrequency::Monthly,
+        'day_of_month' => 5,
+        'starts_at' => '2026-01-01',
+    ]);
+    $plan->tags()->attach($tag);
+    $tag->archive();
+
+    app(RecurrenceGenerator::class)->generate($plan, CarbonImmutable::parse('2026-01-01'));
+
+    expect($plan->refresh()->tags->pluck('id')->all())->toBe([$tag->id])
+        ->and($plan->dailyTransactions()->orderBy('date')->first()->tags->pluck('id')->all())
+        ->toBe([$tag->id]);
+});
+
 it('does not regenerate an occurrence that was skipped', function () {
     $this->travelTo('2026-01-01');
     $this->actingAs(User::factory()->create());
