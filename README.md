@@ -95,8 +95,8 @@ Os testes usam SQLite em memória (`phpunit.xml`) e não dependem do banco do le
 app/
 ├── Concerns/       # BelongsToUser: isolamento por usuário
 ├── Console/        # comandos agendados (recurrence:tick, app:ping-scheduler)
-├── Enums/          # TransactionType, TransactionStatus, RecurrenceFrequency, UserRole, Month
-├── Filament/       # painel: Pages (Termômetro, Saldo inicial) e Resources
+├── Enums/          # TransactionType, TransactionStatus, RecurrenceFrequency, UserRole, Month, TagColor
+├── Filament/       # painel: Pages, Resources (incluindo Tags) e concerns compartilhados
 ├── Models/         # User, AccountPlan, DailyTransaction, Tag, DayCheckIn, UserInitialBalance
 ├── Observers/      # AccountPlanObserver: gera/cancela ocorrências
 ├── Policies/       # UserPolicy

@@ -78,8 +78,8 @@ policies: "app/Policies/UserPolicy — autorização de administração de usuá
 services: "app/Services — BalanceCalculator, RecurrenceCalculator, RecurrenceGenerator"
 console: "app/Console/Commands — comandos agendados"
 filament_pages: "app/Filament/Pages — Termômetro e Saldo inicial"
-filament_resources: "app/Filament/Resources — Lançamentos, Planos de contas, Usuários"
-filament_concerns: "app/Filament/Concerns/VisibleToNonAdmins — acesso de páginas/recursos a não-admins"
+filament_resources: "app/Filament/Resources — Lançamentos, Planos de contas, Tags, Usuários"
+filament_concerns: "app/Filament/Concerns — VisibleToNonAdmins para acesso de não-admins, HasTagSelector para seleção/criação rápida e HasTagColorField para configuração visual compartilhada"
 views: "resources/views/filament — Blade do painel"
 ```
 
@@ -124,7 +124,9 @@ DailyTransaction:
 
 Tag:
   tabela: "tags"
-  campos: "name; unique(user_id, name)"
+  campos: "name, normalized_name, color (TagColor), is_active"
+  unicidade: "unique(user_id, normalized_name), incluindo tags arquivadas"
+  regras: "nome normalizado por espaços e caixa; cor somente visual; ativa por padrão; arquivar preserva vínculos; excluir somente sem vínculos"
   relacoes: "belongsToMany dailyTransactions, accountPlans"
 
 DayCheckIn:
@@ -140,6 +142,7 @@ TransactionStatus: "pending, realized (default), skipped"
 RecurrenceFrequency: "daily, weekly, biweekly, monthly, yearly, installment"
 UserRole: "user, admin"
 Month: "meses de 1 a 12 com labels pt-BR"
+TagColor: "neutral, red, orange, yellow, green, teal, blue, indigo, purple; paleta visual fixa"
 ```
 
 ### Isolamento por Usuário (BelongsToUser)
@@ -200,7 +203,7 @@ admin:
 
 usuario_nao_admin:
   definicao: "role = user"
-  acesso: "Termômetro, Saldo inicial, Lançamentos, Planos de contas"
+  acesso: "Termômetro, Saldo inicial, Lançamentos, Planos de contas, Tags"
   bloqueios: "UserResource não registra navegação e UserPolicy nega ações administrativas"
 
 painel:
@@ -219,6 +222,7 @@ AppPanelProvider:
   path: "/"
   autenticacao: "login, registration, passwordReset, emailVerification, profile"
   cor_primaria: "Amber"
+  cores_tags: "paleta TagColor registrada em colors() (red…purple); sem registro o Filament não gera as classes fi-color-* e as badges ficam sem cor"
   tema: "resources/css/filament/app/theme.css"
   descoberta: "app/Filament/Resources, Pages, Widgets"
   home: "GET / → RedirectToHomeController (route panel home)"
@@ -234,6 +238,12 @@ recursos:
     pagina: "ManageAccountPlans"
     filtros: "tipo, frequência, ativo"
     acoes_linha: "Editar (regera ocorrências), Excluir (bloqueado com realizados)"
+  TagResource:
+    label: "Tags"
+    pagina: "ManageTags (única, modal)"
+    visibilidade: "somente usuários não-admin, sempre isolado por user_id"
+    listagem: "ativas por padrão, busca por nome, filtro ativas/arquivadas/todas, contagens de lançamentos e planos"
+    acoes_linha: "Editar nome/cor, Arquivar, Reativar, Excluir somente sem vínculos"
   UserResource:
     label: "Usuários"
     pagina: "ManageUsers"
@@ -267,7 +277,7 @@ paginas:
 
 ```yaml
 rotas_web: "routes/web.php — apenas redirects 301 de aliases legados"
-rotas_filament: "geradas pelo painel app na raiz; /thermometer e /initial-balance visíveis aos não-admins autenticados"
+rotas_filament: "geradas pelo painel app na raiz; /thermometer, /initial-balance e /tags visíveis aos não-admins autenticados"
 api: "inexistente"
 frontend:
   bundler: "Vite 8 + vite-plus (scripts: vp dev / vp build)"
@@ -395,6 +405,8 @@ Regras adicionais:
 - Aplicar `laravel-best-practices`, `livewire-development` e `filament-specialist` (skills) conforme a área tocada.
 - Não alterar o global scope `BelongsToUser` nem aceitar `user_id` do navegador.
 - Preservar a continuidade do saldo e a semântica dos status (`pending`/`realized`/`skipped`).
+- Tags são classificações visuais privadas por usuário; `TagColor` usa paleta fixa e não participa de cálculos, filtros financeiros ou relatórios.
+- Tags arquivadas permanecem nos lançamentos e planos existentes, inclusive nas ocorrências pendentes de planos recorrentes; novos vínculos aceitam somente tags ativas.
 - Ao alterar o Termômetro ou o `BalanceCalculator`, atualizar/executar os testes correspondentes em `tests/Feature/Filament/ThermometerPageTest.php` e `tests/Feature/Services/BalanceCalculatorTest.php`.
 - Nunca comitar `.references/` (não versionado) nem credenciais reais em código ou documentação.
 
