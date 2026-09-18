@@ -5,11 +5,11 @@ namespace App\Filament\Resources\DailyTransactions;
 use App\Enums\Month;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Filament\Concerns\HasTagSelector;
 use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Resources\DailyTransactions\Pages\ManageDailyTransactions;
 use App\Models\AccountPlan;
 use App\Models\DailyTransaction;
-use App\Models\Tag;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -22,15 +22,16 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rules\Unique;
 
 class DailyTransactionResource extends Resource
 {
+    use HasTagSelector;
     use VisibleToNonAdmins;
 
     protected static ?string $model = DailyTransaction::class;
@@ -85,20 +86,7 @@ class DailyTransactionResource extends Resource
                     ->all())
                 ->searchable()
                 ->preload(),
-            Select::make('tags')
-                ->label('Tags')
-                ->relationship('tags', 'name')
-                ->multiple()
-                ->searchable()
-                ->preload()
-                ->createOptionForm([
-                    TextInput::make('name')
-                        ->label('Nome')
-                        ->required()
-                        ->maxLength(255)
-                        ->unique('tags', 'name', modifyRuleUsing: fn (Unique $rule): Unique => $rule->where('user_id', auth()->id())),
-                ])
-                ->createOptionUsing(fn (array $data): int => Tag::create($data)->getKey()),
+            self::tagSelector(),
             Select::make('status')
                 ->label('Status')
                 ->options(collect(TransactionStatus::cases())
@@ -132,6 +120,9 @@ class DailyTransactionResource extends Resource
                     ->label('Descrição')
                     ->searchable()
                     ->placeholder('—'),
+                ViewColumn::make('tags')
+                    ->label('Tags')
+                    ->view('filament.tables.columns.tag-list'),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -201,6 +192,11 @@ class DailyTransactionResource extends Resource
                 DeleteAction::make()
                     ->label('Excluir'),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with('tags');
     }
 
     public static function getPages(): array

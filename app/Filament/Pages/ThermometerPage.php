@@ -300,7 +300,7 @@ class ThermometerPage extends Page
                 'id' => $movement->getKey(),
                 'description' => $movement->description ?: 'Sem descrição',
                 'date' => $movement->date->format('d/m'),
-                'tags' => $movement->tags->pluck('name')->implode(', '),
+                'tags' => $movement->tags->all(),
                 'amount' => 'R$ '.number_format((float) $movement->amount, 2, ',', '.'),
                 'type' => $movement->type->label(),
                 'status' => $movement->status->label(),

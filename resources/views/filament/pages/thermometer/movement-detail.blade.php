@@ -56,13 +56,18 @@
 
                     <span class="thermometer-movement-meta">
                         {{ $movement['date'] }} · {{ $movement['type'] }} · {{ $movement['status'] }}
-                        @if ($movement['tags'] !== '')
-                            · {{ $movement['tags'] }}
-                        @endif
                         @if ($movement['is_recurring'])
                             · recorrente
                         @endif
                     </span>
+
+                    @if ($movement['tags'] !== [])
+                        <div class="flex flex-wrap items-center gap-1">
+                            @foreach ($movement['tags'] as $tag)
+                                <x-tag-badge :tag="$tag" />
+                            @endforeach
+                        </div>
+                    @endif
 
                     @unless ($movement['counts'])
                         <span class="thermometer-movement-excluded">Fora do cálculo desta célula.</span>
