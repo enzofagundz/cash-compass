@@ -28,6 +28,7 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('/')
+            ->brandName(fn () => config('app.name'))
             ->login()
             ->registration()
             ->passwordReset()
