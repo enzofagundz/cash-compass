@@ -417,6 +417,28 @@ class ThermometerPage extends Page
         DayCheckIn::toggleFor($user, $day);
     }
 
+    /**
+     * Open the day detail panel from a grid cell.
+     */
+    public function openCell(string $date, ?string $type = null): void
+    {
+        $arguments = ['date' => $date];
+
+        if ($type !== null) {
+            $arguments['type'] = $type;
+        }
+
+        $this->mountAction('openCell', $arguments);
+    }
+
+    /**
+     * Open the quick add modal from a grid cell.
+     */
+    public function addMovement(string $date, string $type): void
+    {
+        $this->mountAction('addMovement', ['date' => $date, 'type' => $type]);
+    }
+
     public function selectPeriodAction(): Action
     {
         return Action::make('selectPeriod')
