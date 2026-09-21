@@ -24,6 +24,21 @@ it('accumulates the realized balance across days', function () {
         ->and($calculator->realized($user, '2026-01-03'))->toBe('800.00');
 });
 
+it('exposes the horizon balance in cents', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+    DailyTransaction::create(['date' => '2026-09-02', 'type' => TransactionType::Expense->value, 'amount' => 1600]);
+
+    $days = collect(app(BalanceCalculator::class)->horizonGrid($user, 2026, 9, 1)[0]['days'])->keyBy('day');
+
+    expect($days[1]['balance'])->toBe('1000.00')
+        ->and($days[1]['balance_cents'])->toBe(100000)
+        ->and($days[2]['balance'])->toBe('-600.00')
+        ->and($days[2]['balance_cents'])->toBe(-60000);
+});
+
 it('recalculates every later day when a past transaction is edited', function () {
     $this->travelTo('2026-01-31');
     $user = User::factory()->create();
