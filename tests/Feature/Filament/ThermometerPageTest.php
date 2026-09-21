@@ -693,6 +693,6 @@ it('stays inside the render budget of the twelve month horizon', function () {
 
     $response->assertOk();
 
-    expect($queries)->toBeLessThanOrEqual(25)
+    expect($queries)->toBeLessThanOrEqual(10)
         ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_800_000);
 });
