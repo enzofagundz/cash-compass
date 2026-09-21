@@ -48,16 +48,10 @@ class ThermometerGrid
     }
 
     /**
-     * Background range identifier for a daily accumulated balance.
+     * Background range identifier for a daily accumulated balance in cents.
      */
-    public function balanceColor(string $balance): string
+    public function balanceColor(int $cents): string
     {
-        $cents = (int) (preg_replace('/[^0-9]/', '', $balance) ?? '');
-
-        if (str_starts_with($balance, '-')) {
-            $cents = -$cents;
-        }
-
         if ($cents <= -50000) {
             return 'dark-red';
         }
@@ -92,7 +86,7 @@ class ThermometerGrid
             'short_date' => $date->format('d/m/Y'),
             'is_weekend' => $date->isWeekend(),
             'is_checked_in' => isset($checkIns[$day['date']]),
-            'balance_color' => $this->balanceColor($day['balance']),
+            'balance_color' => $this->balanceColor($day['balance_cents']),
             'filled_types' => $this->filledTypes($day),
         ];
     }

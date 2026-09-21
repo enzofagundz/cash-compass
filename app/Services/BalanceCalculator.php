@@ -48,14 +48,18 @@ class BalanceCalculator
      */
     public function realized(User $user, CarbonImmutable|string $date): string
     {
-        $target = $this->limitToToday($this->toDate($date));
+        return $this->centsToString($this->realizedCents($user, $this->limitToToday($this->toDate($date))));
+    }
+
+    private function realizedCents(User $user, CarbonImmutable $target): int
+    {
         $startsAt = $this->startsAt($user);
 
         if ($startsAt !== null && $target->lessThan($startsAt)) {
-            return $this->format(0.0);
+            return 0;
         }
 
-        return $this->format($this->initialAmount($user) + $this->realizedDelta($user, $target));
+        return $this->initialAmountCents($user) + $this->realizedDeltaCents($user, $target);
     }
 
     /**
@@ -99,24 +103,24 @@ class BalanceCalculator
         $startsAt = $this->startsAt($user);
 
         if ($startsAt !== null && $target->lessThan($startsAt)) {
-            return $this->format(0.0);
+            return $this->centsToString(0);
         }
 
         $today = $this->today();
         $forecastFrom = $this->forecastStart($user);
-        $forecastDaily = (float) $this->forecastCalculator->dailyAmount($user);
+        $forecastDaily = $this->forecastDailyCents($user);
 
-        $total = (float) $this->realized($user, $today);
+        $total = $this->realizedCents($user, $today);
 
         if ($startsAt !== null && $today->lessThan($startsAt)) {
-            $total = $this->initialAmount($user);
+            $total = $this->initialAmountCents($user);
         }
 
         if ($target->greaterThanOrEqualTo($today)) {
-            $total += $this->pendingDeltaUpTo($user, $target);
+            $total += $this->pendingDeltaCents($user, $target);
         }
 
-        if ($forecastDaily > 0.0 && $target->greaterThanOrEqualTo($forecastFrom)) {
+        if ($forecastDaily > 0 && $target->greaterThanOrEqualTo($forecastFrom)) {
             $total -= $this->forecastDaysWithoutDailyMovements(
                 $this->dailyMovementDays($user, $forecastFrom, $target),
                 $forecastFrom,
@@ -124,7 +128,7 @@ class BalanceCalculator
             ) * $forecastDaily;
         }
 
-        return $this->format($total);
+        return $this->centsToString($total);
     }
 
     /**
@@ -135,9 +139,9 @@ class BalanceCalculator
     public function dailyForecastFor(User $user, CarbonImmutable|string $date): ?string
     {
         $target = $this->toDate($date);
-        $forecastDaily = (float) $this->forecastCalculator->dailyAmount($user);
+        $forecastDaily = $this->forecastDailyCents($user);
 
-        if ($forecastDaily <= 0.0 || $target->lessThan($this->forecastStart($user))) {
+        if ($forecastDaily <= 0 || $target->lessThan($this->forecastStart($user))) {
             return null;
         }
 
@@ -145,7 +149,7 @@ class BalanceCalculator
             return null;
         }
 
-        return $this->format($forecastDaily);
+        return $this->centsToString($forecastDaily);
     }
 
     /**
@@ -162,7 +166,7 @@ class BalanceCalculator
      * balance is continuous across months, so every day satisfies:
      * balance = previous balance + day columns.
      *
-     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
      */
     public function horizonGrid(User $user, int $year, int $month, int $months): array
     {
@@ -171,21 +175,21 @@ class BalanceCalculator
         $end = $start->addMonthsNoOverflow($months - 1)->endOfMonth();
         $today = $this->today();
         $forecastStart = $this->forecastStart($user);
-        $forecastDaily = (float) $this->forecastCalculator->dailyAmount($user);
+        $forecastDaily = $this->forecastDailyCents($user);
         $balanceStartsAt = $this->startsAt($user);
-        $initialAmount = $this->initialAmount($user);
+        $initialAmount = $this->initialAmountCents($user);
 
-        $dailyMovementDays = $forecastDaily > 0.0
+        $dailyMovementDays = $forecastDaily > 0
             ? $this->dailyMovementDays($user, $forecastStart, $end)
             : collect();
 
         if ($balanceStartsAt !== null && ! $start->greaterThan($balanceStartsAt)) {
-            $running = 0.0;
+            $running = 0;
         } else {
-            $running = $initialAmount + $this->realizedDelta($user, $start->subDay());
-            $running += $this->pendingDeltaUpTo($user, $start->subDay());
+            $running = $initialAmount + $this->realizedDeltaCents($user, $start->subDay());
+            $running += $this->pendingDeltaCents($user, $start->subDay());
 
-            if ($forecastDaily > 0.0 && $start->greaterThan($forecastStart)) {
+            if ($forecastDaily > 0 && $start->greaterThan($forecastStart)) {
                 $running -= $this->forecastDaysWithoutDailyMovements($dailyMovementDays, $forecastStart, $start->subDay()) * $forecastDaily;
             }
         }
@@ -210,12 +214,12 @@ class BalanceCalculator
             $first = $start->addMonthsNoOverflow($offset);
             $last = $first->endOfMonth();
             $days = [];
-            $totals = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+            $totals = ['income' => 0, 'expense' => 0, 'daily' => 0, 'savings' => 0, 'card' => 0];
 
             for ($day = 1; $day <= $last->day; $day++) {
                 $date = $first->setDay($day);
                 $key = $date->toDateString();
-                $values = ['income' => 0.0, 'expense' => 0.0, 'daily' => 0.0, 'savings' => 0.0, 'card' => 0.0];
+                $values = ['income' => 0, 'expense' => 0, 'daily' => 0, 'savings' => 0, 'card' => 0];
 
                 if ($balanceStartsAt !== null && $date->equalTo($balanceStartsAt)) {
                     $running += $initialAmount;
@@ -226,13 +230,13 @@ class BalanceCalculator
 
                 foreach ([$realizedOnDay, $pendingOnDay] as $transactions) {
                     foreach ($transactions as $transaction) {
-                        $amount = (float) $transaction->amount;
+                        $amount = $this->toCents($transaction->amount);
                         $values[$transaction->type->value] += $amount;
                         $running += $transaction->type->sign() * $amount;
                     }
                 }
 
-                $projectsDaily = $forecastDaily > 0.0
+                $projectsDaily = $forecastDaily > 0
                     && $date->greaterThanOrEqualTo($forecastStart)
                     && ! $dailyMovementDays->contains($key);
 
@@ -258,12 +262,13 @@ class BalanceCalculator
                 $days[] = [
                     'day' => $day,
                     'date' => $key,
-                    'income' => $this->format($values['income']),
-                    'expense' => $this->format($values['expense']),
-                    'daily' => $this->format($values['daily']),
-                    'savings' => $this->format($values['savings']),
-                    'card' => $this->format($values['card']),
-                    'balance' => $this->format($running),
+                    'income' => $this->centsToString($values['income']),
+                    'expense' => $this->centsToString($values['expense']),
+                    'daily' => $this->centsToString($values['daily']),
+                    'savings' => $this->centsToString($values['savings']),
+                    'card' => $this->centsToString($values['card']),
+                    'balance' => $this->centsToString($running),
+                    'balance_cents' => $running,
                     'is_today' => $date->equalTo($today),
                     'is_future' => $date->greaterThan($today),
                     'pending_types' => array_values(array_filter(
@@ -283,11 +288,11 @@ class BalanceCalculator
                 'label' => $this->monthLabel($first),
                 'days' => $days,
                 'totals' => [
-                    'income' => $this->format($totals['income']),
-                    'expense' => $this->format($totals['expense']),
-                    'daily' => $this->format($totals['daily']),
-                    'savings' => $this->format($totals['savings']),
-                    'card' => $this->format($totals['card']),
+                    'income' => $this->centsToString($totals['income']),
+                    'expense' => $this->centsToString($totals['expense']),
+                    'daily' => $this->centsToString($totals['daily']),
+                    'savings' => $this->centsToString($totals['savings']),
+                    'card' => $this->centsToString($totals['card']),
                 ],
             ];
         }
@@ -296,11 +301,11 @@ class BalanceCalculator
     }
 
     /**
-     * Sum the signed realized transactions of the user up to the given date.
+     * Sum the signed realized transactions of the user up to the given date, in cents.
      */
-    private function realizedDelta(User $user, CarbonImmutable $upTo): float
+    private function realizedDeltaCents(User $user, CarbonImmutable $upTo): int
     {
-        return $this->signedTotal(
+        return $this->signedTotalCents(
             $this->withStart($user, $this->transactions($user)
                 ->where('status', TransactionStatus::Realized)
                 ->where('date', '<=', $upTo->toDateString()))
@@ -308,11 +313,11 @@ class BalanceCalculator
     }
 
     /**
-     * Sum the signed pending transactions of the user from today up to the target.
+     * Sum the signed pending transactions of the user from today up to the target, in cents.
      */
-    private function pendingDeltaUpTo(User $user, CarbonImmutable $target): float
+    private function pendingDeltaCents(User $user, CarbonImmutable $target): int
     {
-        return $this->signedTotal(
+        return $this->signedTotalCents(
             $this->withStart($user, $this->transactions($user)
                 ->where('status', TransactionStatus::Pending)
                 ->whereBetween('date', [$this->today()->toDateString(), $target->toDateString()]))
@@ -320,18 +325,19 @@ class BalanceCalculator
     }
 
     /**
-     * Signed sum of the amounts matched by the given query, aggregated by the database.
+     * Signed sum of the amounts matched by the given query, aggregated by the
+     * database and returned in cents.
      *
      * @param  Builder<DailyTransaction>  $query
      */
-    private function signedTotal(Builder $query): float
+    private function signedTotalCents(Builder $query): int
     {
         $row = $query->selectRaw(
             'COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN type != ? THEN amount ELSE 0 END), 0) as total',
             [TransactionType::Income->value, TransactionType::Income->value],
         )->first();
 
-        return (float) ($row->total ?? 0);
+        return $this->toCents($row->total ?? 0);
     }
 
     /**
@@ -426,11 +432,32 @@ class BalanceCalculator
         return $this->initialBalances[$key];
     }
 
-    private function initialAmount(User $user): float
+    private function initialAmountCents(User $user): int
     {
         $balance = $this->initialBalance($user);
 
-        return $balance === null ? 0.0 : (float) $balance->amount;
+        return $balance === null ? 0 : $this->toCents($balance->amount);
+    }
+
+    /**
+     * Daily forecast rate of the user, in cents.
+     */
+    private function forecastDailyCents(User $user): int
+    {
+        return $this->toCents($this->forecastCalculator->dailyAmount($user));
+    }
+
+    private function toCents(mixed $amount): int
+    {
+        return (int) round((float) $amount * 100);
+    }
+
+    private function centsToString(int $cents): string
+    {
+        $sign = $cents < 0 ? '-' : '';
+        $absolute = abs($cents);
+
+        return $sign.intdiv($absolute, 100).'.'.str_pad((string) ($absolute % 100), 2, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -459,11 +486,6 @@ class BalanceCalculator
         $today = $this->today();
 
         return $date->greaterThan($today) ? $today : $date;
-    }
-
-    private function format(float $value): string
-    {
-        return number_format($value, 2, '.', '');
     }
 
     private function monthLabel(CarbonImmutable $date): string
