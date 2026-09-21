@@ -1,5 +1,14 @@
 @php
     $months = $this->horizon;
+    $columns = $this->columns;
+    $badges = collect($columns)->mapWithKeys(fn ($type): array => [
+        $type->value => rtrim(view('filament.pages.thermometer.type-badge', ['type' => $type, 'filled' => true])->render()),
+    ])->all();
+    $badgeIcons = collect($columns)->mapWithKeys(fn ($type): array => [
+        $type->value => $type->badgeSymbol() !== null
+            ? '<svg class="thermometer-badge-icon" focusable="false"><use href="#'.$type->badgeSymbol().'" /></svg>'
+            : ($type->badgeLetter() ?? ''),
+    ])->all();
 @endphp
 
 @if ($months === [])
@@ -31,8 +40,9 @@
                     >
                         @include('filament.pages.thermometer.month-grid', [
                             'month' => $month,
-                            'isCurrentMonth' => $month['year'] === (int) now()->year
-                                && $month['month'] === (int) now()->month,
+                            'columns' => $columns,
+                            'badges' => $badges,
+                            'badgeIcons' => $badgeIcons,
                         ])
                     </div>
                 @endforeach

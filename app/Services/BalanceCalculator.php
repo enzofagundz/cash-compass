@@ -306,7 +306,7 @@ class BalanceCalculator
                         TransactionType::values(),
                         fn (string $value): bool => $pendingTypeValues->contains($value),
                     )),
-                    'projection_types' => array_values(array_filter(
+                    'projected_types' => array_values(array_filter(
                         TransactionType::values(),
                         fn (string $value): bool => in_array($value, $projectionTypeValues, true),
                     )),

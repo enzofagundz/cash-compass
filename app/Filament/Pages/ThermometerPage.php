@@ -6,6 +6,7 @@ use App\Enums\Month;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Concerns\VisibleToNonAdmins;
+use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Resources\DailyTransactions\DailyTransactionResource;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
@@ -31,7 +32,6 @@ use Livewire\Attributes\Url;
  * Daily financial spreadsheet across a multi-month horizon.
  *
  * @property-read array<int, array<string, mixed>> $horizon
- * @property-read array<string, bool> $checkIns
  * @property-read array<int, array<string, mixed>> $detailRows
  */
 class ThermometerPage extends Page
@@ -92,10 +92,16 @@ class ThermometerPage extends Page
 
     private DailyForecastCalculator $forecastCalculator;
 
-    public function boot(BalanceCalculator $balanceCalculator, DailyForecastCalculator $forecastCalculator): void
-    {
+    private ThermometerGrid $grid;
+
+    public function boot(
+        BalanceCalculator $balanceCalculator,
+        DailyForecastCalculator $forecastCalculator,
+        ThermometerGrid $grid,
+    ): void {
         $this->balanceCalculator = $balanceCalculator;
         $this->forecastCalculator = $forecastCalculator;
+        $this->grid = $grid;
     }
 
     public function mount(): void
@@ -138,7 +144,7 @@ class ThermometerPage extends Page
     }
 
     /**
-     * Monthly horizon, computed once per request.
+     * Monthly horizon with the data each grid row needs, computed once per request.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -151,36 +157,12 @@ class ThermometerPage extends Page
             return [];
         }
 
-        return $this->balanceCalculator->horizonGrid(
+        return $this->grid->months(
             $user,
             $this->resolvedYear(),
             $this->resolvedMonth(),
             $this->resolvedMonths(),
         );
-    }
-
-    /**
-     * Checked-in days keyed by date.
-     *
-     * @return array<string, bool>
-     */
-    #[Computed]
-    public function checkIns(): array
-    {
-        $user = auth()->user();
-
-        if (! $user instanceof User) {
-            return [];
-        }
-
-        [$start, $end] = $this->horizonRange();
-
-        return DayCheckIn::query()
-            ->forUser($user)
-            ->whereBetween('date', [$start, $end])
-            ->get()
-            ->mapWithKeys(fn (DayCheckIn $checkIn): array => [$checkIn->date->toDateString() => true])
-            ->all();
     }
 
     #[Computed]
@@ -277,43 +259,6 @@ class ThermometerPage extends Page
         return 'R$ '.number_format((float) $value, 2, ',', '.');
     }
 
-    /**
-     * Background range identifier for a daily accumulated balance.
-     */
-    public function balanceColor(string $balance): string
-    {
-        $cents = (int) (preg_replace('/[^0-9]/', '', $balance) ?? '');
-
-        if (str_starts_with($balance, '-')) {
-            $cents = -$cents;
-        }
-
-        if ($cents <= -50000) {
-            return 'dark-red';
-        }
-
-        if ($cents <= 0) {
-            return 'light-red';
-        }
-
-        if ($cents <= 100000) {
-            return 'light-yellow';
-        }
-
-        if ($cents <= 200000) {
-            return 'light-green';
-        }
-
-        return 'dark-green';
-    }
-
-    public function longDayLabel(string $date): string
-    {
-        $day = $this->sanitizeDate($date);
-
-        return $day === null ? '' : $this->longDay($day);
-    }
-
     public function detailLabel(): string
     {
         $date = $this->sanitizeDate($this->detailDate);
@@ -322,7 +267,7 @@ class ThermometerPage extends Page
             return '';
         }
 
-        return $this->longDay($date);
+        return $this->grid->dayLabel($date);
     }
 
     public function detailTypeLabel(): string
@@ -554,7 +499,7 @@ class ThermometerPage extends Page
     {
         return Action::make('addMovement')
             ->label('Adicionar movimentação')
-            ->modalHeading(fn (array $arguments): string => 'Adicionar em '.$this->longDay(
+            ->modalHeading(fn (array $arguments): string => 'Adicionar em '.$this->grid->dayLabel(
                 $this->sanitizeDate($arguments['date'] ?? null) ?? CarbonImmutable::now(),
             ))
             ->modalSubmitActionLabel('Salvar')
@@ -909,10 +854,5 @@ class ThermometerPage extends Page
     private function shortMonth(CarbonImmutable $date): string
     {
         return Month::from($date->month)->shortLabel().'/'.$date->year;
-    }
-
-    private function longDay(CarbonImmutable $date): string
-    {
-        return $date->day.' de '.mb_strtolower(Month::from($date->month)->label(), 'UTF-8').' de '.$date->year;
     }
 }
