@@ -580,8 +580,8 @@ it('shows the daily column with real movements and the quick add button', functi
         ->assertSeeHtml('data-type="daily"')
         ->assertDontSeeHtml('data-type="forecast"')
         ->assertSeeHtml('<span class="thermometer-value">R$ 30,00</span>')
-        ->assertSeeHtml("wire:click=\"mountAction('addMovement', { date: '2026-09-10', type: 'daily' })\"")
-        ->assertSeeHtml("wire:click=\"mountAction('openCell', { date: '2026-09-10', type: 'daily' })\"");
+        ->assertSeeHtml("wire:click=\"addMovement('2026-09-10','daily')\"")
+        ->assertSeeHtml("wire:click=\"openCell('2026-09-10','daily')\"");
 });
 
 it('projects the daily forecast on future days without a daily movement', function () {
@@ -593,8 +593,8 @@ it('projects the daily forecast on future days without a daily movement', functi
 
     Livewire::test(ThermometerPage::class)
         ->assertSeeHtml('thermometer-value thermometer-value-projection">R$ 10,00')
-        ->assertSeeHtml("wire:click=\"mountAction('addMovement', { date: '2026-09-16', type: 'daily' })\"")
-        ->assertSeeHtml("wire:click=\"mountAction('openCell', { date: '2026-09-16', type: 'daily' })\"");
+        ->assertSeeHtml("wire:click=\"addMovement('2026-09-16','daily')\"")
+        ->assertSeeHtml("wire:click=\"openCell('2026-09-16','daily')\"");
 });
 
 it('shows the daily forecast summary with a link to its management page', function () {
@@ -694,5 +694,5 @@ it('stays inside the render budget of the twelve month horizon', function () {
     $response->assertOk();
 
     expect($queries)->toBeLessThanOrEqual(10)
-        ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_800_000);
+        ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_550_000);
 });
