@@ -191,7 +191,8 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - `UserInitialBalance.base_date`, quando definida, é o início do saldo; quando vazia, o início é a data de criação do registro (`created_at`). Lançamentos anteriores ao início ficam fora do cálculo e dias anteriores exibem R$ 0,00; o valor do saldo inicial entra na linha do início, antes dos movimentos do dia.
 - O tipo `daily` existe apenas em lançamentos: planos de contas usam `TransactionType::planCases()`, sem Diário.
 - `BalanceCalculator` é a fonte única de verdade para saldos e grades; views não recalculam.
-- `monthGrid()` e `horizonGrid()` retornam arrays formatados com strings decimais (2 casas); a view apenas formata/exibe.
+- O saldo de abertura é somado pelo banco em uma consulta agregada (sinal derivado de `TransactionType::sign()`), e saldo inicial, data de início, dias com lançamento diário e total da previsão são memoizados por request; o custo do cálculo não cresce com o histórico de lançamentos. Memoização vale por request: o calculator só deve ser lido depois das mutações do mesmo request.
+- `horizonGrid()` retorna arrays formatados com strings decimais (2 casas); a view apenas formata/exibe.
 - Moeda: valores trafegam como `decimal:2`/string; formatação de exibição usa `R$` com vírgula decimal.
 - Observação registrada no guideline do Termômetro: robustez futura recomendada é calcular em centavos inteiros ou decimal, evitando aritmética acumulativa com `float`.
 
@@ -301,7 +302,7 @@ paginas:
 - Implementado: grade Blade própria (não tabela Filament), navegação temporal, limite de horizonte 1–12, detalhe em slide-over com ações por lançamento, check-in com bloqueio de futuro, cores de saldo por faixa e previsão de diário projetada na coluna Diários.
 - Orçamento de render: `composer test:thermometer-budget` valida teto de consultas (25) e de bytes de HTML (1,8 MB) para a grade de 12 meses; os dados de cada linha vêm prontos do `ThermometerGrid`.
 - Render da grade: cada página faz apenas 12 renders de `month-grid` + 5 de `type-badge` (badges pré-computados; a linha do dia é inline no `month-grid`, sem partial próprio).
-- Lacuna conhecida adiada: cada interação Livewire re-renderiza os 12 meses (~113–118 ms e ~1,6 MB de resposta hoje); o caminho mapeado é islands do Livewire por mês, que exige definir a regra de invalidação de saldo das mutações.
+- Custo de interação: abrir o detalhe do dia e o "adicionar" já é barato (o Filament devolve apenas o modal, sem re-render da grade); check-in e navegação de período re-renderizam os 12 meses (~120 ms e ~1,6 MB por clique). Islands do Livewire não servem para isolar por mês (não podem ficar dentro de um laço, não enxergam variáveis do template e o modal é desenhado fora da ilha); a alternativa de marcar o check-in no cliente foi descartada por decisão de produto.
 - Não implementado da referência: filtros `<select>` por coluna; tratar como pendência de produto, não como bug.
 - O guideline completo de UI/UX/acessibilidade está em `.references/termometro-guideline.md`; usar como referência de design.
 
