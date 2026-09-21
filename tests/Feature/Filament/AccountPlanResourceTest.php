@@ -32,6 +32,26 @@ it('lets users create an account plan from the panel', function () {
     expect($plan->dailyTransactions()->count())->toBe(12);
 });
 
+it('does not offer the daily type for account plans', function () {
+    $this->travelTo('2026-01-01');
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(ManageAccountPlans::class)
+        ->callAction('create', data: [
+            'type' => TransactionType::Daily->value,
+            'description' => 'Gasto diário',
+            'expected_amount' => 100,
+            'frequency' => RecurrenceFrequency::Monthly->value,
+            'interval' => 1,
+            'day_of_month' => 5,
+            'starts_at' => '2026-01-01',
+            'is_active' => true,
+        ])
+        ->assertHasActionErrors(['type']);
+
+    expect(AccountPlan::count())->toBe(0);
+});
+
 it('creates a plan with tags and propagates them to the occurrences', function () {
     $this->travelTo('2026-01-01');
     $this->actingAs(User::factory()->create());

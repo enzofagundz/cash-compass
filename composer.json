@@ -69,7 +69,11 @@
             "@php artisan config:clear --ansi",
             "@lint:check",
             "@types:check",
-            "@php artisan test"
+            "@php artisan test",
+            "@test:thermometer-budget"
+        ],
+        "test:thermometer-budget": [
+            "@php -d memory_limit=64M vendor/bin/pest --compact tests/Feature/Filament/ThermometerPageTest.php --filter=budget"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

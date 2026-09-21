@@ -12,5 +12,7 @@
         @endunless
 
         @include('filament.pages.thermometer.horizon-grid')
+
+        @include('filament.pages.thermometer.forecast-summary')
     </div>
 </x-filament-panels::page>

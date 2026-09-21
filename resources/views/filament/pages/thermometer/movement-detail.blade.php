@@ -1,5 +1,6 @@
 @php
     $addType = $this->detailType ?: App\Enums\TransactionType::Expense->value;
+    $dailyForecast = $this->detailDailyForecast;
 @endphp
 
 <div class="thermometer-detail">
@@ -33,7 +34,7 @@
             >
                 <option value="">Todos os tipos</option>
 
-                @foreach ($this->movementTypes as $type)
+                @foreach ($this->columns as $type)
                     <option value="{{ $type->value }}">{{ $type->columnLabel() }}</option>
                 @endforeach
             </select>
@@ -49,6 +50,10 @@
     </div>
 
     <div class="thermometer-detail-list">
+        @if ($dailyForecast !== null)
+            <p class="thermometer-legend">Previsão diária: {{ $this->formatMoney($dailyForecast) }}</p>
+        @endif
+
         @forelse ($this->detailRows as $movement)
             <div class="thermometer-movement" wire:key="thermometer-movement-{{ $movement['id'] }}">
                 <div class="thermometer-movement-body">

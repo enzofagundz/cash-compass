@@ -46,10 +46,18 @@ class InitialBalanceSettings extends Page
 
         $balance = $user->initialBalance()->first();
 
-        $this->form->fill($balance ? [
+        if ($balance === null) {
+            $this->form->fill([
+                'base_date' => now()->toDateString(),
+            ]);
+
+            return;
+        }
+
+        $this->form->fill([
             'amount' => $balance->amount,
             'base_date' => $balance->base_date?->format('Y-m-d'),
-        ] : []);
+        ]);
     }
 
     public function defaultForm(Schema $schema): Schema

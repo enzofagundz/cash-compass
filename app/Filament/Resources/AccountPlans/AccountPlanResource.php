@@ -59,7 +59,7 @@ class AccountPlanResource extends Resource
         return [
             Select::make('type')
                 ->label('Tipo')
-                ->options(collect(TransactionType::cases())
+                ->options(collect(TransactionType::planCases())
                     ->mapWithKeys(fn (TransactionType $type): array => [$type->value => $type->label()])
                     ->all())
                 ->required(),
@@ -167,7 +167,7 @@ class AccountPlanResource extends Resource
             ->filters([
                 SelectFilter::make('type')
                     ->label('Tipo')
-                    ->options(collect(TransactionType::cases())
+                    ->options(collect(TransactionType::planCases())
                         ->mapWithKeys(fn (TransactionType $type): array => [$type->value => $type->label()])
                         ->all()),
                 SelectFilter::make('frequency')

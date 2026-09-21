@@ -41,6 +41,7 @@ it('makes the base date optional when saving the initial balance', function () {
 
     Livewire::test(InitialBalanceSettings::class)
         ->set('data.amount', '1000.00')
+        ->set('data.base_date', null)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -48,4 +49,21 @@ it('makes the base date optional when saving the initial balance', function () {
 
     expect($balance->amount)->toBe('1000.00')
         ->and($balance->base_date)->toBeNull();
+});
+
+it('prefills today for a new initial balance', function () {
+    $this->travelTo('2026-09-15');
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(InitialBalanceSettings::class)
+        ->assertSet('data.base_date', '2026-09-15');
+});
+
+it('keeps an empty base date empty when reopening the form', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000]);
+
+    Livewire::test(InitialBalanceSettings::class)
+        ->assertSet('data.base_date', null);
 });

@@ -2,8 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\DailyForecastPage;
-use Filament\Actions\Action;
 use Filament\Http\Controllers\RedirectToHomeController;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -12,7 +10,6 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -37,13 +34,6 @@ class AppPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile()
-            ->userMenuItems([
-                Action::make('dailyForecast')
-                    ->label('Previsão de diário')
-                    ->icon(Heroicon::OutlinedCalculator)
-                    ->url(fn (): string => DailyForecastPage::getUrl())
-                    ->visible(fn (): bool => auth()->user()?->isAdmin() === false),
-            ])
             ->colors([
                 'primary' => Color::Amber,
                 'red' => Color::Red,

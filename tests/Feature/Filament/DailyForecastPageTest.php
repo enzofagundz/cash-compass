@@ -21,16 +21,16 @@ it('hides the daily forecast page from the sidebar navigation', function () {
     expect(DailyForecastPage::shouldRegisterNavigation())->toBeFalse();
 });
 
-it('shows the daily forecast link in the profile menu for regular users', function () {
+it('reaches the daily forecast page through the thermometer summary', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->followingRedirects()->get('/')->assertOk()->assertSee('Previsão de diário');
+    $this->followingRedirects()->get('/')->assertOk()->assertSee(DailyForecastPage::getUrl());
 });
 
-it('hides the daily forecast link from the admin profile menu', function () {
-    $this->actingAs(User::factory()->admin()->create());
+it('does not link the daily forecast page from the profile menu', function () {
+    $this->actingAs(User::factory()->create());
 
-    $this->followingRedirects()->get('/')->assertOk()->assertDontSee('Previsão de diário');
+    $this->get('/initial-balance')->assertOk()->assertDontSee(DailyForecastPage::getUrl());
 });
 
 it('shows an empty state when there are no items', function () {

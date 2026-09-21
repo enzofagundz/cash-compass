@@ -34,6 +34,28 @@ it('lets users create a manual transaction from the panel', function () {
         ->and($transaction->status)->toBe(TransactionStatus::Realized);
 });
 
+it('creates a daily transaction from the panel', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Daily->value,
+            'amount' => 45,
+            'description' => 'Café da rua',
+            'status' => TransactionStatus::Realized->value,
+        ])
+        ->assertHasNoActionErrors();
+
+    $transaction = DailyTransaction::firstOrFail();
+
+    expect($transaction->user_id)->toBe($user->id)
+        ->and($transaction->type)->toBe(TransactionType::Daily)
+        ->and($transaction->amount)->toBe('45.00');
+});
+
 it('creates a transaction with tags', function () {
     $this->travelTo('2026-01-31');
     $user = User::factory()->create();

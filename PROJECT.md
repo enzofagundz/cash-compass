@@ -75,9 +75,9 @@ models: "app/Models — Eloquent com casts, escopo por usuário e PHPDoc de prop
 concerns: "app/Concerns/BelongsToUser — isolamento por usuário"
 observers: "app/Observers/AccountPlanObserver — geração/cancelamento de ocorrências"
 policies: "app/Policies/UserPolicy — autorização de administração de usuários"
-services: "app/Services — BalanceCalculator, RecurrenceCalculator, RecurrenceGenerator"
+services: "app/Services — BalanceCalculator, DailyForecastCalculator, RecurrenceCalculator, RecurrenceGenerator"
 console: "app/Console/Commands — comandos agendados"
-filament_pages: "app/Filament/Pages — Termômetro e Saldo inicial"
+filament_pages: "app/Filament/Pages — Termômetro, Previsão de diário e Saldo inicial"
 filament_resources: "app/Filament/Resources — Lançamentos, Planos de contas, Tags, Usuários"
 filament_concerns: "app/Filament/Concerns — VisibleToNonAdmins para acesso de não-admins, HasTagSelector para seleção/criação rápida e HasTagColorField para configuração visual compartilhada"
 views: "resources/views/filament — Blade do painel"
@@ -100,7 +100,7 @@ views: "resources/views/filament — Blade do painel"
 ```yaml
 User:
   tabela: "users"
-  campos_proprios: "role (UserRole), is_active"
+  campos_proprios: "role (UserRole), is_active, forecast_divisor_days (1–31, padrão 30)"
   relacoes: "hasOne initialBalance"
   regras: "isAdmin() distingue admin; canAccessPanel exige is_active"
 
@@ -108,6 +108,7 @@ UserInitialBalance:
   tabela: "user_initial_balances"
   campos: "amount decimal(10,2) default 0, base_date date nullable"
   relacao: "um por usuário"
+  regras: "início = base_date ?? data de criação do registro; sem registro, o termômetro parte de R$ 0,00"
 
 AccountPlan:
   tabela: "account_plans"
@@ -121,6 +122,12 @@ DailyTransaction:
   relacoes: "belongsTo accountPlan; belongsToMany tags"
   unicidade: "unique(user_id, account_plan_id, date)"
   indice: "index(user_id, date, status)"
+  tipos: "income, expense, daily, savings, card; o tipo daily é manual (não vem de planos)"
+
+DailyForecast:
+  tabela: "daily_forecasts"
+  campos: "description, amount decimal(10,2) maior que zero"
+  regras: "itens de gasto variável do mês; o total mensal dividido pelo forecast_divisor_days do usuário gera a previsão diária"
 
 Tag:
   tabela: "tags"
@@ -161,14 +168,27 @@ TagColor: "neutral, red, orange, yellow, green, teal, blue, indigo, purple; pale
 
 ```text
 saldo_dia = saldo_dia_anterior + entradas − saídas − diários − economias − cartão
-saldo_realizado = saldo inicial + receitas realizadas − despesas realizadas desde base_date, limitado a hoje
-saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
+diários_do_dia = lançamentos Diários que contam no dia; em dia futuro sem lançamento Diário, a previsão diária entra como projeção
+inicio_saldo = base_date do saldo inicial; quando vazia, data de criação do saldo inicial
+antes do inicio_saldo, saldo, colunas, projeção e totais são R$ 0,00; no inicio_saldo o valor entra antes dos movimentos do dia
+saldo_realizado = saldo inicial + receitas realizadas − despesas realizadas desde inicio_saldo, limitado a hoje
+saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo + previsão diária a partir de amanhã
 ```
+
+### Previsão de diário
+
+- Fonte: itens de gasto variável (`daily_forecasts`) e divisor de dias do usuário (`forecast_divisor_days`, 1–31, padrão 30).
+- `DailyForecastCalculator` calcula: diária = total mensal dos itens ÷ divisor.
+- A previsão preenche a coluna **Diários** de dias futuros **sem lançamento Diário** próprio; começa **amanhã** (nunca hoje) e nunca antes do início futuro do saldo inicial.
+- Lançamento Diário no dia (realizado ou pendente) **substitui** a previsão naquele dia; `skipped` não substitui.
+- A previsão nunca vira lançamento realizado; o total mensal da coluna Diários soma lançamentos reais + dias projetados.
+- Editada na seção "Previsão de diário" no fim do Termômetro, que abre a página `DailyForecastPage` (oculta da navegação; sem item no menu do usuário).
 
 ### Semântica de Status e Datas
 
 - `realized` conta na data correspondente; `pending` entra apenas na projeção, a partir de hoje; `skipped` não conta em lugar algum, mas permanece registrado para não ser recriado.
-- `UserInitialBalance.base_date`, quando definida, exclui do cálculo lançamentos anteriores a ela (o saldo inicial representa o ponto de partida).
+- `UserInitialBalance.base_date`, quando definida, é o início do saldo; quando vazia, o início é a data de criação do registro (`created_at`). Lançamentos anteriores ao início ficam fora do cálculo e dias anteriores exibem R$ 0,00; o valor do saldo inicial entra na linha do início, antes dos movimentos do dia.
+- O tipo `daily` existe apenas em lançamentos: planos de contas usam `TransactionType::planCases()`, sem Diário.
 - `BalanceCalculator` é a fonte única de verdade para saldos e grades; views não recalculam.
 - `monthGrid()` e `horizonGrid()` retornam arrays formatados com strings decimais (2 casas); a view apenas formata/exibe.
 - Moeda: valores trafegam como `decimal:2`/string; formatação de exibição usa `R$` com vírgula decimal.
@@ -237,6 +257,7 @@ recursos:
     label: "Plano de contas"
     pagina: "ManageAccountPlans"
     filtros: "tipo, frequência, ativo"
+    tipos: "Entrada, Saída, Economia e Cartão (Diário é exclusivo de lançamentos manuais)"
     acoes_linha: "Editar (regera ocorrências), Excluir (bloqueado com realizados)"
   TagResource:
     label: "Tags"
@@ -257,18 +278,26 @@ paginas:
     funcao: "grade mensal diária em horizonte configurável (1–12 meses, padrão 12)"
     estado_url: "year, month, months"
     acoes: "Novo lançamento; por célula: adicionar, editar, confirmar, pular, excluir; selecionar período; configurar horizonte; ir para hoje; navegação mês/ano"
+    previsao_diaria: "coluna Diários projeta a previsão em dias futuros sem lançamento Diário; detalhe do dia mostra a previsão; seção no fim da página abre a DailyForecastPage"
+    legenda_saldo_inicial: "quando há saldo inicial, a legenda informa valor e data de início (ex.: Saldo inicial de R$ X conta a partir de DD/MM/AAAA)"
     views: "resources/views/filament/pages/thermometer/*"
+  DailyForecastPage:
+    slug: "daily-forecast"
+    titulo: "Previsão de diário"
+    funcao: "gerenciar itens de gasto variável e divisor de dias da previsão"
+    visibilidade: "oculta da navegação e do menu do usuário; acessada pela seção no fim do Termômetro"
+    view: "resources/views/filament/pages/daily-forecast-page.blade.php"
   InitialBalanceSettings:
     slug: "initial-balance"
     titulo: "Saldo inicial"
-    campos: "amount (obrigatório), base_date"
+    campos: "amount (obrigatório), base_date (opcional; novo registro abre com hoje; vazio conta a partir da data de cadastro)"
     view: "resources/views/filament/pages/initial-balance-settings.blade.php"
 ```
 
 ### Lacunas e Decisões Conhecidas do Termômetro
 
-- Implementado: grade Blade própria (não tabela Filament), navegação temporal, limite de horizonte 1–12, detalhe em slide-over com ações por lançamento, check-in com bloqueio de futuro, cores de saldo por faixa.
-- Não implementado da referência: "previsão de diário" editável (`.references/saldos-reference.md`, seção 8.4) e filtros `<select>` por coluna; tratar como pendência de produto, não como bug.
+- Implementado: grade Blade própria (não tabela Filament), navegação temporal, limite de horizonte 1–12, detalhe em slide-over com ações por lançamento, check-in com bloqueio de futuro, cores de saldo por faixa e previsão de diário projetada na coluna Diários.
+- Não implementado da referência: filtros `<select>` por coluna; tratar como pendência de produto, não como bug.
 - O guideline completo de UI/UX/acessibilidade está em `.references/termometro-guideline.md`; usar como referência de design.
 
 ---

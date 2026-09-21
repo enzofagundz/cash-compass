@@ -8,9 +8,15 @@
     </div>
 @else
     <p class="thermometer-legend">
-        O saldo acumulado soma entradas e subtrai saídas, economias, cartão e a previsão diária.
-        Lançamentos pendentes entram a partir de hoje e aparecem marcados como projeção.
+        O saldo acumulado soma entradas e subtrai saídas, diários, economias e cartão.
+        Dias futuros sem lançamento diário mostram a previsão diária; pendentes entram a partir de hoje e aparecem marcados como projeção.
     </p>
+
+    @if ($this->initialBalanceSummary !== null)
+        <p class="thermometer-legend">
+            Saldo inicial de {{ $this->formatMoney($this->initialBalanceSummary['amount']) }} conta a partir de {{ $this->initialBalanceSummary['starts_at'] }}.
+        </p>
+    @endif
 
     <div x-data="{ index: 0 }">
         @include('filament.pages.thermometer.icons')

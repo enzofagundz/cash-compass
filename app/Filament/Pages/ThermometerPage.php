@@ -3,7 +3,6 @@
 namespace App\Filament\Pages;
 
 use App\Enums\Month;
-use App\Enums\ThermometerColumn;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Concerns\VisibleToNonAdmins;
@@ -12,6 +11,7 @@ use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
 use App\Models\User;
 use App\Services\BalanceCalculator;
+use App\Services\DailyForecastCalculator;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -90,9 +90,12 @@ class ThermometerPage extends Page
 
     private BalanceCalculator $balanceCalculator;
 
-    public function boot(BalanceCalculator $balanceCalculator): void
+    private DailyForecastCalculator $forecastCalculator;
+
+    public function boot(BalanceCalculator $balanceCalculator, DailyForecastCalculator $forecastCalculator): void
     {
         $this->balanceCalculator = $balanceCalculator;
+        $this->forecastCalculator = $forecastCalculator;
     }
 
     public function mount(): void
@@ -126,21 +129,10 @@ class ThermometerPage extends Page
     }
 
     /**
-     * @return array<int, ThermometerColumn>
-     */
-    #[Computed]
-    public function columns(): array
-    {
-        return ThermometerColumn::cases();
-    }
-
-    /**
-     * Real transaction types available in the movement detail panel.
-     *
      * @return array<int, TransactionType>
      */
     #[Computed]
-    public function movementTypes(): array
+    public function columns(): array
     {
         return TransactionType::cases();
     }
@@ -218,6 +210,68 @@ class ThermometerPage extends Page
         return $user->initialBalance()->exists();
     }
 
+    /**
+     * Initial balance amount and effective start date for the legend.
+     *
+     * @return array{amount: string, starts_at: string}|null
+     */
+    #[Computed]
+    public function initialBalanceSummary(): ?array
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return null;
+        }
+
+        $balance = $user->initialBalance()->first();
+
+        if ($balance === null) {
+            return null;
+        }
+
+        $startsAt = $this->balanceCalculator->startsAt($user);
+
+        if ($startsAt === null) {
+            return null;
+        }
+
+        return [
+            'amount' => (string) $balance->amount,
+            'starts_at' => $startsAt->format('d/m/Y'),
+        ];
+    }
+
+    /**
+     * Daily forecast summary shown at the bottom of the page.
+     *
+     * @return array{daily_amount: string, monthly_total: string, divisor_days: int, edit_url: string}
+     */
+    #[Computed]
+    public function forecastSummary(): array
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User) {
+            return [
+                'daily_amount' => '0.00',
+                'monthly_total' => '0.00',
+                'divisor_days' => DailyForecastCalculator::DEFAULT_DIVISOR_DAYS,
+                'edit_url' => DailyForecastPage::getUrl(),
+            ];
+        }
+
+        $divisorDays = $this->forecastCalculator->divisorDays($user);
+        $monthlyTotal = $this->forecastCalculator->monthlyTotal($user);
+
+        return [
+            'daily_amount' => $this->forecastCalculator->dailyAmountFromTotal((float) $monthlyTotal, $divisorDays),
+            'monthly_total' => $monthlyTotal,
+            'divisor_days' => $divisorDays,
+            'edit_url' => DailyForecastPage::getUrl(),
+        ];
+    }
+
     public function formatMoney(string $value): string
     {
         return 'R$ '.number_format((float) $value, 2, ',', '.');
@@ -279,6 +333,27 @@ class ThermometerPage extends Page
     }
 
     /**
+     * Daily forecast shown in the detail panel when the day has none of its own.
+     */
+    #[Computed]
+    public function detailDailyForecast(): ?string
+    {
+        $user = auth()->user();
+        $date = $this->sanitizeDate($this->detailDate);
+        $type = $this->sanitizeType($this->detailType);
+
+        if (! $user instanceof User || $date === null) {
+            return null;
+        }
+
+        if ($type !== null && $type !== TransactionType::Daily) {
+            return null;
+        }
+
+        return $this->balanceCalculator->dailyForecastFor($user, $date);
+    }
+
+    /**
      * Movements of the selected day, prepared for the detail panel.
      *
      * @return array<int, array<string, mixed>>
@@ -304,6 +379,8 @@ class ThermometerPage extends Page
             $query->where('type', $type);
         }
 
+        $startsAt = $this->balanceCalculator->startsAt($user);
+
         return $query
             ->orderBy('type')
             ->orderBy('id')
@@ -318,7 +395,7 @@ class ThermometerPage extends Page
                 'status' => $movement->status->label(),
                 'status_value' => $movement->status->value,
                 'is_recurring' => $movement->is_recurring,
-                'counts' => $this->movementCounts($movement),
+                'counts' => $this->movementCounts($movement, $startsAt),
             ])
             ->all();
     }
@@ -727,17 +804,13 @@ class ThermometerPage extends Page
         return $query->find((int) $id);
     }
 
-    private function movementCounts(DailyTransaction $movement): bool
+    private function movementCounts(DailyTransaction $movement, ?CarbonImmutable $startsAt): bool
     {
-        $user = auth()->user();
-
-        if (! $user instanceof User || $movement->status === TransactionStatus::Skipped) {
+        if ($movement->status === TransactionStatus::Skipped) {
             return false;
         }
 
-        $baseDate = $user->initialBalance?->base_date;
-
-        if ($baseDate !== null && $movement->date->lt($baseDate)) {
+        if ($startsAt !== null && CarbonImmutable::parse($movement->date->toDateString())->lessThan($startsAt)) {
             return false;
         }
 

@@ -1,8 +1,8 @@
 <?php
 
-use App\Enums\ThermometerColumn;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Filament\Pages\DailyForecastPage;
 use App\Filament\Pages\ThermometerPage;
 use App\Models\AccountPlan;
 use App\Models\DailyForecast;
@@ -554,32 +554,91 @@ it('colors balance cells outside the current month', function () {
         ->assertSeeHtml('data-balance-color="dark-green"');
 });
 
-it('replaces the daily column with a read only daily forecast column', function () {
+it('shows the daily column with real movements and the quick add button', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+
+    DailyTransaction::create(['date' => '2026-09-10', 'type' => TransactionType::Daily->value, 'amount' => 30]);
+
+    $component = Livewire::test(ThermometerPage::class);
+
+    expect($component->instance()->columns)->toBe(TransactionType::cases());
+
+    $component
+        ->assertSee('Diários')
+        ->assertSeeHtml('data-type="daily"')
+        ->assertDontSeeHtml('data-type="forecast"')
+        ->assertSeeHtml('<span class="thermometer-value">R$ 30,00</span>')
+        ->assertSeeHtml("wire:click=\"mountAction('addMovement', { date: '2026-09-10', type: 'daily' })\"")
+        ->assertSeeHtml("wire:click=\"mountAction('openCell', { date: '2026-09-10', type: 'daily' })\"");
+});
+
+it('projects the daily forecast on future days without a daily movement', function () {
     $this->travelTo('2026-09-15');
     $user = User::factory()->create();
     $this->actingAs($user);
     $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
     DailyForecast::create(['description' => 'Mercado', 'amount' => 300]);
 
-    $component = Livewire::test(ThermometerPage::class);
-
-    expect($component->instance()->columns)->toBe(ThermometerColumn::cases());
-
-    $component
-        ->assertSee('Previsão diária')
-        ->assertDontSee('Diários')
-        ->assertSee('R$ 10,00')
-        ->assertSeeHtml('thermometer-value-static')
-        ->assertSeeHtml('data-type="forecast"')
-        ->assertDontSeeHtml("type: 'forecast'");
+    Livewire::test(ThermometerPage::class)
+        ->assertSeeHtml('thermometer-value thermometer-value-projection">R$ 10,00')
+        ->assertSeeHtml("wire:click=\"mountAction('addMovement', { date: '2026-09-16', type: 'daily' })\"")
+        ->assertSeeHtml("wire:click=\"mountAction('openCell', { date: '2026-09-16', type: 'daily' })\"");
 });
 
-it('shows zero in the forecast column when there are no items', function () {
+it('shows the daily forecast summary with a link to its management page', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create(['forecast_divisor_days' => 30]);
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+    DailyForecast::create(['description' => 'Mercado', 'amount' => 1200]);
+
+    Livewire::test(ThermometerPage::class)
+        ->assertSee('Previsão de diário')
+        ->assertSee('R$ 1.200,00')
+        ->assertSee('R$ 40,00')
+        ->assertSee('30 dias')
+        ->assertSeeHtml('href="'.DailyForecastPage::getUrl().'"');
+});
+
+it('shows the daily forecast in the detail panel of a day without movements', function () {
     $this->travelTo('2026-09-15');
     $user = User::factory()->create();
     $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+    DailyForecast::create(['description' => 'Mercado', 'amount' => 300]);
 
     Livewire::test(ThermometerPage::class)
-        ->assertSee('Previsão diária')
-        ->assertSee('R$ 0,00');
+        ->mountAction('openCell', ['date' => '2026-09-16', 'type' => TransactionType::Daily->value])
+        ->assertMountedActionModalSee('Previsão diária: R$ 10,00');
+});
+
+it('marks movements before the creation date as out of the calculation', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000]);
+
+    $user->initialBalance()->firstOrFail()->forceFill(['created_at' => '2026-09-10 12:00:00'])->save();
+
+    DailyTransaction::create(['date' => '2026-09-09', 'type' => TransactionType::Expense->value, 'amount' => 150, 'description' => 'Antes']);
+
+    $component = Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-09', 'type' => TransactionType::Expense->value]);
+
+    expect($component->instance()->detailRows[0]['counts'])->toBeFalse();
+
+    $component->assertMountedActionModalSee('Fora do cálculo desta célula.');
+});
+
+it('shows the initial balance start in the thermometer legend', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-10']);
+
+    Livewire::test(ThermometerPage::class)
+        ->assertSee('Saldo inicial de R$ 1.000,00 conta a partir de 10/09/2026');
 });
