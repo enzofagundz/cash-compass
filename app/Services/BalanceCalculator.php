@@ -14,7 +14,26 @@ use Illuminate\Support\Collection;
 
 class BalanceCalculator
 {
-    private const GRID_DAYS = 31;
+    /**
+     * Initial balance of each user, memoized for the request.
+     *
+     * @var array<int, UserInitialBalance|null>
+     */
+    private array $initialBalances = [];
+
+    /**
+     * First day the initial balance counts, memoized for the request.
+     *
+     * @var array<int, CarbonImmutable|null>
+     */
+    private array $startDates = [];
+
+    /**
+     * Dates with daily movements already resolved, memoized for the request.
+     *
+     * @var array<string, Collection<int, string>>
+     */
+    private array $dailyMovementDayRanges = [];
 
     public function __construct(
         private readonly DailyForecastCalculator $forecastCalculator,
@@ -44,6 +63,17 @@ class BalanceCalculator
      * date when the base date is empty. Null when there is no balance.
      */
     public function startsAt(User $user): ?CarbonImmutable
+    {
+        $key = (int) $user->getKey();
+
+        if (! array_key_exists($key, $this->startDates)) {
+            $this->startDates[$key] = $this->resolveStartsAt($user);
+        }
+
+        return $this->startDates[$key];
+    }
+
+    private function resolveStartsAt(User $user): ?CarbonImmutable
     {
         $balance = $this->initialBalance($user);
 
@@ -83,11 +113,15 @@ class BalanceCalculator
         }
 
         if ($target->greaterThanOrEqualTo($today)) {
-            $total += $this->signedDelta($this->pendingUpTo($user, $target));
+            $total += $this->pendingDeltaUpTo($user, $target);
         }
 
         if ($forecastDaily > 0.0 && $target->greaterThanOrEqualTo($forecastFrom)) {
-            $total -= $this->forecastDaysWithoutDailyMovements($user, $forecastFrom, $target) * $forecastDaily;
+            $total -= $this->forecastDaysWithoutDailyMovements(
+                $this->dailyMovementDays($user, $forecastFrom, $target),
+                $forecastFrom,
+                $target,
+            ) * $forecastDaily;
         }
 
         return $this->format($total);
@@ -112,78 +146,6 @@ class BalanceCalculator
         }
 
         return $this->format($forecastDaily);
-    }
-
-    /**
-     * Build the fixed 1–31 day grid for the given month in a single pass.
-     *
-     * The projection is only exposed on days that have at least one pending
-     * transaction up to them, so it is never mixed into the realized balance.
-     * Before the initial balance start date every day is zeroed; on the start
-     * date the initial amount enters before the day movements.
-     *
-     * @return array<int, array{day: int, date: string|null, income: string, expense: string, result: string, balance: string, projection: string|null}>
-     */
-    public function monthGrid(User $user, int $year, int $month): array
-    {
-        $first = CarbonImmutable::create($year, $month, 1)->startOfDay();
-        $last = $first->endOfMonth();
-        $today = $this->today();
-        $balanceStartsAt = $this->startsAt($user);
-        $initialAmount = $this->initialAmount($user);
-
-        $running = (float) $this->realized($user, $first->subDay());
-        $realizedToday = (float) $this->realized($user, $today);
-
-        /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
-        $realizedByDay = $this->groupByDay($this->realizedWithin($user, $first, $last));
-
-        /** @var Collection<string, Collection<int, DailyTransaction>> $pendingByDay */
-        $pendingByDay = $this->groupByDay($this->pendingWithin($user, $first, $last));
-
-        $pendingDelta = 0.0;
-        $hasPending = false;
-
-        $grid = [];
-
-        for ($day = 1; $day <= self::GRID_DAYS; $day++) {
-            if ($day > $last->day) {
-                $grid[] = $this->row($day, null, 0.0, 0.0, $running, null);
-
-                continue;
-            }
-
-            $date = $first->setDay($day);
-            $key = $date->toDateString();
-
-            if ($balanceStartsAt !== null && $date->equalTo($balanceStartsAt)) {
-                $running += $initialAmount;
-            }
-
-            $transactions = $realizedByDay->get($key, new Collection);
-
-            $income = $this->absoluteSum($transactions->filter(fn (DailyTransaction $transaction): bool => $transaction->type->isIncome()));
-            $expense = $this->absoluteSum($transactions->filter(fn (DailyTransaction $transaction): bool => ! $transaction->type->isIncome()));
-
-            $running += $income - $expense;
-
-            $projection = null;
-
-            if ($date->greaterThan($today)) {
-                $pending = $pendingByDay->get($key, new Collection);
-
-                $hasPending = $hasPending || $pending->isNotEmpty();
-                $pendingDelta += $this->signedDelta($pending);
-
-                if ($hasPending) {
-                    $projection = $this->format($realizedToday + $pendingDelta);
-                }
-            }
-
-            $grid[] = $this->row($day, $key, $income, $expense, $running, $projection);
-        }
-
-        return $grid;
     }
 
     /**
@@ -213,18 +175,20 @@ class BalanceCalculator
         $balanceStartsAt = $this->startsAt($user);
         $initialAmount = $this->initialAmount($user);
 
+        $dailyMovementDays = $forecastDaily > 0.0
+            ? $this->dailyMovementDays($user, $forecastStart, $end)
+            : collect();
+
         if ($balanceStartsAt !== null && ! $start->greaterThan($balanceStartsAt)) {
             $running = 0.0;
         } else {
             $running = $initialAmount + $this->realizedDelta($user, $start->subDay());
-            $running += $this->signedDelta($this->pendingUpTo($user, $start->subDay()));
+            $running += $this->pendingDeltaUpTo($user, $start->subDay());
 
             if ($forecastDaily > 0.0 && $start->greaterThan($forecastStart)) {
-                $running -= $this->forecastDaysWithoutDailyMovements($user, $forecastStart, $start->subDay()) * $forecastDaily;
+                $running -= $this->forecastDaysWithoutDailyMovements($dailyMovementDays, $forecastStart, $start->subDay()) * $forecastDaily;
             }
         }
-
-        $dailyMovementDays = $this->dailyMovementDays($user, $forecastStart, $end);
 
         /** @var Collection<string, Collection<int, DailyTransaction>> $realizedByDay */
         $realizedByDay = $this->groupByDay($this->withStart($user, $this->transactions($user)
@@ -336,48 +300,38 @@ class BalanceCalculator
      */
     private function realizedDelta(User $user, CarbonImmutable $upTo): float
     {
-        return $this->signedDelta(
+        return $this->signedTotal(
             $this->withStart($user, $this->transactions($user)
                 ->where('status', TransactionStatus::Realized)
                 ->where('date', '<=', $upTo->toDateString()))
-                ->get()
         );
     }
 
     /**
-     * @return Collection<int, DailyTransaction>
+     * Sum the signed pending transactions of the user from today up to the target.
      */
-    private function realizedWithin(User $user, CarbonImmutable $first, CarbonImmutable $last): Collection
+    private function pendingDeltaUpTo(User $user, CarbonImmutable $target): float
     {
-        return $this->withStart($user, $this->transactions($user)
-            ->where('status', TransactionStatus::Realized)
-            ->where('date', '<=', $this->today()->toDateString())
-            ->whereBetween('date', [$first->toDateString(), $last->toDateString()]))
-            ->get();
+        return $this->signedTotal(
+            $this->withStart($user, $this->transactions($user)
+                ->where('status', TransactionStatus::Pending)
+                ->whereBetween('date', [$this->today()->toDateString(), $target->toDateString()]))
+        );
     }
 
     /**
-     * @return Collection<int, DailyTransaction>
+     * Signed sum of the amounts matched by the given query, aggregated by the database.
+     *
+     * @param  Builder<DailyTransaction>  $query
      */
-    private function pendingWithin(User $user, CarbonImmutable $first, CarbonImmutable $last): Collection
+    private function signedTotal(Builder $query): float
     {
-        $from = $first->greaterThan($this->today()) ? $first : $this->today();
+        $row = $query->selectRaw(
+            'COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN type != ? THEN amount ELSE 0 END), 0) as total',
+            [TransactionType::Income->value, TransactionType::Income->value],
+        )->first();
 
-        return $this->withStart($user, $this->transactions($user)
-            ->where('status', TransactionStatus::Pending)
-            ->whereBetween('date', [$from->toDateString(), $last->toDateString()]))
-            ->get();
-    }
-
-    /**
-     * @return Collection<int, DailyTransaction>
-     */
-    private function pendingUpTo(User $user, CarbonImmutable $target): Collection
-    {
-        return $this->withStart($user, $this->transactions($user)
-            ->where('status', TransactionStatus::Pending)
-            ->whereBetween('date', [$this->today()->toDateString(), $target->toDateString()]))
-            ->get();
+        return (float) ($row->total ?? 0);
     }
 
     /**
@@ -403,7 +357,9 @@ class BalanceCalculator
             return collect();
         }
 
-        return DailyTransaction::query()
+        $key = $user->getKey().'|'.$from->toDateString().'|'.$to->toDateString();
+
+        return $this->dailyMovementDayRanges[$key] ??= DailyTransaction::query()
             ->forUser($user)
             ->where('type', TransactionType::Daily)
             ->where('status', '!=', TransactionStatus::Skipped)
@@ -415,16 +371,22 @@ class BalanceCalculator
     }
 
     /**
-     * Number of days in the inclusive range without a daily movement of their
-     * own, where the forecast still projects.
+     * Days in the inclusive range where the forecast still projects, counting
+     * only the daily movements already resolved for the surrounding window.
+     *
+     * @param  Collection<int, string>  $dailyMovementDays
      */
-    private function forecastDaysWithoutDailyMovements(User $user, CarbonImmutable $from, CarbonImmutable $to): int
+    private function forecastDaysWithoutDailyMovements(Collection $dailyMovementDays, CarbonImmutable $from, CarbonImmutable $to): int
     {
         if ($to->lessThan($from)) {
             return 0;
         }
 
-        return (int) $from->diffInDays($to) + 1 - $this->dailyMovementDays($user, $from, $to)->count();
+        $withDailyMovement = $dailyMovementDays
+            ->filter(fn (string $date): bool => $date >= $from->toDateString() && $date <= $to->toDateString())
+            ->count();
+
+        return (int) $from->diffInDays($to) + 1 - $withDailyMovement;
     }
 
     /**
@@ -450,9 +412,18 @@ class BalanceCalculator
         return DailyTransaction::query()->forUser($user);
     }
 
-    private function initialBalance(User $user): ?UserInitialBalance
+    /**
+     * Initial balance of the user, or null when there is none.
+     */
+    public function initialBalance(User $user): ?UserInitialBalance
     {
-        return UserInitialBalance::query()->forUser($user)->first();
+        $key = (int) $user->getKey();
+
+        if (! array_key_exists($key, $this->initialBalances)) {
+            $this->initialBalances[$key] = UserInitialBalance::query()->forUser($user)->first();
+        }
+
+        return $this->initialBalances[$key];
     }
 
     private function initialAmount(User $user): float
@@ -471,51 +442,6 @@ class BalanceCalculator
         return $transactions->groupBy(
             fn (DailyTransaction $transaction): string => $transaction->date->format('Y-m-d')
         );
-    }
-
-    /**
-     * @param  iterable<int, DailyTransaction>  $transactions
-     */
-    private function signedDelta(iterable $transactions): float
-    {
-        $total = 0.0;
-
-        foreach ($transactions as $transaction) {
-            $amount = (float) $transaction->amount;
-            $total += $transaction->type->sign() * $amount;
-        }
-
-        return $total;
-    }
-
-    /**
-     * @param  iterable<int, DailyTransaction>  $transactions
-     */
-    private function absoluteSum(iterable $transactions): float
-    {
-        $total = 0.0;
-
-        foreach ($transactions as $transaction) {
-            $total += (float) $transaction->amount;
-        }
-
-        return $total;
-    }
-
-    /**
-     * @return array{day: int, date: string|null, income: string, expense: string, result: string, balance: string, projection: string|null}
-     */
-    private function row(int $day, ?string $date, float $income, float $expense, float $balance, ?string $projection): array
-    {
-        return [
-            'day' => $day,
-            'date' => $date,
-            'income' => $this->format($income),
-            'expense' => $this->format($expense),
-            'result' => $this->format($income - $expense),
-            'balance' => $this->format($balance),
-            'projection' => $projection,
-        ];
     }
 
     private function today(): CarbonImmutable

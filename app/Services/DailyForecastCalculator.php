@@ -13,6 +13,13 @@ class DailyForecastCalculator
 
     public const MAX_DIVISOR_DAYS = 31;
 
+    /**
+     * Monthly total of each user, memoized for the request.
+     *
+     * @var array<int, string>
+     */
+    private array $monthlyTotals = [];
+
     public function divisorDays(User $user): int
     {
         $divisor = (int) $user->forecast_divisor_days;
@@ -24,7 +31,13 @@ class DailyForecastCalculator
 
     public function monthlyTotal(User $user): string
     {
-        return $this->format((float) DailyForecast::query()->forUser($user)->sum('amount'));
+        $key = (int) $user->getKey();
+
+        if (! array_key_exists($key, $this->monthlyTotals)) {
+            $this->monthlyTotals[$key] = $this->format((float) DailyForecast::query()->forUser($user)->sum('amount'));
+        }
+
+        return $this->monthlyTotals[$key];
     }
 
     public function dailyAmount(User $user): string

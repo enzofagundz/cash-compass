@@ -189,7 +189,7 @@ class ThermometerPage extends Page
             return false;
         }
 
-        return $user->initialBalance()->exists();
+        return $this->balanceCalculator->initialBalance($user) !== null;
     }
 
     /**
@@ -206,7 +206,7 @@ class ThermometerPage extends Page
             return null;
         }
 
-        $balance = $user->initialBalance()->first();
+        $balance = $this->balanceCalculator->initialBalance($user);
 
         if ($balance === null) {
             return null;
