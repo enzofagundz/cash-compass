@@ -11,6 +11,8 @@ use App\Models\DayCheckIn;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\RecurrenceGenerator;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 it('lets users open the thermometer and forbids admins', function () {
@@ -211,9 +213,14 @@ it('toggles the check in of past and current days only', function () {
 
     expect(DayCheckIn::where('date', '2026-09-14')->exists())->toBeTrue();
 
+    $component->assertSeeHtml('aria-pressed="true"')
+        ->assertSeeHtml('<use href="#tmb-icon-check" />');
+
     $component->call('toggleCheckIn', '2026-09-14');
 
     expect(DayCheckIn::where('date', '2026-09-14')->exists())->toBeFalse();
+
+    $component->assertSeeHtml('aria-pressed="false"');
 
     $component->call('toggleCheckIn', '2026-09-15');
 
@@ -235,7 +242,9 @@ it('only reads the check ins of the authenticated user', function () {
 
     $this->actingAs($user);
 
-    expect(Livewire::test(ThermometerPage::class)->instance()->checkIns)->toBe([]);
+    $days = collect(Livewire::test(ThermometerPage::class)->instance()->horizon[0]['days'])->keyBy('day');
+
+    expect($days[14]['is_checked_in'])->toBeFalse();
 });
 
 it('lists the movements of a cell in the detail panel', function () {
@@ -641,4 +650,49 @@ it('shows the initial balance start in the thermometer legend', function () {
 
     Livewire::test(ThermometerPage::class)
         ->assertSee('Saldo inicial de R$ 1.000,00 conta a partir de 10/09/2026');
+});
+
+it('stays inside the render budget of the twelve month horizon', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create(['forecast_divisor_days' => 30]);
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 5000, 'base_date' => '2026-09-01']);
+
+    DailyForecast::factory()->count(3)->create(['user_id' => $user->id]);
+
+    $start = CarbonImmutable::parse('2026-09-01');
+
+    foreach (range(0, 11) as $offset) {
+        $month = $start->addMonthsNoOverflow($offset);
+
+        DailyTransaction::factory()->create([
+            'user_id' => $user->id,
+            'date' => $month->setDay(5)->toDateString(),
+            'type' => TransactionType::Income->value,
+        ]);
+
+        DailyTransaction::factory()->create([
+            'user_id' => $user->id,
+            'date' => $month->setDay(10)->toDateString(),
+            'type' => TransactionType::Expense->value,
+        ]);
+
+        DayCheckIn::factory()->create([
+            'user_id' => $user->id,
+            'date' => $month->setDay(1)->toDateString(),
+        ]);
+    }
+
+    DB::enableQueryLog();
+
+    $response = $this->get('/thermometer');
+
+    $queries = count(DB::getQueryLog());
+
+    DB::disableQueryLog();
+
+    $response->assertOk();
+
+    expect($queries)->toBeLessThanOrEqual(25)
+        ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_800_000);
 });
