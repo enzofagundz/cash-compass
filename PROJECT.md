@@ -78,6 +78,7 @@ policies: "app/Policies/UserPolicy — autorização de administração de usuá
 services: "app/Services — BalanceCalculator, DailyForecastCalculator, RecurrenceCalculator, RecurrenceGenerator"
 console: "app/Console/Commands — comandos agendados"
 filament_pages: "app/Filament/Pages — Termômetro, Previsão de diário e Saldo inicial"
+filament_page_modules: "app/Filament/Pages/Thermometer — ThermometerGrid, o presenter da grade do Termômetro (check-ins, rótulos, cores e flags por célula)"
 filament_resources: "app/Filament/Resources — Lançamentos, Planos de contas, Tags, Usuários"
 filament_concerns: "app/Filament/Concerns — VisibleToNonAdmins para acesso de não-admins, HasTagSelector para seleção/criação rápida e HasTagColorField para configuração visual compartilhada"
 views: "resources/views/filament — Blade do painel"
@@ -276,6 +277,7 @@ paginas:
     slug: "thermometer"
     titulo: "Termômetro"
     funcao: "grade mensal diária em horizonte configurável (1–12 meses, padrão 12)"
+    dados: "ThermometerGrid compõe BalanceCalculator::horizonGrid() com os check-ins e entrega, por dia, label, short_date, is_weekend, is_checked_in, balance_color, filled_types e projected_types; a view não recalcula nem consulta a página dentro do laço da grade"
     estado_url: "year, month, months"
     acoes: "Novo lançamento; por célula: adicionar, editar, confirmar, pular, excluir; selecionar período; configurar horizonte; ir para hoje; navegação mês/ano"
     previsao_diaria: "coluna Diários projeta a previsão em dias futuros sem lançamento Diário; detalhe do dia mostra a previsão; seção no fim da página abre a DailyForecastPage"
@@ -297,6 +299,9 @@ paginas:
 ### Lacunas e Decisões Conhecidas do Termômetro
 
 - Implementado: grade Blade própria (não tabela Filament), navegação temporal, limite de horizonte 1–12, detalhe em slide-over com ações por lançamento, check-in com bloqueio de futuro, cores de saldo por faixa e previsão de diário projetada na coluna Diários.
+- Orçamento de render: `composer test:thermometer-budget` valida teto de consultas (25) e de bytes de HTML (1,8 MB) para a grade de 12 meses; os dados de cada linha vêm prontos do `ThermometerGrid`.
+- Render da grade: cada página faz apenas 12 renders de `month-grid` + 5 de `type-badge` (badges pré-computados; a linha do dia é inline no `month-grid`, sem partial próprio).
+- Lacuna conhecida adiada: cada interação Livewire re-renderiza os 12 meses (~113–118 ms e ~1,6 MB de resposta hoje); o caminho mapeado é islands do Livewire por mês, que exige definir a regra de invalidação de saldo das mutações.
 - Não implementado da referência: filtros `<select>` por coluna; tratar como pendência de produto, não como bug.
 - O guideline completo de UI/UX/acessibilidade está em `.references/termometro-guideline.md`; usar como referência de design.
 
