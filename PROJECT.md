@@ -194,7 +194,7 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - O saldo de abertura é somado pelo banco em uma consulta agregada (sinal derivado de `TransactionType::sign()`), e saldo inicial, data de início, dias com lançamento diário e total da previsão são memoizados por request; o custo do cálculo não cresce com o histórico de lançamentos. Memoização vale por request: o calculator só deve ser lido depois das mutações do mesmo request.
 - `horizonGrid()` retorna arrays formatados com strings decimais (2 casas); a view apenas formata/exibe.
 - Moeda: valores trafegam como `decimal:2`/string; formatação de exibição usa `R$` com vírgula decimal.
-- Observação registrada no guideline do Termômetro: robustez futura recomendada é calcular em centavos inteiros ou decimal, evitando aritmética acumulativa com `float`.
+- O cálculo acumula em centavos inteiros (saldo de abertura, colunas do dia, totais e previsão) e converte para string decimal de 2 casas só na saída; `horizonGrid()` também expõe `balance_cents` por dia, usado para a cor do saldo.
 
 ### Recorrência
 
@@ -278,7 +278,7 @@ paginas:
     slug: "thermometer"
     titulo: "Termômetro"
     funcao: "grade mensal diária em horizonte configurável (1–12 meses, padrão 12)"
-    dados: "ThermometerGrid compõe BalanceCalculator::horizonGrid() com os check-ins e entrega, por dia, label, short_date, is_weekend, is_checked_in, balance_color, filled_types e projected_types; a view não recalcula nem consulta a página dentro do laço da grade"
+    dados: "ThermometerGrid compõe BalanceCalculator::horizonGrid() com os check-ins e entrega, por dia, label, short_date, is_weekend, is_checked_in, balance, balance_cents, balance_color, filled_types e projected_types; a view não recalcula nem consulta a página dentro do laço da grade"
     estado_url: "year, month, months"
     acoes: "Novo lançamento; por célula: adicionar, editar, confirmar, pular, excluir; selecionar período; configurar horizonte; ir para hoje; navegação mês/ano"
     previsao_diaria: "coluna Diários projeta a previsão em dias futuros sem lançamento Diário; detalhe do dia mostra a previsão; seção no fim da página abre a DailyForecastPage"
