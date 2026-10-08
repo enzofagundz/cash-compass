@@ -65,6 +65,24 @@ it('discovers tools and runs a safe query over stdio', function () {
             'name' => 'Smoke',
             'color' => 'blue',
         ]]],
+        ['jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
+            'operation_key' => 'smoke-plan-1',
+            'type' => 'expense',
+            'description' => 'Smoke plan',
+            'expected_amount' => 30.5,
+            'frequency' => 'monthly',
+            'day_of_month' => 5,
+            'starts_at' => '2026-01-01',
+        ]]],
+        ['jsonrpc' => '2.0', 'id' => 10, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
+            'operation_key' => 'smoke-plan-1',
+            'type' => 'expense',
+            'description' => 'Smoke plan',
+            'expected_amount' => 30.5,
+            'frequency' => 'monthly',
+            'day_of_month' => 5,
+            'starts_at' => '2026-01-01',
+        ]]],
     ];
 
     $input = implode(PHP_EOL, array_map(
@@ -95,7 +113,9 @@ it('discovers tools and runs a safe query over stdio', function () {
         ->and($toolNames)->toContain('set_day_check_in')
         ->and($toolNames)->toContain('create_tag')
         ->and($toolNames)->toContain('delete_tag')
-        ->and($toolNames)->toHaveCount(28)
+        ->and($toolNames)->toContain('create_account_plan')
+        ->and($toolNames)->toContain('delete_account_plan')
+        ->and($toolNames)->toHaveCount(33)
         ->and(data_get($responses->get(2), 'result.structuredContent.has_balance'))->toBeFalse()
         ->and(data_get($responses->get(3), 'result.structuredContent.total'))->toBe(0)
         ->and(data_get($responses->get(4), 'result.structuredContent.transaction.amount'))->toBe('12.50')
@@ -104,5 +124,8 @@ it('discovers tools and runs a safe query over stdio', function () {
         ->and(data_get($responses->get(6), 'result.structuredContent.checked_in'))->toBeTrue()
         ->and(data_get($responses->get(7), 'result.structuredContent.tag.name'))->toBe('Smoke')
         ->and(data_get($responses->get(8), 'result.structuredContent.tag.id'))
-        ->toBe(data_get($responses->get(7), 'result.structuredContent.tag.id'));
+        ->toBe(data_get($responses->get(7), 'result.structuredContent.tag.id'))
+        ->and(data_get($responses->get(9), 'result.structuredContent.account_plan.expected_amount'))->toBe('30.50')
+        ->and(data_get($responses->get(10), 'result.structuredContent.account_plan.id'))
+        ->toBe(data_get($responses->get(9), 'result.structuredContent.account_plan.id'));
 });
