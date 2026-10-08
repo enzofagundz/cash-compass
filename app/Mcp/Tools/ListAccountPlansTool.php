@@ -80,20 +80,4 @@ class ListAccountPlansTool extends AccountTool
                 ->all(),
         ]);
     }
-
-    /**
-     * @return array<int, string>
-     */
-    private function typeValues(): array
-    {
-        return array_map(fn (TransactionType $type): string => $type->value, TransactionType::planCases());
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function frequencyValues(): array
-    {
-        return array_map(fn (RecurrenceFrequency $frequency): string => $frequency->value, RecurrenceFrequency::cases());
-    }
 }

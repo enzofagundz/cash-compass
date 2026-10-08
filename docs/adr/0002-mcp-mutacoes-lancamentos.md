@@ -46,5 +46,13 @@ falhas ou timeouts e sem abrir escrita genérica.
   calculadores e os escopos de novo, sem memoização obsoleta entre chamadas.
 - O histórico mínimo é reutilizável pelas próximas ferramentas (tags, planos,
   saldo inicial e previsão de diário) por meio do mesmo `MutationLedger`.
+- Criar um lançamento para um plano que já tem ocorrência na mesma data devolve
+  erro de validação claro, sem falha bruta e sem confundir com a chave de
+  operação.
+- `confirm_transaction` e `skip_transaction` são transições de estado sem chave
+  de operação: repetir após sucesso falha como no painel, então não são
+  anunciadas como idempotentes.
+- A mesma chave usada por uma ferramenta diferente é conflito, nunca replay
+  cruzado do resultado de outra ferramenta.
 - A fronteira de confiança continua sendo o processo local: a conta fixa
   limita as ferramentas, não os privilégios do processo hospedeiro.

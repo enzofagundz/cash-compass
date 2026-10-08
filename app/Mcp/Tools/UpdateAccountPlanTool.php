@@ -3,8 +3,8 @@
 namespace App\Mcp\Tools;
 
 use App\Enums\RecurrenceFrequency;
-use App\Enums\TransactionType;
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\ResolvesTransactionRelations;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
@@ -22,6 +22,7 @@ use Laravel\Mcp\ResponseFactory;
 
 class UpdateAccountPlanTool extends AccountTool
 {
+    use NormalizesMoney;
     use ResolvesTransactionRelations;
     use SerializesDomainRecords;
 
@@ -90,7 +91,7 @@ class UpdateAccountPlanTool extends AccountTool
         }
 
         if (array_key_exists('expected_amount', $input)) {
-            $changes['expected_amount'] = number_format((float) $input['expected_amount'], 2, '.', '');
+            $changes['expected_amount'] = $this->money($input['expected_amount']);
         }
 
         $syncTags = array_key_exists('tags', $input);
@@ -122,21 +123,5 @@ class UpdateAccountPlanTool extends AccountTool
         return Response::structured([
             'account_plan' => $this->accountPlanRecord($plan->refresh()->load('tags')),
         ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function typeValues(): array
-    {
-        return array_map(fn (TransactionType $type): string => $type->value, TransactionType::planCases());
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function frequencyValues(): array
-    {
-        return array_map(fn (RecurrenceFrequency $frequency): string => $frequency->value, RecurrenceFrequency::cases());
     }
 }

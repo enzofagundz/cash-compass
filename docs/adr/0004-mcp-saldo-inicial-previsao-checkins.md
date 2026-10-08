@@ -41,3 +41,5 @@ existentes, sem abrir escrita genérica nem alterar as regras financeiras.
   painel.
 - As regras financeiras existentes permanecem intactas: nenhuma regra nova de
   saldo, recorrência ou previsão é introduzida.
+- Valores monetários (saldo inicial e itens de previsão) são normalizados para
+  a string decimal exata de duas casas sem passar por float.

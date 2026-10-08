@@ -3,8 +3,8 @@
 namespace App\Mcp\Tools;
 
 use App\Enums\RecurrenceFrequency;
-use App\Enums\TransactionType;
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\ResolvesTransactionRelations;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
@@ -22,6 +22,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 #[IsIdempotent]
 class CreateAccountPlanTool extends AccountTool
 {
+    use NormalizesMoney;
     use ResolvesTransactionRelations;
     use SerializesDomainRecords;
 
@@ -79,7 +80,7 @@ class CreateAccountPlanTool extends AccountTool
         $attributes = [
             'type' => $validated['type'],
             'description' => $validated['description'],
-            'expected_amount' => number_format((float) $validated['expected_amount'], 2, '.', ''),
+            'expected_amount' => $this->money($validated['expected_amount']),
             'frequency' => $validated['frequency'],
             'interval' => $validated['interval'] ?? 1,
             'day_of_month' => $validated['day_of_month'] ?? null,
@@ -113,21 +114,5 @@ class CreateAccountPlanTool extends AccountTool
         );
 
         return Response::structured($result);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function typeValues(): array
-    {
-        return array_map(fn (TransactionType $type): string => $type->value, TransactionType::planCases());
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function frequencyValues(): array
-    {
-        return array_map(fn (RecurrenceFrequency $frequency): string => $frequency->value, RecurrenceFrequency::cases());
     }
 }

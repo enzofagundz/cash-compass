@@ -78,7 +78,7 @@ final class MutationLedger
      */
     private function replay(McpOperation $operation, string $hash, User $account, string $tool): array
     {
-        if (! hash_equals($operation->arguments_hash, $hash)) {
+        if ($operation->tool !== $tool || ! hash_equals($operation->arguments_hash, $hash)) {
             $this->record($account, $tool, 'conflict');
 
             throw ValidationException::withMessages([

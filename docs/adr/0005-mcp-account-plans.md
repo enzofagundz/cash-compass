@@ -56,3 +56,5 @@ previsão de diário e check-ins).
   resultado e horário.
 - Cada chamada resolve a conta e o gerador de novo, sem memoização obsoleta
   entre chamadas do processo stdio.
+- O valor esperado do plano é normalizado para a string decimal exata de duas
+  casas sem passar por float.

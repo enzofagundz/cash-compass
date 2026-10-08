@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
 use App\Mcp\Support\MutationLedger;
@@ -16,6 +17,7 @@ use Laravel\Mcp\ResponseFactory;
 
 class UpdateDailyForecastTool extends AccountTool
 {
+    use NormalizesMoney;
     use SerializesDomainRecords;
 
     protected string $name = 'update_daily_forecast';
@@ -60,7 +62,7 @@ class UpdateDailyForecastTool extends AccountTool
         }
 
         if (array_key_exists('amount', $input)) {
-            $changes['amount'] = number_format((float) $input['amount'], 2, '.', '');
+            $changes['amount'] = $this->money($input['amount']);
         }
 
         if ($changes === []) {
