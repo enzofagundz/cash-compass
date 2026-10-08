@@ -1,10 +1,13 @@
 <?php
 
 use App\Mcp\Servers\CashCompassServer;
+use App\Mcp\Tools\ArchiveTagTool;
 use App\Mcp\Tools\ConfirmTransactionTool;
 use App\Mcp\Tools\CreateDailyForecastTool;
+use App\Mcp\Tools\CreateTagTool;
 use App\Mcp\Tools\CreateTransactionTool;
 use App\Mcp\Tools\DeleteDailyForecastTool;
+use App\Mcp\Tools\DeleteTagTool;
 use App\Mcp\Tools\DeleteTransactionTool;
 use App\Mcp\Tools\GetAccountPlanTool;
 use App\Mcp\Tools\GetBalanceTool;
@@ -18,11 +21,13 @@ use App\Mcp\Tools\ListDailyForecastsTool;
 use App\Mcp\Tools\ListDayCheckInsTool;
 use App\Mcp\Tools\ListTagsTool;
 use App\Mcp\Tools\ListTransactionsTool;
+use App\Mcp\Tools\ReactivateTagTool;
 use App\Mcp\Tools\SetDayCheckInTool;
 use App\Mcp\Tools\SetForecastDivisorTool;
 use App\Mcp\Tools\SkipTransactionTool;
 use App\Mcp\Tools\UpdateDailyForecastTool;
 use App\Mcp\Tools\UpdateInitialBalanceTool;
+use App\Mcp\Tools\UpdateTagTool;
 use App\Mcp\Tools\UpdateTransactionTool;
 use App\Models\User;
 
@@ -51,6 +56,11 @@ it('registers the read and mutation tools', function () {
         DeleteDailyForecastTool::class,
         SetForecastDivisorTool::class,
         SetDayCheckInTool::class,
+        CreateTagTool::class,
+        UpdateTagTool::class,
+        ArchiveTagTool::class,
+        ReactivateTagTool::class,
+        DeleteTagTool::class,
     ]);
 });
 
