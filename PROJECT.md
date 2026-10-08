@@ -18,7 +18,7 @@ ambiente_local: "lerd (Podman) — site em app-do-bruno.test, PostgreSQL em lerd
 url_local: "app-do-bruno.test"
 workers_locais: "queue e vite como serviços systemd do lerd"
 js_runtime_local: "bun (js_runtime no .lerd.yaml)"
-mcp_local: "servidor Laravel MCP local via stdio (artisan mcp:start cash-compass), somente leitura"
+mcp_local: "servidor Laravel MCP local via stdio (artisan mcp:start cash-compass), consultas e mutações de lançamentos individuais com idempotência"
 idioma_ui: "pt_BR"
 timezone_padrao: "America/Sao_Paulo"
 locale_padrao: "pt_BR"
@@ -46,7 +46,7 @@ Observação: `config('app.name')` retorna `Cash Compass`, alinhado ao nome ofic
 - Deve ser reescrito sempre que mudanças alterarem arquitetura, fluxos, convenções, integrações, testes ou documentação relevante.
 - Atualize este arquivo na mesma entrega em que a mudança alterar arquitetura, fluxo, convenção, recursos Filament, comandos agendados ou regras de negócio.
 - Não manter documentação conflitante ou histórica aqui. Quando um padrão muda, substitua a regra antiga.
-- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. Decisões arquiteturais relevantes ficam registradas em `docs/adr/`. O servidor MCP local expõe somente consultas dos dados financeiros e não é fonte de regra de negócio.
+- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. Decisões arquiteturais relevantes ficam registradas em `docs/adr/`. O servidor MCP local expõe consultas e mutações de lançamentos individuais, reutilizando as regras de negócio do domínio e não como fonte própria de regra.
 - O `AGENTS.md` cobre guidelines de ferramentas (Boost, skills, comandos). Este arquivo cobre produto, domínio e arquitetura; evite duplicar conteúdo entre os dois.
 
 ---
@@ -241,9 +241,12 @@ painel:
 
 - Servidor Laravel MCP local (`app/Mcp/Servers/CashCompassServer`) registrado como `cash-compass` em `routes/ai.php` e iniciado por stdio com `php artisan mcp:start cash-compass`. Não há endpoint HTTP nem servidor web adicional.
 - Cada chamada resolve uma conta financeira fixa pela configuração `cash_compass.mcp.account_email` (env `CASH_COMPASS_MCP_ACCOUNT_EMAIL`); a conta precisa existir, estar ativa e não ser admin, senão a chamada falha de forma fechada. As ferramentas não aceitam `user_id` nem qualquer seleção de identidade.
-- Escopo atual: somente leitura (`list_transactions`, `get_transaction`, `list_account_plans`, `get_account_plan`, `list_tags`, `get_tag`, `get_initial_balance`, `list_daily_forecasts`, `get_daily_forecast`, `list_day_check_ins`, `get_balance`, `get_horizon`). Coleções usam filtros documentados e paginação (`page`/`per_page`, máximo 100); a grade do horizonte é limitada a 12 meses.
-- Consultas usam os calculadores canônicos (`BalanceCalculator`, `DailyForecastCalculator`) e o `forUser` do trait de isolamento; o isolamento nunca depende do global scope autenticado, que fica inativo sem sessão.
-- Ferramentas de mutação ainda não existem; qualquer adição deve reutilizar `App\Mcp\AccountTool`, `App\Mcp\Concerns\PaginatesResults` e o serializador de domínio, preservando a conta fixa e o isolamento.
+- Escopo de leitura (`list_transactions`, `get_transaction`, `list_account_plans`, `get_account_plan`, `list_tags`, `get_tag`, `get_initial_balance`, `list_daily_forecasts`, `get_daily_forecast`, `list_day_check_ins`, `get_balance`, `get_horizon`): coleções usam filtros documentados e paginação (`page`/`per_page`, máximo 100); a grade do horizonte é limitada a 12 meses.
+- Escopo de mutação de lançamentos individuais: `create_transaction` (somente manual, nunca recorrente), `update_transaction`, `confirm_transaction`, `skip_transaction` e `delete_transaction`. Criação exige `operation_key` única por conta; repetir a mesma chave com os mesmos argumentos devolve o lançamento anterior sem duplicar e a mesma chave com argumentos diferentes é rejeitada. Confirmar e pular só aceitam lançamentos pendentes; excluir só aceita lançamento manual (recorrentes são bloqueados) e a ferramenta é anotada como destrutiva. Não há SQL, escrita genérica nem operações em massa.
+- Idempotência e histórico mínimo ficam em `mcp_operations` (chave, ferramenta, hash dos argumentos e resultado) e `mcp_mutation_audits` (usuário, ferramenta, registro afetado, resultado, horário). Criação e registro da chave são atômicos na mesma transação, com a chave única por `(user_id, operation_key)` cobrindo concorrência e repetição após timeout. O histórico não guarda conversa, credenciais nem conteúdo financeiro completo.
+- Validações de vínculo são compartilhadas com o painel por escopos de domínio (`Tag::attachableTo` — tags ativas da conta, preservando as já vinculadas; `AccountPlan::selectableFor` — planos ativos da conta); a positividade do valor continua no hook de `DailyTransaction`. Nenhuma mutação aceita `user_id` nem identidade.
+- A confirmação antes de exclusões e alterações de efeito amplo é uma proteção comportamental do agente na conversa do Hermes, descrita nas instruções e na ferramenta, e não uma comprovação de aprovação humana pelo servidor.
+- Consultas usam os calculadores canônicos (`BalanceCalculator`, `DailyForecastCalculator`) e o `forUser` do trait de isolamento; o isolamento nunca depende do global scope autenticado, que fica inativo sem sessão. Cada chamada resolve a conta e os calculadores de novo, sem memoização obsoleta entre chamadas do processo stdio.
 - O Hermes instalado é configurado em `~/.hermes/config.yaml` (`mcp_servers.cash_compass`) apontando para o checkout integrado; a configuração é aditiva e preserva os demais servidores.
 
 ---

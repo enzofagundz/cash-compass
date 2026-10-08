@@ -27,14 +27,8 @@ trait HasTagSelector
                     ? $record->tags()->pluck('tags.id')->all()
                     : [];
 
-                return $query
-                    ->where(function (Builder $query) use ($selectedTagIds): void {
-                        $query->whereIn('tags.id', Tag::query()->active()->select('tags.id'));
-
-                        if ($selectedTagIds !== []) {
-                            $query->orWhereIn('tags.id', $selectedTagIds);
-                        }
-                    })
+                return Tag::query()
+                    ->attachableTo((int) auth()->id(), $selectedTagIds)
                     ->orderBy('tags.normalized_name');
             })
             ->getOptionLabelFromRecordUsing(fn (Tag $tag): HtmlString => new HtmlString(

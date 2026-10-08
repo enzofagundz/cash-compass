@@ -1,6 +1,9 @@
 <?php
 
 use App\Mcp\Servers\CashCompassServer;
+use App\Mcp\Tools\ConfirmTransactionTool;
+use App\Mcp\Tools\CreateTransactionTool;
+use App\Mcp\Tools\DeleteTransactionTool;
 use App\Mcp\Tools\GetAccountPlanTool;
 use App\Mcp\Tools\GetBalanceTool;
 use App\Mcp\Tools\GetDailyForecastTool;
@@ -13,9 +16,11 @@ use App\Mcp\Tools\ListDailyForecastsTool;
 use App\Mcp\Tools\ListDayCheckInsTool;
 use App\Mcp\Tools\ListTagsTool;
 use App\Mcp\Tools\ListTransactionsTool;
+use App\Mcp\Tools\SkipTransactionTool;
+use App\Mcp\Tools\UpdateTransactionTool;
 use App\Models\User;
 
-it('registers the read tools', function () {
+it('registers the read and mutation tools', function () {
     CashCompassServer::tools()->assertRegistered([
         ListTransactionsTool::class,
         GetTransactionTool::class,
@@ -29,6 +34,11 @@ it('registers the read tools', function () {
         ListDayCheckInsTool::class,
         GetBalanceTool::class,
         GetHorizonTool::class,
+        CreateTransactionTool::class,
+        UpdateTransactionTool::class,
+        ConfirmTransactionTool::class,
+        SkipTransactionTool::class,
+        DeleteTransactionTool::class,
     ]);
 });
 

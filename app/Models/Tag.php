@@ -66,6 +66,24 @@ class Tag extends Model
         return $query->where('is_active', true);
     }
 
+    /**
+     * @param  Builder<Tag>  $query
+     * @param  array<int, int>  $alreadyLinkedTagIds
+     * @return Builder<Tag>
+     */
+    public function scopeAttachableTo(Builder $query, User|int $account, array $alreadyLinkedTagIds = []): Builder
+    {
+        return $query
+            ->forUser($account)
+            ->where(function (Builder $query) use ($alreadyLinkedTagIds): void {
+                $query->where('tags.is_active', true);
+
+                if ($alreadyLinkedTagIds !== []) {
+                    $query->orWhereIn('tags.id', $alreadyLinkedTagIds);
+                }
+            });
+    }
+
     public function archive(): bool
     {
         $this->is_active = false;

@@ -10,6 +10,7 @@ use App\Observers\AccountPlanObserver;
 use Carbon\CarbonImmutable;
 use Database\Factories\AccountPlanFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -103,6 +104,17 @@ class AccountPlan extends Model
             ->where('status', TransactionStatus::Realized)
             ->where('date', '<=', CarbonImmutable::now()->startOfDay()->toDateString())
             ->exists();
+    }
+
+    /**
+     * @param  Builder<AccountPlan>  $query
+     * @return Builder<AccountPlan>
+     */
+    public function scopeSelectableFor(Builder $query, User|int $account): Builder
+    {
+        return $query
+            ->forUser($account)
+            ->where('is_active', true);
     }
 
     /**

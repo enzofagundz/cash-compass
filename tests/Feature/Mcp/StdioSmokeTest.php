@@ -37,6 +37,20 @@ it('discovers tools and runs a safe query over stdio', function () {
         ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list', 'params' => new stdClass],
         ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => ['name' => 'get_initial_balance', 'arguments' => new stdClass]],
         ['jsonrpc' => '2.0', 'id' => 3, 'method' => 'tools/call', 'params' => ['name' => 'list_tags', 'arguments' => ['per_page' => 5]]],
+        ['jsonrpc' => '2.0', 'id' => 4, 'method' => 'tools/call', 'params' => ['name' => 'create_transaction', 'arguments' => [
+            'operation_key' => 'smoke-1',
+            'date' => '2026-01-10',
+            'type' => 'expense',
+            'amount' => 12.5,
+            'description' => 'Smoke',
+        ]]],
+        ['jsonrpc' => '2.0', 'id' => 5, 'method' => 'tools/call', 'params' => ['name' => 'create_transaction', 'arguments' => [
+            'operation_key' => 'smoke-1',
+            'date' => '2026-01-10',
+            'type' => 'expense',
+            'amount' => 12.5,
+            'description' => 'Smoke',
+        ]]],
     ];
 
     $input = implode(PHP_EOL, array_map(
@@ -61,7 +75,12 @@ it('discovers tools and runs a safe query over stdio', function () {
     expect($responses->has(1))->toBeTrue()
         ->and($toolNames)->toContain('list_transactions')
         ->and($toolNames)->toContain('get_balance')
-        ->and($toolNames)->toHaveCount(12)
+        ->and($toolNames)->toContain('create_transaction')
+        ->and($toolNames)->toContain('delete_transaction')
+        ->and($toolNames)->toHaveCount(17)
         ->and(data_get($responses->get(2), 'result.structuredContent.has_balance'))->toBeFalse()
-        ->and(data_get($responses->get(3), 'result.structuredContent.total'))->toBe(0);
+        ->and(data_get($responses->get(3), 'result.structuredContent.total'))->toBe(0)
+        ->and(data_get($responses->get(4), 'result.structuredContent.transaction.amount'))->toBe('12.50')
+        ->and(data_get($responses->get(5), 'result.structuredContent.transaction.id'))
+        ->toBe(data_get($responses->get(4), 'result.structuredContent.transaction.id'));
 });

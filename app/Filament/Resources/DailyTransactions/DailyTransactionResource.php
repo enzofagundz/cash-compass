@@ -81,7 +81,7 @@ class DailyTransactionResource extends Resource
             Select::make('account_plan_id')
                 ->label('Plano (opcional)')
                 ->options(fn (): array => AccountPlan::query()
-                    ->where('is_active', true)
+                    ->selectableFor((int) auth()->id())
                     ->pluck('description', 'id')
                     ->all())
                 ->searchable()
