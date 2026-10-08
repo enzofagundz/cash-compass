@@ -51,17 +51,21 @@ it('discovers tools and runs a safe query over stdio', function () {
             'amount' => 12.5,
             'description' => 'Smoke',
         ]]],
-        ['jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call', 'params' => ['name' => 'create_tag', 'arguments' => [
-            'operation_key' => 'smoke-tag-1',
-            'name' => 'Smoke',
-            'color' => 'blue',
+        ['jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call', 'params' => ['name' => 'set_day_check_in', 'arguments' => [
+            'date' => '2020-01-01',
+            'checked_in' => true,
         ]]],
         ['jsonrpc' => '2.0', 'id' => 7, 'method' => 'tools/call', 'params' => ['name' => 'create_tag', 'arguments' => [
             'operation_key' => 'smoke-tag-1',
             'name' => 'Smoke',
             'color' => 'blue',
         ]]],
-        ['jsonrpc' => '2.0', 'id' => 8, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
+        ['jsonrpc' => '2.0', 'id' => 8, 'method' => 'tools/call', 'params' => ['name' => 'create_tag', 'arguments' => [
+            'operation_key' => 'smoke-tag-1',
+            'name' => 'Smoke',
+            'color' => 'blue',
+        ]]],
+        ['jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
             'operation_key' => 'smoke-plan-1',
             'type' => 'expense',
             'description' => 'Smoke plan',
@@ -70,7 +74,7 @@ it('discovers tools and runs a safe query over stdio', function () {
             'day_of_month' => 5,
             'starts_at' => '2026-01-01',
         ]]],
-        ['jsonrpc' => '2.0', 'id' => 9, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
+        ['jsonrpc' => '2.0', 'id' => 10, 'method' => 'tools/call', 'params' => ['name' => 'create_account_plan', 'arguments' => [
             'operation_key' => 'smoke-plan-1',
             'type' => 'expense',
             'description' => 'Smoke plan',
@@ -105,20 +109,23 @@ it('discovers tools and runs a safe query over stdio', function () {
         ->and($toolNames)->toContain('get_balance')
         ->and($toolNames)->toContain('create_transaction')
         ->and($toolNames)->toContain('delete_transaction')
+        ->and($toolNames)->toContain('update_initial_balance')
+        ->and($toolNames)->toContain('set_day_check_in')
         ->and($toolNames)->toContain('create_tag')
         ->and($toolNames)->toContain('delete_tag')
         ->and($toolNames)->toContain('create_account_plan')
         ->and($toolNames)->toContain('delete_account_plan')
-        ->and($toolNames)->toHaveCount(27)
+        ->and($toolNames)->toHaveCount(33)
         ->and(data_get($responses->get(2), 'result.structuredContent.has_balance'))->toBeFalse()
         ->and(data_get($responses->get(3), 'result.structuredContent.total'))->toBe(0)
         ->and(data_get($responses->get(4), 'result.structuredContent.transaction.amount'))->toBe('12.50')
         ->and(data_get($responses->get(5), 'result.structuredContent.transaction.id'))
         ->toBe(data_get($responses->get(4), 'result.structuredContent.transaction.id'))
-        ->and(data_get($responses->get(6), 'result.structuredContent.tag.name'))->toBe('Smoke')
-        ->and(data_get($responses->get(7), 'result.structuredContent.tag.id'))
-        ->toBe(data_get($responses->get(6), 'result.structuredContent.tag.id'))
-        ->and(data_get($responses->get(8), 'result.structuredContent.account_plan.expected_amount'))->toBe('30.50')
-        ->and(data_get($responses->get(9), 'result.structuredContent.account_plan.id'))
-        ->toBe(data_get($responses->get(8), 'result.structuredContent.account_plan.id'));
+        ->and(data_get($responses->get(6), 'result.structuredContent.checked_in'))->toBeTrue()
+        ->and(data_get($responses->get(7), 'result.structuredContent.tag.name'))->toBe('Smoke')
+        ->and(data_get($responses->get(8), 'result.structuredContent.tag.id'))
+        ->toBe(data_get($responses->get(7), 'result.structuredContent.tag.id'))
+        ->and(data_get($responses->get(9), 'result.structuredContent.account_plan.expected_amount'))->toBe('30.50')
+        ->and(data_get($responses->get(10), 'result.structuredContent.account_plan.id'))
+        ->toBe(data_get($responses->get(9), 'result.structuredContent.account_plan.id'));
 });
