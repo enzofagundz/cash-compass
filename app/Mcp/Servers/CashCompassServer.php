@@ -2,10 +2,14 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Tools\ActivateAccountPlanTool;
 use App\Mcp\Tools\ArchiveTagTool;
 use App\Mcp\Tools\ConfirmTransactionTool;
+use App\Mcp\Tools\CreateAccountPlanTool;
 use App\Mcp\Tools\CreateTagTool;
 use App\Mcp\Tools\CreateTransactionTool;
+use App\Mcp\Tools\DeactivateAccountPlanTool;
+use App\Mcp\Tools\DeleteAccountPlanTool;
 use App\Mcp\Tools\DeleteTagTool;
 use App\Mcp\Tools\DeleteTransactionTool;
 use App\Mcp\Tools\GetAccountPlanTool;
@@ -22,6 +26,7 @@ use App\Mcp\Tools\ListTagsTool;
 use App\Mcp\Tools\ListTransactionsTool;
 use App\Mcp\Tools\ReactivateTagTool;
 use App\Mcp\Tools\SkipTransactionTool;
+use App\Mcp\Tools\UpdateAccountPlanTool;
 use App\Mcp\Tools\UpdateTagTool;
 use App\Mcp\Tools\UpdateTransactionTool;
 use Laravel\Mcp\Server;
@@ -32,7 +37,7 @@ use Laravel\Mcp\Server\Tool;
 
 #[Name('Cash Compass')]
 #[Version('1.0.0')]
-#[Instructions('Servidor local das finanças do Cash Compass. Cada chamada usa uma única conta financeira definida por configuração local; ferramentas não aceitam identidade nem seleção de conta. Consulte lançamentos, planos de contas, tags, saldo inicial, previsão de diário, check-ins, saldos e projeções. Gerencie lançamentos individuais com create_transaction, update_transaction, confirm_transaction, skip_transaction e delete_transaction. Criações exigem uma chave de operação por conta. Gerencie tags com create_tag, update_tag, archive_tag, reactivate_tag e delete_tag; a exclusão de tag só é permitida sem vínculos e exige confirmação na conversa. Antes de excluir, pular ou confirmar, descreva o efeito ao usuário e peça confirmação na conversa: essa confirmação é uma proteção comportamental do agente, não uma comprovação de aprovação humana pelo servidor. As mensagens são em pt-BR.')]
+#[Instructions('Servidor local das finanças do Cash Compass. Cada chamada usa uma única conta financeira definida por configuração local; ferramentas não aceitam identidade nem seleção de conta. Consulte lançamentos, planos de contas, tags, saldo inicial, previsão de diário, check-ins, saldos e projeções. Gerencie lançamentos individuais com create_transaction, update_transaction, confirm_transaction, skip_transaction e delete_transaction. Criações exigem uma chave de operação por conta. Gerencie tags com create_tag, update_tag, archive_tag, reactivate_tag e delete_tag; a exclusão de tag só é permitida sem vínculos e exige confirmação na conversa. Gerencie planos de contas recorrentes com create_account_plan, update_account_plan, activate_account_plan, deactivate_account_plan e delete_account_plan; o tipo Diário é exclusivo de lançamentos manuais e não é aceito em planos, e excluir um plano com lançamentos realizados até hoje é bloqueado. Antes de excluir, pular, confirmar ou alterar recorrência que cancela/regenera ocorrências, descreva o efeito ao usuário e peça confirmação na conversa: essa confirmação é uma proteção comportamental do agente, não uma comprovação de aprovação humana pelo servidor. As mensagens são em pt-BR.')]
 class CashCompassServer extends Server
 {
     public int $defaultPaginationLength = 50;
@@ -63,5 +68,10 @@ class CashCompassServer extends Server
         ArchiveTagTool::class,
         ReactivateTagTool::class,
         DeleteTagTool::class,
+        CreateAccountPlanTool::class,
+        UpdateAccountPlanTool::class,
+        ActivateAccountPlanTool::class,
+        DeactivateAccountPlanTool::class,
+        DeleteAccountPlanTool::class,
     ];
 }
