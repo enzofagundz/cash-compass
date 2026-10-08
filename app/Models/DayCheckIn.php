@@ -40,18 +40,33 @@ class DayCheckIn extends Model
         $userId = $user instanceof User ? $user->getKey() : $user;
         $day = ($date instanceof CarbonImmutable ? $date : CarbonImmutable::parse($date))->toDateString();
 
+        return static::setFor($userId, $day, ! static::forUser($userId)->where('date', $day)->exists());
+    }
+
+    /**
+     * Set the check-in state of the given day, returning the resulting state.
+     */
+    public static function setFor(User|int $user, CarbonImmutable|string $date, bool $checkedIn): bool
+    {
+        $userId = $user instanceof User ? $user->getKey() : $user;
+        $day = ($date instanceof CarbonImmutable ? $date : CarbonImmutable::parse($date))->toDateString();
+
         $existing = static::forUser($userId)->where('date', $day)->first();
+
+        if ($checkedIn) {
+            if (! $existing instanceof self) {
+                $checkIn = new self(['date' => $day]);
+                $checkIn->user_id = $userId;
+                $checkIn->save();
+            }
+
+            return true;
+        }
 
         if ($existing instanceof self) {
             $existing->delete();
-
-            return false;
         }
 
-        $checkIn = new self(['date' => $day]);
-        $checkIn->user_id = $userId;
-        $checkIn->save();
-
-        return true;
+        return false;
     }
 }
