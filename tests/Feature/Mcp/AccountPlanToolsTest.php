@@ -88,6 +88,22 @@ it('rejects invalid money on a plan', function (float $amount) {
         ->and(McpOperation::query()->count())->toBe(0);
 })->with([0, -10, 10.555]);
 
+it('stores the expected amount as an exact decimal string at maximum precision', function () {
+    $this->travelTo('2026-01-01');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateAccountPlanTool::class, accountPlanArguments([
+        'expected_amount' => 99999999.99,
+    ]))
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('account_plan.expected_amount', '99999999.99')
+            ->etc());
+
+    expect(AccountPlan::query()->forUser($account)->sole()->expected_amount)->toBe('99999999.99');
+});
+
 it('requires an operation key to create a plan', function () {
     $account = User::factory()->create();
     useMcpAccount($account);

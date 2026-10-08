@@ -14,9 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
-use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
-#[IsIdempotent]
 class ConfirmTransactionTool extends AccountTool
 {
     use SerializesDomainRecords;

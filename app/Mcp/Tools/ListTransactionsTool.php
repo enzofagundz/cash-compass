@@ -117,12 +117,4 @@ class ListTransactionsTool extends AccountTool
                 ->where('tags.user_id', $account->getKey()));
         }
     }
-
-    /**
-     * @return array<int, string>
-     */
-    private function statusValues(): array
-    {
-        return array_map(fn (TransactionStatus $status): string => $status->value, TransactionStatus::cases());
-    }
 }

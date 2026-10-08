@@ -5,6 +5,7 @@ namespace App\Mcp\Tools;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\ResolvesTransactionRelations;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
@@ -22,6 +23,7 @@ use Laravel\Mcp\ResponseFactory;
 
 class UpdateTransactionTool extends AccountTool
 {
+    use NormalizesMoney;
     use ResolvesTransactionRelations;
     use SerializesDomainRecords;
 
@@ -82,7 +84,7 @@ class UpdateTransactionTool extends AccountTool
         }
 
         if (array_key_exists('amount', $input)) {
-            $changes['amount'] = number_format((float) $input['amount'], 2, '.', '');
+            $changes['amount'] = $this->money($input['amount']);
         }
 
         if (array_key_exists('account_plan_id', $input)) {
@@ -119,13 +121,5 @@ class UpdateTransactionTool extends AccountTool
         return Response::structured([
             'transaction' => $this->transactionRecord($transaction->refresh()->load('tags')),
         ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function statusValues(): array
-    {
-        return array_map(fn (TransactionStatus $status): string => $status->value, TransactionStatus::cases());
     }
 }

@@ -2,6 +2,9 @@
 
 namespace App\Mcp;
 
+use App\Enums\RecurrenceFrequency;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use App\Mcp\Support\ConfiguredAccount;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -32,5 +35,31 @@ abstract class AccountTool extends Tool
         }
 
         return $accounts->resolve();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function statusValues(): array
+    {
+        return array_map(fn (TransactionStatus $status): string => $status->value, TransactionStatus::cases());
+    }
+
+    /**
+     * Tipos aceitos em planos de contas (o Diário é exclusivo de lançamentos manuais).
+     *
+     * @return array<int, string>
+     */
+    protected function typeValues(): array
+    {
+        return array_map(fn (TransactionType $type): string => $type->value, TransactionType::planCases());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function frequencyValues(): array
+    {
+        return array_map(fn (RecurrenceFrequency $frequency): string => $frequency->value, RecurrenceFrequency::cases());
     }
 }

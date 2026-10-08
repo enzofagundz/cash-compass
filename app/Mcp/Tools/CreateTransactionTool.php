@@ -5,14 +5,17 @@ namespace App\Mcp\Tools;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\ResolvesTransactionRelations;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
 use App\Mcp\Support\MutationLedger;
 use App\Models\DailyTransaction;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -21,6 +24,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 #[IsIdempotent]
 class CreateTransactionTool extends AccountTool
 {
+    use NormalizesMoney;
     use ResolvesTransactionRelations;
     use SerializesDomainRecords;
 
@@ -69,7 +73,7 @@ class CreateTransactionTool extends AccountTool
         $attributes = [
             'date' => $validated['date'],
             'type' => $validated['type'],
-            'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+            'amount' => $this->money($validated['amount']),
             'description' => $validated['description'] ?? null,
             'account_plan_id' => $planId,
             'status' => $validated['status'] ?? TransactionStatus::Realized->value,
@@ -86,7 +90,17 @@ class CreateTransactionTool extends AccountTool
                     'is_recurring' => false,
                 ]);
                 $transaction->user_id = $account->getKey();
-                $transaction->save();
+
+                try {
+                    $transaction->save();
+                } catch (UniqueConstraintViolationException) {
+                    // Conflito de unique(user_id, account_plan_id, date) com uma
+                    // ocorrência recorrente existente. Convertido aqui, dentro da
+                    // mutação, para não confundir com a chave de operação do ledger.
+                    throw ValidationException::withMessages([
+                        'account_plan_id' => 'Já existe um lançamento para esse plano na data informada.',
+                    ]);
+                }
 
                 $transaction->tags()->sync($tagIds);
                 $ledger->record($account, 'create_transaction', 'created', $transaction);
@@ -96,13 +110,5 @@ class CreateTransactionTool extends AccountTool
         );
 
         return Response::structured($result);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function statusValues(): array
-    {
-        return array_map(fn (TransactionStatus $status): string => $status->value, TransactionStatus::cases());
     }
 }

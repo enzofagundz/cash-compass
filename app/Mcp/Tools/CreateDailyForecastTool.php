@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
 use App\Mcp\Support\MutationLedger;
@@ -17,6 +18,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 #[IsIdempotent]
 class CreateDailyForecastTool extends AccountTool
 {
+    use NormalizesMoney;
     use SerializesDomainRecords;
 
     protected string $name = 'create_daily_forecast';
@@ -49,7 +51,7 @@ class CreateDailyForecastTool extends AccountTool
 
         $attributes = [
             'description' => $validated['description'],
-            'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+            'amount' => $this->money($validated['amount']),
         ];
 
         $result = $ledger->run(

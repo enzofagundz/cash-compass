@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Mcp\AccountTool;
+use App\Mcp\Concerns\NormalizesMoney;
 use App\Mcp\Concerns\SerializesDomainRecords;
 use App\Mcp\Support\ConfiguredAccount;
 use App\Mcp\Support\MutationLedger;
@@ -19,6 +20,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 #[IsDestructive]
 class UpdateInitialBalanceTool extends AccountTool
 {
+    use NormalizesMoney;
     use SerializesDomainRecords;
 
     protected string $name = 'update_initial_balance';
@@ -56,7 +58,7 @@ class UpdateInitialBalanceTool extends AccountTool
             ? $input['base_date']
             : $existing?->base_date?->toDateString();
 
-        $amount = number_format((float) $validated['amount'], 2, '.', '');
+        $amount = $this->money($validated['amount']);
 
         $result = $ledger->run(
             $account,

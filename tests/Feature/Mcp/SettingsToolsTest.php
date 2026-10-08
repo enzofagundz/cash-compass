@@ -43,6 +43,31 @@ it('creates the initial balance with exact money and base date', function () {
         ->and($balance->amount)->toBe('2500.50');
 });
 
+it('stores zero and negative initial balance as exact decimal strings', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(UpdateInitialBalanceTool::class, [
+        'operation_key' => 'op-zero',
+        'amount' => 0,
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('initial_balance.amount', '0.00')
+            ->etc());
+
+    CashCompassServer::tool(UpdateInitialBalanceTool::class, [
+        'operation_key' => 'op-negative',
+        'amount' => -5.5,
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('initial_balance.amount', '-5.50')
+            ->etc());
+
+    expect(UserInitialBalance::query()->forUser($account)->sole()->amount)->toBe('-5.50');
+});
+
 it('treats an empty base date as the creation date', function () {
     $this->travelTo('2026-03-10');
     $account = User::factory()->create();
@@ -179,6 +204,23 @@ it('creates a forecast item with exact money and trims the description', functio
 
     expect($forecast->user_id)->toBe($account->id)
         ->and($forecast->amount)->toBe('1200.50');
+});
+
+it('stores the forecast amount as an exact decimal string at maximum precision', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateDailyForecastTool::class, [
+        'operation_key' => 'op-max',
+        'description' => 'Máximo',
+        'amount' => 99999999.99,
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('forecast.amount', '99999999.99')
+            ->etc());
+
+    expect(DailyForecast::query()->sole()->amount)->toBe('99999999.99');
 });
 
 it('replays a forecast creation for the same key and arguments', function () {

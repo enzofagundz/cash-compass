@@ -20,6 +20,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\Fluent\AssertableJson;
+use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Server\Contracts\Transport;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -407,7 +408,104 @@ it('rolls back the mutation and the operation key when the mutation fails', func
     ))->toThrow(RuntimeException::class);
 
     expect(DailyTransaction::query()->count())->toBe(0)
-        ->and(McpOperation::query()->count())->toBe(0);
+        ->and(McpOperation::query()->count())->toBe(0)
+        ->and(McpMutationAudit::query()->count())->toBe(0);
+});
+
+it('returns a clear validation error when a plan occurrence already exists on the date', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->create(['is_active' => true]);
+
+    DailyTransaction::factory()->for($account)->create([
+        'account_plan_id' => $plan->getKey(),
+        'date' => '2026-01-10',
+        'is_recurring' => true,
+        'status' => TransactionStatus::Pending,
+    ]);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-dup',
+        'date' => '2026-01-10',
+        'type' => TransactionType::Expense->value,
+        'amount' => 10,
+        'account_plan_id' => $plan->getKey(),
+    ])->assertHasErrors(['Já existe um lançamento para esse plano']);
+
+    expect(DailyTransaction::query()->whereNull('account_plan_id')->count())->toBe(0)
+        ->and(McpOperation::query()->count())->toBe(0)
+        ->and(McpMutationAudit::query()->count())->toBe(0);
+});
+
+it('keeps the operation key usable after the duplicate-plan validation fails', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->create(['is_active' => true]);
+
+    DailyTransaction::factory()->for($account)->create([
+        'account_plan_id' => $plan->getKey(),
+        'date' => '2026-01-10',
+        'is_recurring' => true,
+        'status' => TransactionStatus::Pending,
+    ]);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-retry',
+        'date' => '2026-01-10',
+        'type' => TransactionType::Expense->value,
+        'amount' => 10,
+        'account_plan_id' => $plan->getKey(),
+    ])->assertHasErrors(['Já existe um lançamento para esse plano']);
+
+    // Corrigir a data reutiliza a mesma chave sem replay indevido.
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-retry',
+        'date' => '2026-01-11',
+        'type' => TransactionType::Expense->value,
+        'amount' => 10,
+    ])->assertOk();
+
+    expect(DailyTransaction::query()->whereNull('account_plan_id')->count())->toBe(1)
+        ->and(McpOperation::query()->count())->toBe(1);
+});
+
+it('does not replay another tool result for the same operation key', function () {
+    $account = User::factory()->create();
+    $ledger = app(MutationLedger::class);
+    $arguments = ['value' => 1];
+
+    $ledger->run($account, 'create_transaction', 'shared-key', $arguments, fn (): array => ['tool' => 'transaction']);
+
+    expect(fn () => $ledger->run($account, 'create_daily_forecast', 'shared-key', $arguments, fn (): array => ['tool' => 'forecast']))
+        ->toThrow(ValidationException::class);
+
+    expect(McpOperation::query()->count())->toBe(1)
+        ->and(McpMutationAudit::query()->where('result', 'conflict')->count())->toBe(1);
+});
+
+it('stores the exact decimal string at the maximum column precision', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-max',
+        'date' => '2026-01-10',
+        'type' => TransactionType::Expense->value,
+        'amount' => 99999999.99,
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.amount', '99999999.99')
+            ->etc());
+
+    expect(DailyTransaction::query()->sole()->amount)->toBe('99999999.99');
+});
+
+it('does not advertise confirm or skip as idempotent', function () {
+    expect((new ConfirmTransactionTool)->annotations())->not->toHaveKey('idempotentHint')
+        ->and((new SkipTransactionTool)->annotations())->not->toHaveKey('idempotentHint');
 });
 
 it('keeps only minimal information in the mutation history', function () {
