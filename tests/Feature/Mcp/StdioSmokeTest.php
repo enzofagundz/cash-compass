@@ -51,6 +51,16 @@ it('discovers tools and runs a safe query over stdio', function () {
             'amount' => 12.5,
             'description' => 'Smoke',
         ]]],
+        ['jsonrpc' => '2.0', 'id' => 6, 'method' => 'tools/call', 'params' => ['name' => 'create_tag', 'arguments' => [
+            'operation_key' => 'smoke-tag-1',
+            'name' => 'Smoke',
+            'color' => 'blue',
+        ]]],
+        ['jsonrpc' => '2.0', 'id' => 7, 'method' => 'tools/call', 'params' => ['name' => 'create_tag', 'arguments' => [
+            'operation_key' => 'smoke-tag-1',
+            'name' => 'Smoke',
+            'color' => 'blue',
+        ]]],
     ];
 
     $input = implode(PHP_EOL, array_map(
@@ -77,10 +87,15 @@ it('discovers tools and runs a safe query over stdio', function () {
         ->and($toolNames)->toContain('get_balance')
         ->and($toolNames)->toContain('create_transaction')
         ->and($toolNames)->toContain('delete_transaction')
-        ->and($toolNames)->toHaveCount(17)
+        ->and($toolNames)->toContain('create_tag')
+        ->and($toolNames)->toContain('delete_tag')
+        ->and($toolNames)->toHaveCount(22)
         ->and(data_get($responses->get(2), 'result.structuredContent.has_balance'))->toBeFalse()
         ->and(data_get($responses->get(3), 'result.structuredContent.total'))->toBe(0)
         ->and(data_get($responses->get(4), 'result.structuredContent.transaction.amount'))->toBe('12.50')
         ->and(data_get($responses->get(5), 'result.structuredContent.transaction.id'))
-        ->toBe(data_get($responses->get(4), 'result.structuredContent.transaction.id'));
+        ->toBe(data_get($responses->get(4), 'result.structuredContent.transaction.id'))
+        ->and(data_get($responses->get(6), 'result.structuredContent.tag.name'))->toBe('Smoke')
+        ->and(data_get($responses->get(7), 'result.structuredContent.tag.id'))
+        ->toBe(data_get($responses->get(6), 'result.structuredContent.tag.id'));
 });
