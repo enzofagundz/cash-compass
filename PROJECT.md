@@ -18,6 +18,7 @@ ambiente_local: "lerd (Podman) — site em app-do-bruno.test, PostgreSQL em lerd
 url_local: "app-do-bruno.test"
 workers_locais: "queue e vite como serviços systemd do lerd"
 js_runtime_local: "bun (js_runtime no .lerd.yaml)"
+mcp_local: "servidor Laravel MCP local via stdio (artisan mcp:start cash-compass), somente leitura"
 idioma_ui: "pt_BR"
 timezone_padrao: "America/Sao_Paulo"
 locale_padrao: "pt_BR"
@@ -45,7 +46,7 @@ Observação: `config('app.name')` retorna `Cash Compass`, alinhado ao nome ofic
 - Deve ser reescrito sempre que mudanças alterarem arquitetura, fluxos, convenções, integrações, testes ou documentação relevante.
 - Atualize este arquivo na mesma entrega em que a mudança alterar arquitetura, fluxo, convenção, recursos Filament, comandos agendados ou regras de negócio.
 - Não manter documentação conflitante ou histórica aqui. Quando um padrão muda, substitua a regra antiga.
-- Não há `docs/` nem MCP de regras de negócio neste projeto; este arquivo e o código real são as fontes canônicas.
+- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. Decisões arquiteturais relevantes ficam registradas em `docs/adr/`. O servidor MCP local expõe somente consultas dos dados financeiros e não é fonte de regra de negócio.
 - O `AGENTS.md` cobre guidelines de ferramentas (Boost, skills, comandos). Este arquivo cobre produto, domínio e arquitetura; evite duplicar conteúdo entre os dois.
 
 ---
@@ -236,6 +237,17 @@ painel:
 
 ---
 
+## Integração MCP (Hermes)
+
+- Servidor Laravel MCP local (`app/Mcp/Servers/CashCompassServer`) registrado como `cash-compass` em `routes/ai.php` e iniciado por stdio com `php artisan mcp:start cash-compass`. Não há endpoint HTTP nem servidor web adicional.
+- Cada chamada resolve uma conta financeira fixa pela configuração `cash_compass.mcp.account_email` (env `CASH_COMPASS_MCP_ACCOUNT_EMAIL`); a conta precisa existir, estar ativa e não ser admin, senão a chamada falha de forma fechada. As ferramentas não aceitam `user_id` nem qualquer seleção de identidade.
+- Escopo atual: somente leitura (`list_transactions`, `get_transaction`, `list_account_plans`, `get_account_plan`, `list_tags`, `get_tag`, `get_initial_balance`, `list_daily_forecasts`, `get_daily_forecast`, `list_day_check_ins`, `get_balance`, `get_horizon`). Coleções usam filtros documentados e paginação (`page`/`per_page`, máximo 100); a grade do horizonte é limitada a 12 meses.
+- Consultas usam os calculadores canônicos (`BalanceCalculator`, `DailyForecastCalculator`) e o `forUser` do trait de isolamento; o isolamento nunca depende do global scope autenticado, que fica inativo sem sessão.
+- Ferramentas de mutação ainda não existem; qualquer adição deve reutilizar `App\Mcp\AccountTool`, `App\Mcp\Concerns\PaginatesResults` e o serializador de domínio, preservando a conta fixa e o isolamento.
+- O Hermes instalado é configurado em `~/.hermes/config.yaml` (`mcp_servers.cash_compass`) apontando para o checkout integrado; a configuração é aditiva e preserva os demais servidores.
+
+---
+
 ## Painel Filament (UI e Recursos)
 
 ```yaml
@@ -414,6 +426,9 @@ lerd vite:start / lerd vite:stop     # dev server do Vite (HMR)
 # Agendador
 php artisan recurrence:tick
 php artisan app:ping-scheduler
+
+# MCP local (Hermes)
+php artisan mcp:start cash-compass   # inicia o servidor stdio consumido pelo Hermes
 
 # Testes e qualidade (shims do lerd executam no container)
 php artisan test --compact --filter=TestName   # alias: lerd test --compact --filter=TestName
