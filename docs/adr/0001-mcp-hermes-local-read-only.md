@@ -43,3 +43,7 @@ transitiva como dependência de desenvolvimento, sem servidor de domínio.
   com `could not find driver` na query que resolve a conta fixa. Instalar o
   driver no PHP do host não resolve, porque o host não alcança o container do
   serviço; o PHP tem de rodar dentro do container, via shim do lerd.
+- Com `gateway.multiplex_profiles` ativo, cada perfil mantém a própria cópia da
+  configuração em `~/.hermes/profiles/<perfil>/config.yaml`, e ela vence a
+  `~/.hermes/config.yaml` da raiz. Corrigir apenas a raiz deixa o perfil com o
+  comando antigo; os dois arquivos precisam do caminho absoluto.
