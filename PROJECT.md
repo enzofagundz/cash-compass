@@ -251,6 +251,7 @@ painel:
 - A confirmação antes de exclusões e alterações de efeito amplo é uma proteção comportamental do agente na conversa do Hermes, descrita nas instruções e na ferramenta, e não uma comprovação de aprovação humana pelo servidor.
 - Consultas usam os calculadores canônicos (`BalanceCalculator`, `DailyForecastCalculator`) e o `forUser` do trait de isolamento; o isolamento nunca depende do global scope autenticado, que fica inativo sem sessão. Cada chamada resolve a conta e os calculadores de novo, sem memoização obsoleta entre chamadas do processo stdio.
 - O Hermes instalado é configurado em `~/.hermes/config.yaml` (`mcp_servers.cash_compass`) apontando para o checkout integrado; a configuração é aditiva e preserva os demais servidores.
+- O `command` do servidor precisa ser caminho absoluto para um PHP que carregue o driver do banco do projeto. O PATH do processo Hermes não inclui os shims do lerd, então um `command: php` resolve para o PHP do host, que não tem `pdo_pgsql` e não resolve o hostname do serviço: toda chamada falha com `could not find driver` logo na query que resolve a conta fixa. Instalar o driver no PHP do host não adianta, porque o host não alcança o container do serviço. Use o shim do lerd (`/home/enzo/.local/share/lerd/bin/php`), que executa o PHP dentro do container. Servidores que usam SQLite sobrevivem com `command: php`, porque o host carrega `pdo_sqlite`.
 
 ---
 
@@ -435,6 +436,7 @@ php artisan app:ping-scheduler
 
 # MCP local (Hermes)
 php artisan mcp:start cash-compass   # inicia o servidor stdio consumido pelo Hermes
+                                    # pelo Hermes use o PHP do container: /home/enzo/.local/share/lerd/bin/php
 
 # Testes e qualidade (shims do lerd executam no container)
 php artisan test --compact --filter=TestName   # alias: lerd test --compact --filter=TestName
