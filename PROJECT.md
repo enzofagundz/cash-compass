@@ -18,6 +18,7 @@ ambiente_local: "lerd (Podman) — site em app-do-bruno.test, PostgreSQL em lerd
 url_local: "app-do-bruno.test"
 workers_locais: "queue e vite como serviços systemd do lerd"
 js_runtime_local: "bun (js_runtime no .lerd.yaml)"
+mcp_local: "servidor Laravel MCP local via stdio (artisan mcp:start cash-compass), consultas e mutações de lançamentos individuais, saldo inicial, previsão de diário e check-ins com idempotência"
 idioma_ui: "pt_BR"
 timezone_padrao: "America/Sao_Paulo"
 locale_padrao: "pt_BR"
@@ -45,7 +46,7 @@ Observação: `config('app.name')` retorna `Cash Compass`, alinhado ao nome ofic
 - Deve ser reescrito sempre que mudanças alterarem arquitetura, fluxos, convenções, integrações, testes ou documentação relevante.
 - Atualize este arquivo na mesma entrega em que a mudança alterar arquitetura, fluxo, convenção, recursos Filament, comandos agendados ou regras de negócio.
 - Não manter documentação conflitante ou histórica aqui. Quando um padrão muda, substitua a regra antiga.
-- Não há `docs/` nem MCP de regras de negócio neste projeto; este arquivo e o código real são as fontes canônicas.
+- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. Decisões arquiteturais relevantes ficam registradas em `docs/adr/`. O servidor MCP local expõe consultas e mutações de lançamentos individuais, reutilizando as regras de negócio do domínio e não como fonte própria de regra.
 - O `AGENTS.md` cobre guidelines de ferramentas (Boost, skills, comandos). Este arquivo cobre produto, domínio e arquitetura; evite duplicar conteúdo entre os dois.
 
 ---
@@ -236,6 +237,23 @@ painel:
 
 ---
 
+## Integração MCP (Hermes)
+
+- Servidor Laravel MCP local (`app/Mcp/Servers/CashCompassServer`) registrado como `cash-compass` em `routes/ai.php` e iniciado por stdio com `php artisan mcp:start cash-compass`. Não há endpoint HTTP nem servidor web adicional.
+- Cada chamada resolve uma conta financeira fixa pela configuração `cash_compass.mcp.account_email` (env `CASH_COMPASS_MCP_ACCOUNT_EMAIL`); a conta precisa existir, estar ativa e não ser admin, senão a chamada falha de forma fechada. As ferramentas não aceitam `user_id` nem qualquer seleção de identidade.
+- Escopo de leitura (`list_transactions`, `get_transaction`, `list_account_plans`, `get_account_plan`, `list_tags`, `get_tag`, `get_initial_balance`, `list_daily_forecasts`, `get_daily_forecast`, `list_day_check_ins`, `get_balance`, `get_horizon`): coleções usam filtros documentados e paginação (`page`/`per_page`, máximo 100); a grade do horizonte é limitada a 12 meses.
+- Escopo de mutação de lançamentos individuais: `create_transaction` (somente manual, nunca recorrente), `update_transaction`, `confirm_transaction`, `skip_transaction` e `delete_transaction`. Criação exige `operation_key` única por conta; repetir a mesma chave com os mesmos argumentos devolve o lançamento anterior sem duplicar e a mesma chave com argumentos diferentes é rejeitada. Criar um lançamento para um plano que já tem ocorrência na mesma data retorna erro de validação claro em vez de falha bruta. Confirmar e pular só aceitam lançamentos pendentes e são transições de estado sem chave de operação, portanto não são anunciadas como idempotentes; excluir só aceita lançamento manual (recorrentes são bloqueados) e a ferramenta é anotada como destrutiva. Não há SQL, escrita genérica nem operações em massa.
+- Escopo de mutação de tags: `create_tag` (nome normalizado, cor da paleta `TagColor`, `operation_key` idempotente), `update_tag` (nome/cor), `archive_tag`, `reactivate_tag` e `delete_tag` (destrutiva). A unicidade por conta é `(user_id, normalized_name)` e inclui tags arquivadas; arquivar preserva os vínculos e novos vínculos só aceitam tags ativas; a exclusão é bloqueada quando há vínculos com lançamentos ou planos. Vínculos de lançamentos reutilizam `Tag::attachableTo` (tags ativas da conta, preservando as já vinculadas em edições).
+- Escopo de mutação de planos de contas: `create_account_plan` (`operation_key` idempotente), `update_account_plan`, `activate_account_plan`, `deactivate_account_plan` e `delete_account_plan` (destrutiva). O tipo Diário é exclusivo de lançamentos manuais e não é aceito em planos; frequência, intervalo, datas e limites de recorrência seguem os mesmos contratos do painel e o valor esperado usa decimal exato. Criação e edição usam o model `AccountPlan`, preservando os eventos do `AccountPlanObserver` (geração, cancelamento/regeneração de pendências e bloqueio de exclusão com realizado até hoje), sem regra de recorrência paralela nem operação em massa. O plano é a fonte de verdade das tags das ocorrências pendentes recorrentes; tags novas exigem tags ativas da conta e vínculos arquivados existentes são preservados. A exclusão com lançamento realizado até hoje retorna erro, nunca sucesso silencioso.
+- Idempotência e histórico mínimo ficam em `mcp_operations` (chave, ferramenta, hash dos argumentos e resultado) e `mcp_mutation_audits` (usuário, ferramenta, registro afetado, resultado, horário). Criação e registro da chave são atômicos na mesma transação, com a chave única por `(user_id, operation_key)` cobrindo concorrência e repetição após timeout. A mesma chave usada por ferramenta diferente é rejeitada como conflito, nunca reproduz o resultado de outra ferramenta. O histórico não guarda conversa, credenciais nem conteúdo financeiro completo.
+- Escopo de configurações e check-ins: `update_initial_balance` cria ou altera o saldo inicial (exige `operation_key`, com `base_date` vazia contando a partir da criação do registro, e confirmação conversacional por ser de efeito amplo), `create_daily_forecast` (exige `operation_key`), `update_daily_forecast`, `delete_daily_forecast` (destrutiva) e `set_forecast_divisor` (1 a 31) gerenciam a previsão de diário, e `set_day_check_in` define o estado explícito de um dia rejeitando datas futuras e reutilizando o modelo de check-in. Cada chamada resolve a conta e os calculadores de novo, sem memoização obsoleta entre chamadas do processo stdio.
+- Validações de vínculo são compartilhadas com o painel por escopos de domínio (`Tag::attachableTo` — tags ativas da conta, preservando as já vinculadas; `AccountPlan::selectableFor` — planos ativos da conta); a positividade do valor continua no hook de `DailyTransaction`. Nenhuma mutação aceita `user_id` nem identidade.
+- A confirmação antes de exclusões e alterações de efeito amplo é uma proteção comportamental do agente na conversa do Hermes, descrita nas instruções e na ferramenta, e não uma comprovação de aprovação humana pelo servidor.
+- Consultas usam os calculadores canônicos (`BalanceCalculator`, `DailyForecastCalculator`) e o `forUser` do trait de isolamento; o isolamento nunca depende do global scope autenticado, que fica inativo sem sessão. Cada chamada resolve a conta e os calculadores de novo, sem memoização obsoleta entre chamadas do processo stdio.
+- O Hermes instalado é configurado em `~/.hermes/config.yaml` (`mcp_servers.cash_compass`) apontando para o checkout integrado; a configuração é aditiva e preserva os demais servidores.
+
+---
+
 ## Painel Filament (UI e Recursos)
 
 ```yaml
@@ -414,6 +432,9 @@ lerd vite:start / lerd vite:stop     # dev server do Vite (HMR)
 # Agendador
 php artisan recurrence:tick
 php artisan app:ping-scheduler
+
+# MCP local (Hermes)
+php artisan mcp:start cash-compass   # inicia o servidor stdio consumido pelo Hermes
 
 # Testes e qualidade (shims do lerd executam no container)
 php artisan test --compact --filter=TestName   # alias: lerd test --compact --filter=TestName

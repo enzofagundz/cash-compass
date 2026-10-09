@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Mcp;
+
+use App\Enums\RecurrenceFrequency;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
+use App\Mcp\Support\ConfiguredAccount;
+use App\Models\User;
+use Illuminate\Validation\ValidationException;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Server\Tool;
+
+abstract class AccountTool extends Tool
+{
+    /**
+     * @var array<int, string>
+     */
+    private const IDENTITY_ARGUMENTS = [
+        'user_id',
+        'user',
+        'account_id',
+        'account_email',
+        'email',
+    ];
+
+    protected function account(Request $request, ConfiguredAccount $accounts): User
+    {
+        foreach (self::IDENTITY_ARGUMENTS as $argument) {
+            if ($request->get($argument) !== null) {
+                throw ValidationException::withMessages([
+                    $argument => 'A identidade financeira vem da configuração local e não pode ser enviada nas ferramentas.',
+                ]);
+            }
+        }
+
+        return $accounts->resolve();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function statusValues(): array
+    {
+        return array_map(fn (TransactionStatus $status): string => $status->value, TransactionStatus::cases());
+    }
+
+    /**
+     * Tipos aceitos em planos de contas (o Diário é exclusivo de lançamentos manuais).
+     *
+     * @return array<int, string>
+     */
+    protected function typeValues(): array
+    {
+        return array_map(fn (TransactionType $type): string => $type->value, TransactionType::planCases());
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function frequencyValues(): array
+    {
+        return array_map(fn (RecurrenceFrequency $frequency): string => $frequency->value, RecurrenceFrequency::cases());
+    }
+}
