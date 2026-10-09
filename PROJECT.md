@@ -46,7 +46,7 @@ Observação: `config('app.name')` retorna `Cash Compass`, alinhado ao nome ofic
 - Deve ser reescrito sempre que mudanças alterarem arquitetura, fluxos, convenções, integrações, testes ou documentação relevante.
 - Atualize este arquivo na mesma entrega em que a mudança alterar arquitetura, fluxo, convenção, recursos Filament, comandos agendados ou regras de negócio.
 - Não manter documentação conflitante ou histórica aqui. Quando um padrão muda, substitua a regra antiga.
-- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. Decisões arquiteturais relevantes ficam registradas em `docs/adr/`. O servidor MCP local expõe consultas e mutações de lançamentos individuais, reutilizando as regras de negócio do domínio e não como fonte própria de regra.
+- `PROJECT.md` e o código real são as fontes canônicas de produto, domínio e arquitetura. `docs/agents/` configura as skills de engenharia; `GLOSSARY.md` e `docs/adr/`, quando existentes, registram termos e decisões. O servidor MCP local expõe consultas e mutações de lançamentos individuais, reutilizando as regras de negócio do domínio e não como fonte própria de regra. O MCP de regras de negócio do Cidade Fácil não é fonte deste projeto.
 - O `AGENTS.md` cobre guidelines de ferramentas (Boost, skills, comandos). Este arquivo cobre produto, domínio e arquitetura; evite duplicar conteúdo entre os dois.
 
 ---
