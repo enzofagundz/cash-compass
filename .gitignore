@@ -42,3 +42,7 @@ yarn-error.log
 /opencode.jsonc
 .env.before_lerd
 /.references
+# BEGIN oh-my-opencode-slim worktrees
+.slim/worktrees/
+.slim/worktrees.json
+# END oh-my-opencode-slim worktrees
