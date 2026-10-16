@@ -18,7 +18,7 @@ class ThermometerGrid
     /**
      * Multi-month horizon with the data each grid row needs to be drawn.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>, label: string, short_date: string, is_weekend: bool, is_checked_in: bool, balance_color: string, filled_types: array<int, string>}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
      */
     public function months(User $user, int $year, int $month, int $months): array
     {
@@ -30,13 +30,13 @@ class ThermometerGrid
 
         $checkIns = $this->checkInsByDate($user, $horizon);
 
-        foreach ($horizon as $offset => $monthGrid) {
-            foreach ($monthGrid['days'] as $index => $day) {
-                $horizon[$offset]['days'][$index] = $this->row($day, $checkIns);
-            }
-        }
-
-        return $horizon;
+        return array_map(fn (array $monthGrid): array => [
+            'year' => $monthGrid['year'],
+            'month' => $monthGrid['month'],
+            'label' => $monthGrid['label'],
+            'days' => array_map(fn (array $day): array => $this->row($day, $checkIns), $monthGrid['days']),
+            'totals' => $monthGrid['totals'],
+        ], $horizon);
     }
 
     /**
@@ -72,9 +72,9 @@ class ThermometerGrid
     }
 
     /**
-     * @param  array<string, mixed>  $day
+     * @param  array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>}  $day
      * @param  array<string, bool>  $checkIns
-     * @return array<string, mixed>
+     * @return array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>, label: string, short_date: string, is_weekend: bool, is_checked_in: bool, balance_color: string, filled_types: array<int, string>}
      */
     private function row(array $day, array $checkIns): array
     {
@@ -94,7 +94,7 @@ class ThermometerGrid
     /**
      * Types of a day with a non-zero value, in column order.
      *
-     * @param  array<string, mixed>  $day
+     * @param  array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>}  $day
      * @return array<int, string>
      */
     private function filledTypes(array $day): array

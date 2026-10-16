@@ -36,3 +36,14 @@ transitiva como dependência de desenvolvimento, sem servidor de domínio.
   projeção respeita o teto de 12 meses do produto.
 - O Hermes instalado é configurado de forma aditiva em
   `~/.hermes/config.yaml`, preservando os demais servidores e credenciais.
+- O `command` do servidor tem de ser caminho absoluto para um PHP que carregue
+  o driver do banco do projeto. O PATH do processo Hermes não inclui os shims do
+  lerd, então `command: php` resolve para o PHP do host, que não tem
+  `pdo_pgsql` e não resolve o hostname do serviço PostgreSQL: toda chamada falha
+  com `could not find driver` na query que resolve a conta fixa. Instalar o
+  driver no PHP do host não resolve, porque o host não alcança o container do
+  serviço; o PHP tem de rodar dentro do container, via shim do lerd.
+- Com `gateway.multiplex_profiles` ativo, cada perfil mantém a própria cópia da
+  configuração em `~/.hermes/profiles/<perfil>/config.yaml`, e ela vence a
+  `~/.hermes/config.yaml` da raiz. Corrigir apenas a raiz deixa o perfil com o
+  comando antigo; os dois arquivos precisam do caminho absoluto.
