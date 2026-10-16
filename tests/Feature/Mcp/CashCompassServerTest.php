@@ -19,6 +19,7 @@ use App\Mcp\Tools\GetDailyForecastTool;
 use App\Mcp\Tools\GetHorizonTool;
 use App\Mcp\Tools\GetInitialBalanceTool;
 use App\Mcp\Tools\GetTagTool;
+use App\Mcp\Tools\GetThermometerImageTool;
 use App\Mcp\Tools\GetTransactionTool;
 use App\Mcp\Tools\ListAccountPlansTool;
 use App\Mcp\Tools\ListDailyForecastsTool;
@@ -50,6 +51,7 @@ it('registers the read and mutation tools', function () {
         ListDayCheckInsTool::class,
         GetBalanceTool::class,
         GetHorizonTool::class,
+        GetThermometerImageTool::class,
         CreateTransactionTool::class,
         UpdateTransactionTool::class,
         ConfirmTransactionTool::class,
