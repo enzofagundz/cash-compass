@@ -166,7 +166,7 @@ class BalanceCalculator
      * balance is continuous across months, so every day satisfies:
      * balance = previous balance + day columns.
      *
-     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
      */
     public function horizonGrid(User $user, int $year, int $month, int $months): array
     {

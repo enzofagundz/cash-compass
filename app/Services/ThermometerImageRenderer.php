@@ -60,8 +60,9 @@ class ThermometerImageRenderer
         }
 
         $body = $response->body();
+        $image = @getimagesizefromstring($body);
 
-        if ($response->failed() || ! str_starts_with($body, "\x89PNG")) {
+        if ($response->failed() || $image === false || $image[2] !== IMAGETYPE_PNG) {
             throw new ThermometerImageUnavailable($this->failureMessage($response->status(), $body));
         }
 
@@ -113,7 +114,7 @@ class ThermometerImageRenderer
     /**
      * Current month grid row, enriched the same way the panel grid is.
      *
-     * @return array<string, mixed>
+     * @return array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>, label: string, short_date: string, is_weekend: bool, is_checked_in: bool, balance_color: string, filled_types: array<int, string>}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}
      */
     private function month(User $user): array
     {
@@ -145,7 +146,7 @@ class ThermometerImageRenderer
      */
     private function failureMessage(int $status, string $body): string
     {
-        $message = 'A API da Cloudflare não retornou um PNG (HTTP '.$status.')';
+        $message = 'A API da Cloudflare não retornou uma imagem PNG válida (HTTP '.$status.')';
 
         /** @var array<string, mixed>|null $decoded */
         $decoded = json_decode($body, true);

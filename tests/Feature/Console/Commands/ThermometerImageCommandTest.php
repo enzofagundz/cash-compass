@@ -28,7 +28,7 @@ it('writes the current month thermometer image to the given output path', functi
 
     DayCheckIn::toggleFor($account, '2026-10-05');
 
-    $png = "\x89PNG\r\n\x1a\nfake-png-bytes";
+    $png = tinyPng();
 
     Http::fake([
         'api.cloudflare.com/*' => Http::response($png, 200, ['Content-Type' => 'image/png']),
@@ -65,14 +65,14 @@ it('writes to the default storage path when no output is given', function () {
     config()->set('cash_compass.thermometer_image.cloudflare_account_id', 'acc-123');
     config()->set('cash_compass.thermometer_image.cloudflare_api_token', 'token-123');
 
-    Http::fake(['api.cloudflare.com/*' => Http::response("\x89PNG fake", 200)]);
+    Http::fake(['api.cloudflare.com/*' => Http::response(tinyPng(), 200)]);
 
     $this->artisan('thermometer:image')->assertExitCode(0);
 
     $path = storage_path('app/thermometer-image-2026-10.png');
 
     expect(File::exists($path))->toBeTrue();
-    expect(File::get($path))->toBe("\x89PNG fake");
+    expect(File::get($path))->toBe(tinyPng());
 
     File::delete($path);
 });
@@ -105,7 +105,25 @@ it('fails when cloudflare does not return a png', function () {
     $output = sys_get_temp_dir().'/thermometer-command-'.uniqid().'.png';
 
     $this->artisan('thermometer:image', ['--output' => $output])
-        ->expectsOutputToContain('A API da Cloudflare não retornou um PNG (HTTP 500).')
+        ->expectsOutputToContain('A API da Cloudflare não retornou uma imagem PNG válida (HTTP 500).')
+        ->assertExitCode(1);
+
+    expect(File::exists($output))->toBeFalse();
+});
+
+it('fails when cloudflare returns a truncated png body', function () {
+    $this->travelTo('2026-10-16');
+
+    useMcpAccount(User::factory()->create());
+    config()->set('cash_compass.thermometer_image.cloudflare_account_id', 'acc-123');
+    config()->set('cash_compass.thermometer_image.cloudflare_api_token', 'token-123');
+
+    Http::fake(['api.cloudflare.com/*' => Http::response("\x89PNG\r\n\x1a\ntruncated", 200)]);
+
+    $output = sys_get_temp_dir().'/thermometer-command-'.uniqid().'.png';
+
+    $this->artisan('thermometer:image', ['--output' => $output])
+        ->expectsOutputToContain('não retornou uma imagem PNG válida (HTTP 200).')
         ->assertExitCode(1);
 
     expect(File::exists($output))->toBeFalse();

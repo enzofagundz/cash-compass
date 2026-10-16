@@ -12,8 +12,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
 
-#[Signature('thermometer:image {--output= : Absolute path of the PNG file}')]
-#[Description('Generates the current month thermometer image as a PNG using Cloudflare Browser Rendering.')]
+#[Signature('thermometer:image {--output= : Caminho absoluto do arquivo PNG}')]
+#[Description('Gera o PNG do mês atual do termômetro usando a API Cloudflare Browser Rendering.')]
 class ThermometerImageCommand extends Command
 {
     public function handle(ThermometerImageRenderer $renderer, ConfiguredAccount $accounts): int
@@ -34,7 +34,7 @@ class ThermometerImageCommand extends Command
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $png);
 
-        $this->components->info("Thermometer image written to {$path}.");
+        $this->components->info("Imagem do termômetro salva em {$path}.");
 
         return self::SUCCESS;
     }
