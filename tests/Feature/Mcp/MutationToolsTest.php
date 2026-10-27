@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\UserInitialBalance;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Illuminate\Validation\ValidationException;
@@ -55,6 +56,72 @@ it('creates a manual transaction with exact money and tags', function () {
         ->and($transaction->amount)->toBe('45.50')
         ->and($transaction->is_recurring)->toBeFalse()
         ->and($transaction->tags->pluck('id')->all())->toBe([$tag->getKey()]);
+});
+
+it('creates a daily transaction on today when the date is omitted', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-1',
+        'type' => TransactionType::Daily->value,
+        'amount' => 32,
+        'description' => 'Almoço',
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.date', '2026-01-15')
+            ->where('transaction.type', TransactionType::Daily->value)
+            ->etc());
+
+    $transaction = DailyTransaction::query()->forUser($account)->sole();
+
+    expect($transaction->date->toDateString())->toBe('2026-01-15');
+});
+
+it('creates a transaction on today when the date is explicitly null', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-1',
+        'date' => null,
+        'type' => TransactionType::Expense->value,
+        'amount' => 12,
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.date', '2026-01-15')
+            ->etc());
+
+    expect(DailyTransaction::query()->forUser($account)->sole()->date->toDateString())->toBe('2026-01-15');
+});
+
+it('rejects a malformed date instead of falling back to today', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    CashCompassServer::tool(CreateTransactionTool::class, [
+        'operation_key' => 'op-1',
+        'date' => '15/01/2026',
+        'type' => TransactionType::Expense->value,
+        'amount' => 12,
+    ])->assertHasErrors(['date']);
+
+    expect(DailyTransaction::query()->count())->toBe(0)
+        ->and(McpOperation::query()->count())->toBe(0);
+});
+
+it('advertises the date as optional and nullable, defaulting to today', function () {
+    $schema = (new CreateTransactionTool)->toArray()['inputSchema'];
+    $types = Arr::wrap($schema['properties']['date']['type']);
+
+    expect($schema['required'] ?? [])->not->toContain('date')
+        ->and($types)->toEqualCanonicalizing(['string', 'null'])
+        ->and($schema['properties']['date']['description'])->toContain('hoje');
 });
 
 it('rejects invalid money on create', function (float $amount) {

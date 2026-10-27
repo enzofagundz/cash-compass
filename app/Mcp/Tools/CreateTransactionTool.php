@@ -41,7 +41,7 @@ class CreateTransactionTool extends AccountTool
     {
         return [
             'operation_key' => $schema->string()->description('Chave de operação única por conta, para idempotência.')->required(),
-            'date' => $schema->string()->description('Data do lançamento (AAAA-MM-DD).')->required(),
+            'date' => $schema->string()->nullable()->description('Data do lançamento (AAAA-MM-DD). Omitida ou nula, usa a data de hoje.'),
             'type' => $schema->string()->enum(TransactionType::values())->description('Tipo do lançamento.')->required(),
             'amount' => $schema->number()->description('Valor exato, maior que zero, com até duas casas decimais.')->required(),
             'description' => $schema->string()->description('Descrição opcional (até 255 caracteres).'),
@@ -57,7 +57,7 @@ class CreateTransactionTool extends AccountTool
 
         $validated = $request->validate([
             'operation_key' => ['required', 'string', 'max:191'],
-            'date' => ['required', 'date_format:Y-m-d'],
+            'date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'type' => ['required', Rule::enum(TransactionType::class)],
             'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'description' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -71,7 +71,7 @@ class CreateTransactionTool extends AccountTool
         $planId = $this->resolveAccountPlanId($account, $request);
 
         $attributes = [
-            'date' => $validated['date'],
+            'date' => $validated['date'] ?? now()->toDateString(),
             'type' => $validated['type'],
             'amount' => $this->money($validated['amount']),
             'description' => $validated['description'] ?? null,
