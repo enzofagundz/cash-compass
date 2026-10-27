@@ -250,6 +250,90 @@ it('rejects the same key with different arguments', function () {
         ->and(McpMutationAudit::query()->where('result', 'conflict')->count())->toBe(1);
 });
 
+it('replays a date-less creation for the same key on the same day', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $arguments = [
+        'operation_key' => 'op-1',
+        'type' => TransactionType::Daily->value,
+        'amount' => 32,
+        'description' => 'Almoço',
+    ];
+
+    CashCompassServer::tool(CreateTransactionTool::class, $arguments)->assertOk();
+    $firstId = (int) DailyTransaction::query()->forUser($account)->sole()->getKey();
+
+    CashCompassServer::tool(CreateTransactionTool::class, $arguments)
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.id', $firstId)
+            ->where('transaction.date', '2026-01-15')
+            ->etc());
+
+    expect(DailyTransaction::query()->count())->toBe(1)
+        ->and(McpOperation::query()->count())->toBe(1)
+        ->and(McpMutationAudit::query()->where('result', 'replayed')->count())->toBe(1);
+});
+
+it('treats null, an omitted date and today as the same intent for the same key', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $base = [
+        'operation_key' => 'op-1',
+        'type' => TransactionType::Expense->value,
+        'amount' => 30,
+    ];
+
+    CashCompassServer::tool(CreateTransactionTool::class, [...$base, 'date' => null])->assertOk();
+    $firstId = (int) DailyTransaction::query()->forUser($account)->sole()->getKey();
+
+    CashCompassServer::tool(CreateTransactionTool::class, $base)
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.id', $firstId)
+            ->where('transaction.date', '2026-01-15')
+            ->etc());
+
+    CashCompassServer::tool(CreateTransactionTool::class, [...$base, 'date' => '2026-01-15'])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.id', $firstId)
+            ->etc());
+
+    expect(DailyTransaction::query()->count())->toBe(1)
+        ->and(McpOperation::query()->count())->toBe(1)
+        ->and(McpMutationAudit::query()->where('result', 'replayed')->count())->toBe(2);
+});
+
+it('rejects a date-less reuse of the key on a later day as a conflict', function () {
+    $this->travelTo('2026-01-15 09:30:00');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $arguments = [
+        'operation_key' => 'op-1',
+        'type' => TransactionType::Daily->value,
+        'amount' => 32,
+        'description' => 'Almoço',
+    ];
+
+    CashCompassServer::tool(CreateTransactionTool::class, $arguments)->assertOk();
+    $firstId = (int) DailyTransaction::query()->forUser($account)->sole()->getKey();
+
+    $this->travelTo('2026-01-16 09:30:00');
+
+    CashCompassServer::tool(CreateTransactionTool::class, $arguments)
+        ->assertHasErrors(['chave de operação']);
+
+    expect(DailyTransaction::query()->forUser($account)->sole()->getKey())->toBe($firstId)
+        ->and(DailyTransaction::query()->count())->toBe(1)
+        ->and(McpMutationAudit::query()->where('result', 'conflict')->count())->toBe(1);
+});
+
 it('scopes the operation key to the account', function () {
     $this->travelTo('2026-01-15');
     $first = User::factory()->create();

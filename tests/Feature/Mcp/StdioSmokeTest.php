@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Arr;
 use Symfony\Component\Process\Process;
 
 it('discovers tools and runs a safe query over stdio', function () {
@@ -83,6 +84,18 @@ it('discovers tools and runs a safe query over stdio', function () {
             'day_of_month' => 5,
             'starts_at' => '2026-01-01',
         ]]],
+        ['jsonrpc' => '2.0', 'id' => 11, 'method' => 'tools/call', 'params' => ['name' => 'create_transaction', 'arguments' => [
+            'operation_key' => 'smoke-today-1',
+            'type' => 'daily',
+            'amount' => 9.5,
+            'description' => 'Smoke today',
+        ]]],
+        ['jsonrpc' => '2.0', 'id' => 12, 'method' => 'tools/call', 'params' => ['name' => 'create_transaction', 'arguments' => [
+            'operation_key' => 'smoke-today-1',
+            'type' => 'daily',
+            'amount' => 9.5,
+            'description' => 'Smoke today',
+        ]]],
     ];
 
     $input = implode(PHP_EOL, array_map(
@@ -103,6 +116,8 @@ it('discovers tools and runs a safe query over stdio', function () {
     @unlink($database);
 
     $toolNames = collect(data_get($responses->get(1), 'result.tools', []))->pluck('name');
+    $createTool = collect(data_get($responses->get(1), 'result.tools', []))
+        ->firstWhere('name', 'create_transaction');
 
     expect($responses->has(1))->toBeTrue()
         ->and($toolNames)->toContain('list_transactions')
@@ -128,5 +143,13 @@ it('discovers tools and runs a safe query over stdio', function () {
         ->toBe(data_get($responses->get(7), 'result.structuredContent.tag.id'))
         ->and(data_get($responses->get(9), 'result.structuredContent.account_plan.expected_amount'))->toBe('30.50')
         ->and(data_get($responses->get(10), 'result.structuredContent.account_plan.id'))
-        ->toBe(data_get($responses->get(9), 'result.structuredContent.account_plan.id'));
+        ->toBe(data_get($responses->get(9), 'result.structuredContent.account_plan.id'))
+        ->and($createTool['inputSchema']['required'])->not->toContain('date')
+        ->and(Arr::wrap($createTool['inputSchema']['properties']['date']['type']))->toContain('null')
+        ->and(data_get($responses->get(11), 'result.structuredContent.transaction.id'))->toBeInt()
+        ->and(data_get($responses->get(11), 'result.structuredContent.transaction.date'))->toBeString()->not->toBeEmpty()
+        ->and(data_get($responses->get(12), 'result.structuredContent.transaction.id'))
+        ->toBe(data_get($responses->get(11), 'result.structuredContent.transaction.id'))
+        ->and(data_get($responses->get(12), 'result.structuredContent.transaction.date'))
+        ->toBe(data_get($responses->get(11), 'result.structuredContent.transaction.date'));
 });
