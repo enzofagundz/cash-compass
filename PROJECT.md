@@ -76,9 +76,10 @@ models: "app/Models — Eloquent com casts, escopo por usuário e PHPDoc de prop
 concerns: "app/Concerns/BelongsToUser — isolamento por usuário"
 observers: "app/Observers/AccountPlanObserver — geração/cancelamento de ocorrências"
 policies: "app/Policies/UserPolicy — autorização de administração de usuários"
-services: "app/Services — BalanceCalculator, DailyForecastCalculator, RecurrenceCalculator, RecurrenceGenerator"
+services: "app/Services — BalanceCalculator, DailyForecastCalculator, RecurrenceCalculator, RecurrenceGenerator, SpendingReport (agregação canônica dos relatórios)"
 console: "app/Console/Commands — comandos agendados"
-filament_pages: "app/Filament/Pages — Termômetro, Previsão de diário e Saldo inicial"
+filament_pages: "app/Filament/Pages — Dashboard, Relatórios, Termômetro, Previsão de diário e Saldo inicial"
+filament_widgets: "app/Filament/Widgets — ReportKpis, HourlySpendChart, WeekdaySpendChart, TypeBreakdownChart, MonthlyEvolutionChart, TopTagsChart, LargestTransactionsTable e TagBreakdownTable"
 filament_page_modules: "app/Filament/Pages/Thermometer — ThermometerGrid, o presenter da grade do Termômetro (check-ins, rótulos, cores e flags por célula)"
 filament_resources: "app/Filament/Resources — Lançamentos, Planos de contas, Tags, Usuários"
 filament_concerns: "app/Filament/Concerns — VisibleToNonAdmins para acesso de não-admins, HasTagSelector para seleção/criação rápida e HasTagColorField para configuração visual compartilhada"
@@ -88,7 +89,7 @@ views: "resources/views/filament — Blade do painel"
 ### Estado Arquitetural
 
 - Monólito Laravel com painel Filament v5 único (`app`) servido na raiz `/`, dono da autenticação (login, registro, reset, verificação de e-mail e perfil).
-- Sem API, sem JWT, sem módulos externos; `routes/web.php` apenas redireciona aliases legados (`/dashboard`, `/settings`, `/admin/*`) para as rotas do painel.
+- Sem API, sem JWT, sem módulos externos; `routes/web.php` apenas redireciona aliases legados (`/settings`, `/admin/*`) para as rotas do painel.
 - Lógica financeira concentrada em services testáveis; páginas Filament orquestram UI, estado Livewire e persistência.
 - Recursos e páginas de não-admin usam `VisibleToNonAdmins`; administração de usuários usa `UserPolicy` + `UserResource`.
 - Composição de formulários é compartilhada: `DailyTransactionResource::formComponents()` e `AccountPlanResource::formComponents()` são reutilizados pelas actions do Termômetro.
@@ -216,6 +217,20 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 
 ---
 
+## Relatórios de Gastos
+
+- Fonte única: `SpendingReport` concentra a definição de gasto, o período, os indicadores e as séries dos gráficos; widgets e views não recalculam regra financeira.
+- **Gasto**: lançamento `realized` dos tipos `expense`, `daily` ou `card`, com `date` dentro do período inclusivo. `income`, `savings`, `pending` e `skipped` ficam fora; por isso o relatório não fecha com o saldo do Termômetro.
+- **Período**: padrão mês atual; presets mês passado, últimos três meses, ano atual e personalizado. A comparação usa o intervalo imediatamente anterior de mesma duração.
+- **Dia ativo**: dia com pelo menos um gasto elegível; a média é o total dividido pela quantidade de dias ativos.
+- **Horário**: bubble chart usa `created_at` de lançamentos manuais (`is_recurring = false`) no fuso do app; ocorrências de plano não entram. A dimensão é "horário do lançamento", não hora do gasto.
+- **Tags**: cada lançamento soma o valor integral em cada tag vinculada; a participação usa o total gasto do período como denominador, então a soma pode passar de 100% e a tela avisa. Tags arquivadas com gasto entram; tags sem gasto ficam fora; o gasto sem tag vira a linha "Sem tag" ao final da tabela.
+- **Dashboard**: resumo sempre do mês atual, independente do filtro de Relatórios; exibe total, variação, média por dia ativo, tag líder, top tags e link para Relatórios.
+- **Testes da feature**: `tests/Feature/Services/SpendingReportTest.php`, `tests/Feature/Filament/ReportsPageTest.php`, `tests/Feature/Filament/ReportsTagsTest.php`, `tests/Feature/Filament/DashboardPageTest.php` e `tests/Feature/DashboardTest.php`.
+- A semântica canônica está em `docs/adr/0007-relatorios-de-gastos.md`; os termos Gasto, Período, Dia ativo e Relatório de tags estão em `GLOSSARY.md`.
+
+---
+
 ## Acesso e Autorização
 
 ```yaml
@@ -226,7 +241,7 @@ admin:
 
 usuario_nao_admin:
   definicao: "role = user"
-  acesso: "Termômetro, Saldo inicial, Lançamentos, Planos de contas, Tags"
+  acesso: "Dashboard, Relatórios, Termômetro, Saldo inicial, Lançamentos, Planos de contas, Tags"
   bloqueios: "UserResource não registra navegação e UserPolicy nega ações administrativas"
 
 painel:
@@ -300,6 +315,21 @@ recursos:
     acoes_linha: "Editar, Desativar/Reativar, Redefinir senha"
 
 paginas:
+  Dashboard:
+    slug: "dashboard"
+    titulo: "Dashboard"
+    funcao: "resumo fixo do mês atual com indicadores, top tags e link para Relatórios"
+    visibilidade: "somente não-admin; widgets usam VisibleToNonAdminWidgets"
+    widgets: "ReportKpis e TopTagsChart; sem AccountWidget nem FilamentInfoWidget"
+    independencia: "não lê o filtro da página de Relatórios"
+  Reports:
+    slug: "reports"
+    titulo: "Relatórios"
+    funcao: "análise de gasto por período em duas abas"
+    filtro: "presets mês atual, mês passado, últimos 3 meses, ano atual e personalizado; estado refletido na URL; padrão mês atual"
+    abas: "Comportamento (horário, dias da semana, tipos, evolução mensal e cinco maiores lançamentos) e Tags (top 10, tabela completa com 25 linhas por página)"
+    dados: "SpendingReport; widgets ReportKpis, HourlySpendChart, WeekdaySpendChart, TypeBreakdownChart, MonthlyEvolutionChart, TopTagsChart, LargestTransactionsTable e TagBreakdownTable"
+    visibilidade: "somente não-admin"
   ThermometerPage:
     slug: "thermometer"
     titulo: "Termômetro"
@@ -339,7 +369,7 @@ paginas:
 
 ```yaml
 rotas_web: "routes/web.php — apenas redirects 301 de aliases legados"
-rotas_filament: "geradas pelo painel app na raiz; /thermometer, /initial-balance e /tags visíveis aos não-admins autenticados"
+rotas_filament: "geradas pelo painel app na raiz; /dashboard, /reports, /thermometer, /initial-balance e /tags visíveis aos não-admins autenticados; /users é do admin"
 api: "inexistente"
 frontend:
   bundler: "Vite 8 + vite-plus (scripts: vp dev / vp build)"

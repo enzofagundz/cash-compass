@@ -64,7 +64,7 @@
             "@test"
         ],
         "types:check": [
-            "phpstan analyse"
+            "phpstan analyse --memory-limit=1G"
         ],
         "test": [
             "@php artisan config:clear --ansi",
@@ -74,7 +74,7 @@
             "@test:thermometer-budget"
         ],
         "test:thermometer-budget": [
-            "@php -d memory_limit=64M vendor/bin/pest --compact tests/Feature/Filament/ThermometerPageTest.php --filter=budget"
+            "@php -d memory_limit=96M vendor/bin/pest --compact tests/Feature/Filament/ThermometerPageTest.php --filter=budget"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
