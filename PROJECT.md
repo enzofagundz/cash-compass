@@ -135,7 +135,7 @@ Tag:
   tabela: "tags"
   campos: "name, normalized_name, color (TagColor), is_active"
   unicidade: "unique(user_id, normalized_name), incluindo tags arquivadas"
-  regras: "nome normalizado por espaços e caixa; cor somente visual; ativa por padrão; arquivar preserva vínculos; excluir somente sem vínculos"
+  regras: "nome normalizado por espaços e caixa; cor visual fora de cálculo; o vínculo da tag alimenta análise e relatório; ativa por padrão; arquivar preserva vínculos; excluir somente sem vínculos"
   relacoes: "belongsToMany dailyTransactions, accountPlans"
 
 DayCheckIn:
@@ -472,7 +472,7 @@ Regras adicionais:
 - Aplicar `laravel-best-practices`, `livewire-development` e `filament-specialist` (skills) conforme a área tocada.
 - Não alterar o global scope `BelongsToUser` nem aceitar `user_id` do navegador.
 - Preservar a continuidade do saldo e a semântica dos status (`pending`/`realized`/`skipped`).
-- Tags são classificações visuais privadas por usuário; `TagColor` usa paleta fixa e não participa de cálculos, filtros financeiros ou relatórios.
+- Tags são classificações privadas por usuário; a cor (`TagColor`, paleta fixa) é visual e não entra em cálculos de saldo nem filtros financeiros. O vínculo da tag alimenta a análise e o relatório de gastos, com soma integral por tag.
 - Tags arquivadas permanecem nos lançamentos e planos existentes, inclusive nas ocorrências pendentes de planos recorrentes; novos vínculos aceitam somente tags ativas.
 - Ao alterar o Termômetro ou o `BalanceCalculator`, atualizar/executar os testes correspondentes em `tests/Feature/Filament/ThermometerPageTest.php` e `tests/Feature/Services/BalanceCalculatorTest.php`.
 - Nunca comitar `.references/` (não versionado) nem credenciais reais em código ou documentação.
