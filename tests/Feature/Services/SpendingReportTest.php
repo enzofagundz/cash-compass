@@ -325,7 +325,28 @@ it('isolates every aggregation by user', function () {
     expect($this->report->summary($this->user, $period)['total'])->toBe('10.00')
         ->and($this->report->summary($other, $period)['total'])->toBe('999.00')
         ->and($this->report->tags($this->user, $period))->toHaveCount(1)
-        ->and($this->report->tags($this->user, $period)[0]['name'])->toBe('Sem tag');
+        ->and($this->report->tags($this->user, $period)[0]['name'])->toBe('Sem tag')
+        ->and(collect($this->report->weekdays($this->user, $period))->sum('total_cents'))->toBe(1000)
+        ->and(collect($this->report->types($this->user, $period))->sum('total_cents'))->toBe(1000)
+        ->and(collect($this->report->weekdays($other, $period))->sum('total_cents'))->toBe(99900)
+        ->and(collect($this->report->types($other, $period))->sum('total_cents'))->toBe(99900);
+});
+
+it('builds the tag report with the top ten tagged rows and the untagged note', function () {
+    for ($index = 1; $index <= 12; $index++) {
+        $tag = Tag::factory()->for($this->user)->create(['name' => sprintf('Tag %02d', $index)]);
+        spending(['amount' => number_format(3000 - $index, 2, '.', '')])->tags()->attach($tag);
+    }
+
+    spending(['amount' => '25.00']);
+
+    $report = $this->report->tagReport($this->user, $this->report->period(null));
+
+    expect($report['tags'])->toHaveCount(13)
+        ->and($report['top'])->toHaveCount(10)
+        ->and($report['top'][0]['name'])->toBe('Tag 01')
+        ->and($report['top'][9]['name'])->toBe('Tag 10')
+        ->and($report['untagged'])->toMatchArray(['name' => 'Sem tag', 'total' => '25.00']);
 });
 
 it('returns empty structures when the period has no spending', function () {
@@ -334,5 +355,9 @@ it('returns empty structures when the period has no spending', function () {
     expect($this->report->hourly($this->user, $period))->toBe([])
         ->and($this->report->largest($this->user, $period))->toBe([])
         ->and($this->report->tags($this->user, $period))->toBe([])
-        ->and($this->report->summary($this->user, $period)['total'])->toBe('0.00');
+        ->and($this->report->summary($this->user, $period)['total'])->toBe('0.00')
+        ->and($this->report->weekdays($this->user, $period))->toHaveCount(7)
+        ->and(collect($this->report->weekdays($this->user, $period))->sum('total_cents'))->toBe(0)
+        ->and($this->report->types($this->user, $period))->toHaveCount(3)
+        ->and(collect($this->report->types($this->user, $period))->sum('total_cents'))->toBe(0);
 });

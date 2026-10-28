@@ -263,16 +263,9 @@ class SpendingReport
     {
         $totals = [];
 
-        foreach (self::SPENDING_TYPES as $type) {
-            $totals[$type->value] = 0;
-        }
-
         foreach ($this->transactions($user, $period) as $transaction) {
-            if (! array_key_exists($transaction->type->value, $totals)) {
-                continue;
-            }
-
-            $totals[$transaction->type->value] += $this->toCents($transaction->amount);
+            $key = $transaction->type->value;
+            $totals[$key] = ($totals[$key] ?? 0) + $this->toCents($transaction->amount);
         }
 
         $total = array_sum($totals);
@@ -281,9 +274,9 @@ class SpendingReport
             fn (TransactionType $type): array => [
                 'type' => $type->value,
                 'label' => $type->label(),
-                'total' => $this->centsToString($totals[$type->value]),
-                'total_cents' => $totals[$type->value],
-                'percentage' => $total > 0 ? round(($totals[$type->value] / $total) * 100, 1) : 0.0,
+                'total' => $this->centsToString($totals[$type->value] ?? 0),
+                'total_cents' => $totals[$type->value] ?? 0,
+                'percentage' => $total > 0 ? round((($totals[$type->value] ?? 0) / $total) * 100, 1) : 0.0,
             ],
             self::SPENDING_TYPES,
         );
@@ -338,7 +331,12 @@ class SpendingReport
      */
     public function largest(User $user, array $period, int $limit = 5): array
     {
-        $rows = $this->transactions($user, $period)
+        return $this->transactions($user, $period)
+            ->sort(fn (DailyTransaction $a, DailyTransaction $b): int => $this->toCents($b->amount) <=> $this->toCents($a->amount)
+                ?: $a->date->format('Y-m-d') <=> $b->date->format('Y-m-d')
+                ?: $a->getKey() <=> $b->getKey())
+            ->values()
+            ->take(max(1, $limit))
             ->map(fn (DailyTransaction $transaction): array => [
                 'id' => (int) $transaction->getKey(),
                 'date' => $transaction->date->format('Y-m-d'),
@@ -348,24 +346,8 @@ class SpendingReport
                     ->values()
                     ->all(),
                 'amount' => $this->centsToString($this->toCents($transaction->amount)),
-                'amount_cents' => $this->toCents($transaction->amount),
             ])
             ->all();
-
-        usort($rows, fn (array $a, array $b): int => $b['amount_cents'] <=> $a['amount_cents']
-            ?: strcmp($a['date'], $b['date'])
-            ?: $a['id'] <=> $b['id']);
-
-        return array_map(
-            fn (array $row): array => [
-                'id' => $row['id'],
-                'date' => $row['date'],
-                'description' => $row['description'],
-                'tags' => $row['tags'],
-                'amount' => $row['amount'],
-            ],
-            array_slice($rows, 0, max(1, $limit)),
-        );
     }
 
     /**
@@ -380,6 +362,25 @@ class SpendingReport
         $transactions = $this->transactions($user, $period);
 
         return $this->aggregateTags($transactions, $this->sumCents($transactions));
+    }
+
+    /**
+     * Tag rows plus the top subset used by the chart and the untagged row.
+     *
+     * @param  ReportPeriod  $period
+     * @return array{tags: array<int, TagRow>, top: array<int, TagRow>, untagged: TagRow|null}
+     */
+    public function tagReport(User $user, array $period, int $limit = 10): array
+    {
+        $rows = $this->tags($user, $period);
+        $untagged = collect($rows)->firstWhere('is_untagged', true);
+        $tagged = array_values(array_filter($rows, fn (array $row): bool => ! $row['is_untagged']));
+
+        return [
+            'tags' => $rows,
+            'top' => array_slice($tagged, 0, max(1, $limit)),
+            'untagged' => $untagged,
+        ];
     }
 
     /**

@@ -3,29 +3,12 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
-use App\Filament\Widgets\Concerns\InteractsWithSpendingReport;
-use App\Filament\Widgets\Concerns\VisibleToNonAdminWidgets;
 use App\Services\SpendingReport;
 use Filament\Support\Colors\Color;
 use Filament\Support\RawJs;
-use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
-class TypeBreakdownChart extends ChartWidget
+class TypeBreakdownChart extends ReportChartWidget
 {
-    use InteractsWithPageFilters;
-    use InteractsWithSpendingReport;
-    use VisibleToNonAdminWidgets;
-
-    protected ?string $pollingInterval = null;
-
-    public function updatedPageFilters(): void
-    {
-        $this->cachedData = null;
-    }
-
-    protected static bool $isLazy = false;
-
     protected ?string $heading = 'Tipos de gasto';
 
     protected ?string $description = 'Participação de Saída, Diário e Cartão no total do período.';
@@ -63,7 +46,7 @@ class TypeBreakdownChart extends ChartWidget
             ],
             'labels' => array_map(
                 fn (array $row): string => $row['label'].': '.$this->formatMoney($row['total'])
-                    .' ('.number_format($row['percentage'], 1, ',', '.').'%)',
+                    .' ('.$this->formatPercentage($row['percentage']).')',
                 $rows,
             ),
         ];

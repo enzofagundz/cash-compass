@@ -6,8 +6,6 @@ use App\Filament\Widgets\Concerns\InteractsWithSpendingReport;
 use App\Filament\Widgets\Concerns\VisibleToNonAdminWidgets;
 use App\Services\SpendingReport;
 use Carbon\CarbonImmutable;
-use Filament\Support\Colors\Color;
-use Filament\Support\Facades\FilamentColor;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Filament\Widgets\Widget;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -57,10 +55,10 @@ class TagBreakdownTable extends Widget
                     'id' => $row['id'],
                     'name' => $row['name'],
                     'color' => $row['color']?->getColor() ?? 'gray',
-                    'dot' => $this->tagDot($row['color']?->getColor()),
+                    'dot' => $this->tagColorHex($row['color']),
                     'is_active' => $row['is_active'],
                     'total' => $this->formatMoney($row['total']),
-                    'percentage' => number_format($row['percentage'], 1, ',', '.').'%',
+                    'percentage' => $this->formatPercentage($row['percentage']),
                     'count' => $row['count'],
                     'average' => $this->formatMoney($row['average']),
                     'last_date' => $row['last_date'] === null
@@ -76,23 +74,5 @@ class TagBreakdownTable extends Widget
         );
 
         return ['rows' => $paginator, 'total' => $total];
-    }
-
-    /**
-     * Hex used by the color dot. The badge color name comes from TagColor.
-     */
-    private function tagDot(?string $filamentColor): string
-    {
-        if ($filamentColor === null) {
-            return '#9ca3af';
-        }
-
-        $palette = FilamentColor::getColor($filamentColor);
-
-        if ($palette === null) {
-            return '#9ca3af';
-        }
-
-        return Color::convertToHex((string) ($palette[500] ?? $palette[400]));
     }
 }

@@ -2,28 +2,11 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Widgets\Concerns\InteractsWithSpendingReport;
-use App\Filament\Widgets\Concerns\VisibleToNonAdminWidgets;
 use App\Services\SpendingReport;
 use Filament\Support\RawJs;
-use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
-class HourlySpendChart extends ChartWidget
+class HourlySpendChart extends ReportChartWidget
 {
-    use InteractsWithPageFilters;
-    use InteractsWithSpendingReport;
-    use VisibleToNonAdminWidgets;
-
-    protected ?string $pollingInterval = null;
-
-    public function updatedPageFilters(): void
-    {
-        $this->cachedData = null;
-    }
-
-    protected static bool $isLazy = false;
-
     protected int|string|array $columnSpan = 'full';
 
     protected ?string $heading = 'Horário do lançamento';

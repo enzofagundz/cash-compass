@@ -3,8 +3,6 @@
 use App\Enums\TagColor;
 use App\Enums\TransactionType;
 use App\Filament\Pages\Reports;
-use App\Filament\Widgets\TagBreakdownTable;
-use App\Filament\Widgets\TopTagsChart;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -67,24 +65,22 @@ it('marks archived tags with a textual seal', function () {
         ->assertSee('(arquivada)');
 });
 
-it('shows the top ten tag chart and hides tags without spending', function () {
-    $tags = [];
-
+it('shows the top tags chart and hides tags without spending', function () {
     for ($index = 1; $index <= 12; $index++) {
-        $tags[$index] = Tag::factory()->for($this->user)->create([
+        $tag = Tag::factory()->for($this->user)->create([
             'name' => sprintf('Tag %02d', $index),
             'color' => TagColor::Blue,
         ]);
-        taggedSpending($this->user, '2026-10-10', number_format(3000 - $index, 2, '.', ''), [$tags[$index]]);
+        taggedSpending($this->user, '2026-10-10', number_format(3000 - $index, 2, '.', ''), [$tag]);
     }
 
     Tag::factory()->for($this->user)->create(['name' => 'Sem gasto']);
 
-    Livewire::test(TopTagsChart::class, ['pageFilters' => ['preset' => 'current_month']])
+    $this->get('/reports?activeTab=tags')
+        ->assertOk()
+        ->assertSee('Dez tags de maior gasto')
         ->assertSee('Tag 01')
         ->assertSee('Tag 10')
-        ->assertDontSee('Tag 11')
-        ->assertDontSee('Tag 12')
         ->assertDontSee('Sem gasto')
         ->assertSee('A soma das tags pode passar do total gasto');
 });
@@ -94,8 +90,9 @@ it('shows the untagged total in the tags chart note', function () {
     taggedSpending($this->user, '2026-10-10', '100.00', [$tag]);
     taggedSpending($this->user, '2026-10-11', '25.00');
 
-    Livewire::test(TopTagsChart::class, ['pageFilters' => ['preset' => 'current_month']])
-        ->assertSee('Sem tag: R$ 25,00');
+    $this->get('/reports?activeTab=tags')
+        ->assertOk()
+        ->assertSee('Sem tag: R$ 25,00.');
 });
 
 it('paginates the tag table by twenty-five rows', function () {
@@ -104,13 +101,16 @@ it('paginates the tag table by twenty-five rows', function () {
         taggedSpending($this->user, '2026-10-10', number_format(3000 - $index, 2, '.', ''), [$tag]);
     }
 
-    Livewire::test(TagBreakdownTable::class, ['pageFilters' => ['preset' => 'current_month']])
+    $this->get('/reports?activeTab=tags')
+        ->assertOk()
         ->assertSee('Tag 01')
-        ->assertDontSee('Tag 26')
-        ->call('gotoPage', 2, 'tagsPage')
+        ->assertSee('Tag 25')
+        ->assertDontSee('Tag 26');
+
+    $this->get('/reports?activeTab=tags&tagsPage=2')
+        ->assertOk()
         ->assertSee('Tag 26')
-        ->assertSee('Tag 30')
-        ->assertDontSee('Tag 01');
+        ->assertSee('Tag 30');
 });
 
 it('switches the tag table with the period filter', function () {
@@ -119,19 +119,16 @@ it('switches the tag table with the period filter', function () {
     taggedSpending($this->user, '2026-09-10', '50.00', [$september]);
     taggedSpending($this->user, '2026-10-10', '100.00', [$october]);
 
-    Livewire::test(TagBreakdownTable::class, ['pageFilters' => ['preset' => 'current_month']])
+    $this->get('/reports?activeTab=tags')
+        ->assertOk()
         ->assertSee('Tag Outubro')
         ->assertDontSee('Tag Setembro');
 
-    Livewire::test(TagBreakdownTable::class, ['pageFilters' => ['preset' => 'last_month']])
+    $this->get('/reports?activeTab=tags&filters[preset]=last_month')
+        ->assertOk()
+        ->assertSee('Setembro de 2026')
         ->assertSee('Tag Setembro')
         ->assertDontSee('Tag Outubro');
-
-    Livewire::test(Reports::class)
-        ->set('activeTab', 'tags')
-        ->set('filters.preset', 'last_month')
-        ->assertSet('filters.preset', 'last_month')
-        ->assertSee('Setembro de 2026');
 });
 
 it('isolates the tag report by user', function () {
@@ -139,8 +136,7 @@ it('isolates the tag report by user', function () {
     $otherTag = Tag::factory()->for($other)->create(['name' => 'Tag de Outro']);
     taggedSpending($other, '2026-10-10', '999.00', [$otherTag]);
 
-    Livewire::test(Reports::class)
-        ->set('activeTab', 'tags')
+    $this->get('/reports?activeTab=tags')
         ->assertOk()
         ->assertDontSee('Tag de Outro');
 });

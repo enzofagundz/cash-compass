@@ -2,28 +2,11 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Widgets\Concerns\InteractsWithSpendingReport;
-use App\Filament\Widgets\Concerns\VisibleToNonAdminWidgets;
 use App\Services\SpendingReport;
 use Filament\Support\RawJs;
-use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
-class WeekdaySpendChart extends ChartWidget
+class WeekdaySpendChart extends ReportChartWidget
 {
-    use InteractsWithPageFilters;
-    use InteractsWithSpendingReport;
-    use VisibleToNonAdminWidgets;
-
-    protected ?string $pollingInterval = null;
-
-    public function updatedPageFilters(): void
-    {
-        $this->cachedData = null;
-    }
-
-    protected static bool $isLazy = false;
-
     protected ?string $heading = 'Dias da semana';
 
     protected ?string $description = 'Gasto total por dia da semana no período.';

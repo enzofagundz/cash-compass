@@ -24,13 +24,12 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Livewire\Attributes\Url;
 
 class Reports extends Dashboard
 {
     use HasFiltersForm;
     use VisibleToNonAdmins;
-
-    protected static ?string $slug = 'reports';
 
     protected static string $routePath = '/reports';
 
@@ -42,12 +41,17 @@ class Reports extends Dashboard
 
     protected static ?int $navigationSort = 4;
 
+    #[Url]
     public string $activeTab = 'behavior';
 
     public function mount(): void
     {
         if ($this->filters === null) {
             $this->filters = ['preset' => SpendingReport::CURRENT_MONTH];
+        }
+
+        if (! in_array($this->activeTab, ['behavior', 'tags'], true)) {
+            $this->activeTab = 'behavior';
         }
     }
 
@@ -78,12 +82,22 @@ class Reports extends Dashboard
         ]);
     }
 
+    public function booted(): void
+    {
+        $this->validatePeriod();
+    }
+
     public function updatedFilters(): void
     {
         if ($this->persistsFiltersInSession()) {
             session()->put($this->getFiltersSessionKey(), $this->filters);
         }
 
+        $this->validatePeriod();
+    }
+
+    private function validatePeriod(): void
+    {
         if ($this->filters === null) {
             return;
         }

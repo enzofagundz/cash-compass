@@ -77,6 +77,14 @@ it('accepts a custom period and shows its range', function () {
         ->assertSee('05/10/2026 a 20/10/2026');
 });
 
+it('rejects an inverted custom period loaded from the url', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get('/reports?filters[preset]=custom&filters[start_date]=2026-10-20&filters[end_date]=2026-10-05')
+        ->assertOk()
+        ->assertSee('A data inicial deve ser anterior ou igual à data final.');
+});
+
 it('rejects a custom period whose start date is after the end date', function () {
     $this->actingAs(User::factory()->create());
 

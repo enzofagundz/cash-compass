@@ -3,32 +3,11 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TagColor;
-use App\Filament\Widgets\Concerns\InteractsWithSpendingReport;
-use App\Filament\Widgets\Concerns\VisibleToNonAdminWidgets;
 use App\Services\SpendingReport;
-use Filament\Support\Colors\Color;
 use Filament\Support\RawJs;
-use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 
-class TopTagsChart extends ChartWidget
+class TopTagsChart extends ReportChartWidget
 {
-    use InteractsWithPageFilters;
-    use InteractsWithSpendingReport;
-    use VisibleToNonAdminWidgets;
-
-    private const MAX_TAGS = 10;
-
-    protected ?string $pollingInterval = null;
-
-    public function updatedPageFilters(): void
-    {
-        $this->cachedData = null;
-        $this->cachedTagRows = null;
-    }
-
-    protected static bool $isLazy = false;
-
     protected int|string|array $columnSpan = 'full';
 
     protected ?string $emptyStateHeading = 'Nenhuma tag com gasto no período.';
@@ -36,9 +15,16 @@ class TopTagsChart extends ChartWidget
     protected ?string $emptyStateDescription = 'Vincule tags aos lançamentos de gasto para ver o ranking.';
 
     /**
-     * @var array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>|null
+     * @var array{tags: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, top: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, untagged: array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}|null}|null
      */
-    private ?array $cachedTagRows = null;
+    private ?array $cachedTagReport = null;
+
+    public function updatedPageFilters(): void
+    {
+        parent::updatedPageFilters();
+
+        $this->cachedTagReport = null;
+    }
 
     public function getHeading(): string
     {
@@ -49,12 +35,12 @@ class TopTagsChart extends ChartWidget
 
     public function getDescription(): string
     {
-        $untagged = collect($this->tagRows())->firstWhere('is_untagged', true);
+        $untagged = $this->tagReport()['untagged'];
 
         $parts = [];
 
         if ($untagged !== null) {
-            $parts[] = 'Sem tag: '.$this->formatMoney($untagged['total']);
+            $parts[] = 'Sem tag: '.$this->formatMoney($untagged['total']).'.';
         }
 
         $parts[] = 'A soma das tags pode passar do total gasto, pois um lançamento entra integralmente em cada tag vinculada.';
@@ -72,12 +58,7 @@ class TopTagsChart extends ChartWidget
      */
     protected function getData(): array
     {
-        $rows = array_values(array_filter(
-            $this->tagRows(),
-            fn (array $row): bool => ! $row['is_untagged'],
-        ));
-
-        $rows = array_slice($rows, 0, self::MAX_TAGS);
+        $rows = $this->tagReport()['top'];
 
         if ($rows === []) {
             return [];
@@ -88,7 +69,7 @@ class TopTagsChart extends ChartWidget
                 [
                     'label' => 'Gasto por tag',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
-                    'backgroundColor' => array_map(fn (array $row): string => $this->tagColor($row['color']), $rows),
+                    'backgroundColor' => array_map(fn (array $row): string => $this->tagColorHex($row['color']), $rows),
                 ],
             ],
             'labels' => array_map(
@@ -135,37 +116,20 @@ class TopTagsChart extends ChartWidget
     }
 
     /**
-     * @return array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>
+     * @return array{tags: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, top: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, untagged: array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}|null}
      */
-    private function tagRows(): array
+    private function tagReport(): array
     {
-        if ($this->cachedTagRows !== null) {
-            return $this->cachedTagRows;
+        if ($this->cachedTagReport !== null) {
+            return $this->cachedTagReport;
         }
 
         $user = $this->reportUser();
 
         if ($user === null) {
-            return [];
+            return ['tags' => [], 'top' => [], 'untagged' => null];
         }
 
-        return $this->cachedTagRows = app(SpendingReport::class)->tags($user, $this->reportPeriod());
-    }
-
-    private function tagColor(?TagColor $color): string
-    {
-        $palette = match ($color) {
-            TagColor::Red => Color::Red,
-            TagColor::Orange => Color::Orange,
-            TagColor::Yellow => Color::Yellow,
-            TagColor::Green => Color::Green,
-            TagColor::Teal => Color::Teal,
-            TagColor::Blue => Color::Blue,
-            TagColor::Indigo => Color::Indigo,
-            TagColor::Purple => Color::Purple,
-            default => Color::Gray,
-        };
-
-        return Color::convertToHex($palette[500]);
+        return $this->cachedTagReport = app(SpendingReport::class)->tagReport($user, $this->reportPeriod());
     }
 }

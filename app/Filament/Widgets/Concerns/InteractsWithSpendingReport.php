@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets\Concerns;
 
+use App\Enums\TagColor;
 use App\Models\User;
 use App\Services\SpendingReport;
 use Carbon\CarbonImmutable;
@@ -42,10 +43,22 @@ trait InteractsWithSpendingReport
         return $sign.'R$ '.number_format(abs($cents) / 100, 2, ',', '.');
     }
 
-    protected function chartColor(string $name = 'primary', int $shade = 500): string
+    protected function formatPercentage(float $value): string
     {
-        $palette = FilamentColor::getColor($name) ?? Color::Amber;
+        return number_format($value, 1, ',', '.').'%';
+    }
 
-        return Color::convertToHex((string) ($palette[$shade] ?? $palette[500]));
+    protected function chartColor(): string
+    {
+        $palette = FilamentColor::getColor('primary') ?? Color::Amber;
+
+        return Color::convertToHex((string) ($palette[500] ?? $palette[400]));
+    }
+
+    protected function tagColorHex(?TagColor $color): string
+    {
+        $palette = FilamentColor::getColor($color?->getColor() ?? 'gray') ?? Color::Gray;
+
+        return Color::convertToHex((string) ($palette[500] ?? $palette[400]));
     }
 }
