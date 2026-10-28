@@ -20,7 +20,7 @@ it('authenticates users through the panel login', function () {
     $this->assertAuthenticatedAs($user);
 });
 
-it('redirects regular users to the thermometer home after login', function () {
+it('redirects regular users to the dashboard home after login', function () {
     $user = User::factory()->create();
 
     Livewire::test(Login::class)
@@ -32,7 +32,7 @@ it('redirects regular users to the thermometer home after login', function () {
 
     $this->assertAuthenticatedAs($user);
 
-    $this->get('/')->assertRedirect('/thermometer');
+    $this->get('/')->assertRedirect('/dashboard');
 });
 
 it('redirects admins to user management after login', function () {

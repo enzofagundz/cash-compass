@@ -7,10 +7,10 @@ it('redirects guests from the panel root to the login page', function () {
     $this->get('/')->assertRedirect('/login');
 });
 
-it('redirects regular users from the panel root to the thermometer', function () {
+it('redirects regular users from the panel root to the dashboard', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->get('/')->assertRedirect('/thermometer');
+    $this->get('/')->assertRedirect('/dashboard');
 });
 
 it('redirects admins from the panel root to user management', function () {
@@ -31,7 +31,7 @@ it('forbids deactivated users from the panel', function () {
     $this->get('/')->assertForbidden();
 });
 
-it('lists the thermometer first without the dashboard for regular users', function () {
+it('lists the dashboard first for regular users', function () {
     $this->actingAs(User::factory()->create());
 
     $urls = collect(Filament::getNavigation())
@@ -39,7 +39,7 @@ it('lists the thermometer first without the dashboard for regular users', functi
         ->map(fn ($item) => $item->getUrl())
         ->values();
 
-    expect($urls->first())->toBe(url('/thermometer'))
+    expect($urls->first())->toBe(url('/dashboard'))
         ->and($urls)->not->toContain(url('/'));
 });
 
@@ -55,8 +55,10 @@ it('uses user management as the admin entry without thermometer navigation', fun
         ->and($urls)->not->toContain(url('/thermometer'));
 });
 
-it('redirects the legacy dashboard url to the panel root', function () {
-    $this->get('/dashboard')->assertRedirect('/');
+it('serves the dashboard at the legacy dashboard url for authenticated users', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get('/dashboard')->assertOk();
 });
 
 it('redirects the legacy settings url to the profile page', function () {

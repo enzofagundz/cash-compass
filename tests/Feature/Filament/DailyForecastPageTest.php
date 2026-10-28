@@ -24,7 +24,7 @@ it('hides the daily forecast page from the sidebar navigation', function () {
 it('reaches the daily forecast page through the thermometer summary', function () {
     $this->actingAs(User::factory()->create());
 
-    $this->followingRedirects()->get('/')->assertOk()->assertSee(DailyForecastPage::getUrl());
+    $this->get('/thermometer')->assertOk()->assertSee(DailyForecastPage::getUrl());
 });
 
 it('does not link the daily forecast page from the profile menu', function () {

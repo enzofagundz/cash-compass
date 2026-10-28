@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('dashboard', '/', 301);
 Route::redirect('settings', '/profile', 301);
 
 Route::redirect('admin', '/', 301);
