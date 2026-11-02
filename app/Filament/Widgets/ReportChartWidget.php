@@ -55,7 +55,7 @@ abstract class ReportChartWidget extends ChartWidget
                 borderWidth: 2,
                 borderRadius: 0,
                 font: {
-                    family: "'Archivo', ui-sans-serif, system-ui, sans-serif",
+                    family: 'Archivo, ui-sans-serif, system-ui, sans-serif',
                     weight: '600',
                 },
                 plugins: {
