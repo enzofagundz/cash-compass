@@ -140,6 +140,7 @@ class AccountPlanResource extends Resource
     {
         return $table
             ->recordTitleAttribute('description')
+            ->stackedOnMobile()
             ->columns([
                 TextColumn::make('type')
                     ->label('Tipo')

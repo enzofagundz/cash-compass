@@ -69,6 +69,7 @@ class TagResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
             ->columns([
                 ViewColumn::make('name')
                     ->label('Nome')

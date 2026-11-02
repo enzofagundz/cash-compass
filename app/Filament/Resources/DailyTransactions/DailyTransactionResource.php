@@ -105,6 +105,7 @@ class DailyTransactionResource extends Resource
     {
         return $table
             ->recordTitleAttribute('description')
+            ->stackedOnMobile()
             ->defaultSort('date', 'desc')
             ->columns([
                 TextColumn::make('date')
