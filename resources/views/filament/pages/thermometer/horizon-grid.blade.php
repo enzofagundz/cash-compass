@@ -17,8 +17,7 @@
     </div>
 @else
     <p class="thermometer-legend">
-        O saldo acumulado soma entradas e subtrai saídas, diários, economias e cartão.
-        Dias futuros sem lançamento diário mostram a previsão diária; pendentes entram a partir de hoje e aparecem marcados como projeção.
+        Saldo acumulado: entradas menos saídas, diários, economias e cartão. Dias futuros mostram a previsão diária até receberem lançamento.
     </p>
 
     @if ($this->initialBalanceSummary !== null)

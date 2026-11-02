@@ -16,17 +16,17 @@
     <title>Termômetro — {{ $month['label'] }}</title>
     <style>
         :root {
-            --tmb-income: #539853;
-            --tmb-expense: #e53131;
-            --tmb-daily: #eb4998;
-            --tmb-savings: #83cb1c;
-            --tmb-card: #7b3dec;
+            --tmb-income: #2f6b4f;
+            --tmb-expense: #a13c33;
+            --tmb-daily: #a86f2a;
+            --tmb-savings: #2f6b6b;
+            --tmb-card: #5a4a7a;
             --tmb-today: #232428;
-            --tmb-weekend: #ececed;
-            --tmb-border: #dddddd;
+            --tmb-weekend: #f2f2f0;
+            --tmb-border: #e4e4e1;
             --tmb-text: #232428;
             --tmb-muted: #6b7280;
-            --tmb-check: #16a34a;
+            --tmb-check: #2f6b4f;
         }
 
         * {
@@ -78,11 +78,11 @@
             vertical-align: -2px;
         }
 
-        .swatch-dark-red { background: #991b1b; }
-        .swatch-light-red { background: #fee2e2; }
-        .swatch-light-yellow { background: #fef3c7; }
-        .swatch-light-green { background: #dcfce7; }
-        .swatch-dark-green { background: #166534; }
+        .swatch-dark-red { background: #8f2f2f; }
+        .swatch-light-red { background: #f6e3df; }
+        .swatch-light-yellow { background: #f7edd9; }
+        .swatch-light-green { background: #e8f1ea; }
+        .swatch-dark-green { background: #d7e8dd; }
 
         table.thermometer-month {
             width: 100%;
@@ -214,11 +214,11 @@
             white-space: nowrap;
         }
 
-        .thermometer-balance-cell[data-balance-color='dark-red'] { background: #991b1b; color: #ffffff; }
-        .thermometer-balance-cell[data-balance-color='light-red'] { background: #fee2e2; color: #7f1d1d; }
-        .thermometer-balance-cell[data-balance-color='light-yellow'] { background: #fef3c7; color: #78350f; }
-        .thermometer-balance-cell[data-balance-color='light-green'] { background: #dcfce7; color: #14532d; }
-        .thermometer-balance-cell[data-balance-color='dark-green'] { background: #166534; color: #ffffff; }
+        .thermometer-balance-cell[data-balance-color='dark-red'] { background: #8f2f2f; color: #ffffff; }
+        .thermometer-balance-cell[data-balance-color='light-red'] { background: #f6e3df; color: #7a2620; }
+        .thermometer-balance-cell[data-balance-color='light-yellow'] { background: #f7edd9; color: #6b4a14; }
+        .thermometer-balance-cell[data-balance-color='light-green'] { background: #e8f1ea; color: #235b3e; }
+        .thermometer-balance-cell[data-balance-color='dark-green'] { background: #d7e8dd; color: #1e4c34; }
 
         .thermometer-month tfoot th,
         .thermometer-month tfoot td {

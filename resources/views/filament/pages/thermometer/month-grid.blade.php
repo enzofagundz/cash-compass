@@ -3,7 +3,7 @@
 
     <thead>
         <tr>
-            <th scope="col" class="thermometer-col-day">dia</th>
+            <th scope="col" class="thermometer-col-day">Dia</th>
 
             @foreach ($columns as $type)
                 <th scope="col" class="thermometer-col-type">
@@ -14,7 +14,7 @@
                 </th>
             @endforeach
 
-            <th scope="col" class="thermometer-col-balance">saldos</th>
+            <th scope="col" class="thermometer-col-balance">Saldos</th>
         </tr>
     </thead>
 
@@ -44,7 +44,7 @@
 
     <tfoot>
         <tr>
-            <th scope="row">total</th>
+            <th scope="row">Total</th>
 
             @foreach ($columns as $type)
                 <td>

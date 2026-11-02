@@ -6,14 +6,14 @@
 
 @layer components {
     .thermometer {
-        --tmb-income: #539853;
-        --tmb-expense: #e53131;
-        --tmb-daily: #eb4998;
-        --tmb-savings: #83cb1c;
-        --tmb-card: #7b3dec;
+        --tmb-income: #2f6b4f;
+        --tmb-expense: #a13c33;
+        --tmb-daily: #a86f2a;
+        --tmb-savings: #2f6b6b;
+        --tmb-card: #5a4a7a;
         --tmb-today: #232428;
-        --tmb-weekend: #ececed;
-        --tmb-border: #dddddd;
+        --tmb-weekend: #f2f2f0;
+        --tmb-border: #e4e4e1;
         --tmb-text: #232428;
         --tmb-muted: #6b7280;
         display: flex;
@@ -22,9 +22,14 @@
     }
 
     .dark .thermometer {
+        --tmb-income: #6fae8b;
+        --tmb-expense: #d08b83;
+        --tmb-daily: #d8a662;
+        --tmb-savings: #7ab5b5;
+        --tmb-card: #9b8cbb;
         --tmb-today: #f3f4f6;
-        --tmb-weekend: #1f2937;
-        --tmb-border: #374151;
+        --tmb-weekend: #1f2429;
+        --tmb-border: #2f363d;
         --tmb-text: #f3f4f6;
         --tmb-muted: #9ca3af;
     }
@@ -57,14 +62,12 @@
         gap: 0.75rem;
         padding: 0.75rem 1rem;
         border: 1px solid var(--tmb-border);
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
     }
 
     .thermometer-forecast-title {
         font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        font-weight: 500;
         color: var(--tmb-muted);
     }
 
@@ -79,7 +82,7 @@
         overflow: auto;
         max-height: calc(100vh - 17rem);
         border: 1px solid var(--tmb-border);
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
     }
 
     .thermometer-months {
@@ -148,9 +151,9 @@
         bottom: 0;
         z-index: 2;
         background: var(--tmb-weekend);
-        border-top: 2px solid var(--tmb-text);
+        border-top: 1px solid var(--tmb-text);
         padding: 0.375rem 0.5rem;
-        font-weight: 600;
+        font-weight: 500;
         text-align: right;
         white-space: nowrap;
     }
@@ -218,7 +221,7 @@
         width: 0.75rem;
         height: 0.75rem;
         fill: currentColor;
-        color: #16a34a;
+        color: var(--tmb-income);
     }
 
     .thermometer-cell-inner {
@@ -232,7 +235,7 @@
     .thermometer-value-button {
         display: flex;
         align-items: center;
-        gap: 0.375rem;
+        gap: 0.5rem;
         flex: 1 1 auto;
         min-width: 0;
         height: 100%;
@@ -270,7 +273,7 @@
         justify-content: center;
         width: 1.25rem;
         height: 1.25rem;
-        border-radius: 999px;
+        border-radius: 0.25rem;
         color: var(--tmb-muted);
         cursor: pointer;
         font-size: 0.875rem;
@@ -294,53 +297,53 @@
     }
 
     .thermometer-balance-cell[data-balance-color='dark-red'] {
-        background: #991b1b;
+        background: #8f2f2f;
         color: #ffffff;
     }
 
     .thermometer-balance-cell[data-balance-color='light-red'] {
-        background: #fee2e2;
-        color: #7f1d1d;
+        background: #f6e3df;
+        color: #7a2620;
     }
 
     .thermometer-balance-cell[data-balance-color='light-yellow'] {
-        background: #fef3c7;
-        color: #78350f;
+        background: #f7edd9;
+        color: #6b4a14;
     }
 
     .thermometer-balance-cell[data-balance-color='light-green'] {
-        background: #dcfce7;
-        color: #14532d;
+        background: #e8f1ea;
+        color: #235b3e;
     }
 
     .thermometer-balance-cell[data-balance-color='dark-green'] {
-        background: #166534;
-        color: #ffffff;
+        background: #d7e8dd;
+        color: #1e4c34;
     }
 
     .dark .thermometer-balance-cell[data-balance-color='dark-red'] {
-        background: #450a0a;
-        color: #fca5a5;
+        background: #4a1f1c;
+        color: #e7b3ad;
     }
 
     .dark .thermometer-balance-cell[data-balance-color='light-red'] {
-        background: #7f1d1d;
-        color: #fecaca;
+        background: #6b2a24;
+        color: #f3cdc7;
     }
 
     .dark .thermometer-balance-cell[data-balance-color='light-yellow'] {
-        background: #713f12;
-        color: #fef3c7;
+        background: #5c4318;
+        color: #f0d9b0;
     }
 
     .dark .thermometer-balance-cell[data-balance-color='light-green'] {
-        background: #14532d;
-        color: #dcfce7;
+        background: #1f4531;
+        color: #cce6d6;
     }
 
     .dark .thermometer-balance-cell[data-balance-color='dark-green'] {
-        background: #166534;
-        color: #f0fdf4;
+        background: #2a5740;
+        color: #e3f1e8;
     }
 
     .thermometer-balance-button {
@@ -361,15 +364,19 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 0.8125rem;
-        height: 0.8125rem;
-        border-radius: 999px;
-        font-size: 0.5625rem;
-        font-weight: 700;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 0.25rem;
+        font-size: 0.625rem;
+        font-weight: 500;
         line-height: 1;
-        color: #ffffff;
-        background: var(--tmb-muted);
+        color: var(--tmb-muted);
+        background: transparent;
         flex: 0 0 auto;
+    }
+
+    .thermometer-badge[data-filled='true'] {
+        color: #ffffff;
     }
 
     .thermometer-badge[data-filled='true'][data-type='income'] {
@@ -393,8 +400,8 @@
     }
 
     .thermometer-badge-icon {
-        width: 0.5625rem;
-        height: 0.5625rem;
+        width: 0.625rem;
+        height: 0.625rem;
         fill: currentColor;
     }
 
@@ -422,7 +429,7 @@
         align-items: flex-start;
         gap: 0.75rem;
         border: 1px solid var(--tmb-border);
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
         padding: 0.625rem 0.75rem;
         font-size: 0.8125rem;
     }
@@ -446,11 +453,11 @@
 
     .thermometer-movement-excluded {
         font-size: 0.75rem;
-        color: #b45309;
+        color: #8a5a1a;
     }
 
     .dark .thermometer-movement-excluded {
-        color: #fbbf24;
+        color: #d8a662;
     }
 
     .thermometer-movement-actions {
