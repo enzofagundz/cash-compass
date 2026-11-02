@@ -354,6 +354,24 @@ paginas:
     view: "resources/views/filament/pages/initial-balance-settings.blade.php"
 ```
 
+## Sistema Visual (neo-brutalista)
+
+```yaml
+direcao: "neo-brutalista light-only: fundo creme, tinta quase-preta, acentos chapados vermelho/amarelo/azul/verde, bordas de 3 px em superfícies e 2 px em controles, sombras sólidas deslocadas sem blur e raio de 4 px"
+tokens: "--cc-cream #fbf6e9, --cc-paper #fffdf6, --cc-ink #16130f, --cc-ink-muted #6a5f4e, --cc-red #ff5252, --cc-yellow #ffdd55, --cc-blue #5c8bef, --cc-green #93d585, --cc-red-text #c22b26, --cc-line #dfd3b6; escala neutra --gray-* remapeada para creme→tinta"
+tipografia: "Archivo 400/500/600/700/900 e itálico 900, carregada pelo BunnyFontProvider do painel, com fallback system-ui; display em peso 900 e tracking negativo"
+tema: "resources/css/filament/app/theme.css; tokens no :root e overrides sem layer vencem os layers components/utilities do Filament; nenhuma view do vendor é sobrescrita"
+dark_mode: "desligado nesta entrega (darkMode(false) e themeSwitcher(false)); não existe variante escura nem regra .dark ativa"
+marca: "resources/views/filament/brand-logo.blade.php — bússola em SVG e wordmark 'Cash Compass'"
+componentes: "botões, inputs, selects, date pickers, checkbox, toggle, cards, tabelas, modais, notificações, abas e badges compartilham borda grossa, sombra dura, foco de 3 px e estados hover/press/disabled visíveis"
+graficos: "Chart.js mantém biblioteca, tipo, dados e interações; cores, grade, eixos, tipografia e tooltip vêm do tema. A paleta do canvas é espelhada em PHP porque o canvas não lê CSS variables"
+tabelas: "cabeçalho amarelo, linhas sem zebra, números tabulares alinhados à direita, badges de tag preservando fi-color-*; recursos usam stackedOnMobile para não cortar colunas no celular"
+termometro: "grade própria preservada; rolagem horizontal com botão de avanço e scrollbar estilizada; hoje distinto do fim de semana; faixas de saldo chapadas; detalhe do dia com totais e ações"
+acessibilidade: "contraste AA (tinta sobre vermelho 5,8:1, azul 5,6:1, verde 10,7:1, amarelo 13,9:1), foco visível, nomes acessíveis, alvos de toque de 44 px no detalhe e prefers-reduced-motion removendo deslocamentos"
+responsividade: "sidebar recolhe no celular; KPIs em 1/2/4 colunas; tabelas de recursos empilhadas; termômetro rolável; sem overflow horizontal em 390, 768 e 1440 px"
+testes: "os testes de página existentes continuam sendo o seam; não há teste visual em CI; o orçamento de render do Termômetro (10 consultas, 1,55 MB) é mantido"
+```
+
 ### Lacunas e Decisões Conhecidas do Termômetro
 
 - Implementado: grade Blade própria (não tabela Filament), navegação temporal, limite de horizonte 1–12, detalhe em slide-over com ações por lançamento, check-in com bloqueio de futuro, cores de saldo por faixa e previsão de diário projetada na coluna Diários.
