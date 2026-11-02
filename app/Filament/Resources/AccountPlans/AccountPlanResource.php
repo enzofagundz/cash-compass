@@ -22,7 +22,6 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -165,9 +164,11 @@ class AccountPlanResource extends Resource
                     ->label('Início')
                     ->date('d/m/Y')
                     ->sortable(),
-                IconColumn::make('is_active')
-                    ->label('Ativo')
-                    ->boolean(),
+                TextColumn::make('is_active')
+                    ->label('Situação')
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Ativo' : 'Inativo')
+                    ->badge(fn (bool $state): bool => ! $state)
+                    ->color(fn (bool $state): string => $state ? 'gray' : 'warning'),
             ])
             ->filters([
                 SelectFilter::make('type')

@@ -77,13 +77,16 @@ class TagResource extends Resource
                 TextColumn::make('is_active')
                     ->label('Estado')
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Ativa' : 'Arquivada')
+                    ->badge(fn (bool $state): bool => ! $state)
                     ->color(fn (bool $state): string => $state ? 'gray' : 'warning'),
                 TextColumn::make('daily_transactions_count')
                     ->label('Lançamentos')
-                    ->numeric(),
+                    ->numeric()
+                    ->alignEnd(),
                 TextColumn::make('account_plans_count')
                     ->label('Planos')
-                    ->numeric(),
+                    ->numeric()
+                    ->alignEnd(),
             ])
             ->filters([
                 TernaryFilter::make('is_active')

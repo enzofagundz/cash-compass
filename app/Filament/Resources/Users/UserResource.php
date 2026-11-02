@@ -79,7 +79,7 @@ class UserResource extends Resource
                     ->sortable(),
                 TextColumn::make('is_active')
                     ->label('Status')
-                    ->badge()
+                    ->badge(fn (bool $state): bool => ! $state)
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Ativo' : 'Inativo')
                     ->color(fn (bool $state): string => $state ? 'gray' : 'warning')
                     ->sortable(),
