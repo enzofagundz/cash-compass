@@ -9,6 +9,7 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\View\View;
 
 class Dashboard extends BaseDashboard
 {
@@ -38,6 +39,14 @@ class Dashboard extends BaseDashboard
     public function getColumns(): int
     {
         return 1;
+    }
+
+    public function getHeader(): ?View
+    {
+        return view('filament.pages.dashboard-header', [
+            'heading' => $this->getHeading(),
+            'actions' => $this->getCachedHeaderActions(),
+        ]);
     }
 
     /**
