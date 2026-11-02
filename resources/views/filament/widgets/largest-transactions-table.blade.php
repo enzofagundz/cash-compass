@@ -1,7 +1,7 @@
 <x-filament-widgets::widget>
     <x-filament::section
         heading="Cinco maiores lançamentos"
-        description="Valor decrescente; empate resolvido por data e identificador."
+        description="Maiores gastos do período."
     >
         @if ($rows === [])
             <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -11,7 +11,7 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
+                        <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <th scope="col" class="py-2 pr-3 whitespace-nowrap">Data</th>
                             <th scope="col" class="py-2 pr-3">Descrição</th>
                             <th scope="col" class="py-2 pr-3">Tags</th>

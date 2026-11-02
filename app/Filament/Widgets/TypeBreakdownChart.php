@@ -2,9 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Enums\TransactionType;
 use App\Services\SpendingReport;
-use Filament\Support\Colors\Color;
 use Filament\Support\RawJs;
 
 class TypeBreakdownChart extends ReportChartWidget
@@ -13,9 +11,11 @@ class TypeBreakdownChart extends ReportChartWidget
 
     protected ?string $description = 'Participação de Saída, Diário e Cartão no total do período.';
 
+    protected ?string $maxHeight = '260px';
+
     protected function getType(): string
     {
-        return 'doughnut';
+        return 'bar';
     }
 
     /**
@@ -40,13 +40,13 @@ class TypeBreakdownChart extends ReportChartWidget
                 [
                     'label' => 'Gasto por tipo',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
-                    'backgroundColor' => array_map(fn (array $row): string => $this->typeColor($row['type']), $rows),
-                    'borderColor' => array_map(fn (array $row): string => $this->typeColor($row['type']), $rows),
+                    'backgroundColor' => $this->chartColor(),
+                    'borderRadius' => 4,
+                    'maxBarThickness' => 24,
                 ],
             ],
             'labels' => array_map(
-                fn (array $row): string => $row['label'].': '.$this->formatMoney($row['total'])
-                    .' ('.$this->formatPercentage($row['percentage']).')',
+                fn (array $row): string => $row['label'],
                 $rows,
             ),
         ];
@@ -55,26 +55,47 @@ class TypeBreakdownChart extends ReportChartWidget
     protected function getOptions(): RawJs
     {
         return RawJs::make(<<<'JS'
-            {
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => context.label,
+            (() => {
+                const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                });
+
+                const axisMoney = (value) => Number(value) >= 1000
+                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                    : money(value);
+
+                return {
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                display: false,
+                            },
+                            ticks: {
+                                maxTicksLimit: 4,
+                                callback: (value) => axisMoney(value),
+                            },
+                        },
+                        y: {
+                            grid: {
+                                display: false,
+                            },
                         },
                     },
-                },
-            }
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => money(context.raw),
+                            },
+                        },
+                    },
+                };
+            })()
         JS);
-    }
-
-    private function typeColor(string $type): string
-    {
-        $palette = match ($type) {
-            TransactionType::Expense->value => Color::Red,
-            TransactionType::Daily->value => Color::Amber,
-            default => Color::Blue,
-        };
-
-        return Color::convertToHex($palette[500]);
     }
 }

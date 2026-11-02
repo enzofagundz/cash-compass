@@ -55,6 +55,14 @@ trait InteractsWithSpendingReport
         return Color::convertToHex((string) ($palette[500] ?? $palette[400]));
     }
 
+    /**
+     * Neutral step used for the data that is not the point of the chart.
+     */
+    protected function chartNeutralColor(): string
+    {
+        return '#a1a1aa';
+    }
+
     protected function tagColorHex(?TagColor $color): string
     {
         $palette = FilamentColor::getColor($color?->getColor() ?? 'gray') ?? Color::Gray;

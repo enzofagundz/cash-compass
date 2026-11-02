@@ -11,6 +11,8 @@ class WeekdaySpendChart extends ReportChartWidget
 
     protected ?string $description = 'Gasto total por dia da semana no período.';
 
+    protected ?string $maxHeight = '260px';
+
     protected function getType(): string
     {
         return 'bar';
@@ -33,12 +35,24 @@ class WeekdaySpendChart extends ReportChartWidget
             return [];
         }
 
+        $peakCents = array_reduce(
+            $rows,
+            fn (?int $carry, array $row): int => max($carry ?? 0, (int) $row['total_cents']),
+        ) ?? 0;
+
         return [
             'datasets' => [
                 [
                     'label' => 'Gasto por dia da semana',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
-                    'backgroundColor' => $this->chartColor(),
+                    'backgroundColor' => array_map(
+                        fn (array $row): string => (int) $row['total_cents'] === (int) $peakCents
+                            ? $this->chartColor()
+                            : $this->chartNeutralColor(),
+                        $rows,
+                    ),
+                    'borderRadius' => 4,
+                    'maxBarThickness' => 32,
                 ],
             ],
             'labels' => array_map(fn (array $row): string => $row['label'], $rows),
@@ -54,6 +68,10 @@ class WeekdaySpendChart extends ReportChartWidget
                     maximumFractionDigits: 2,
                 });
 
+                const axisMoney = (value) => Number(value) >= 1000
+                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                    : money(value);
+
                 return {
                     plugins: {
                         legend: {
@@ -66,9 +84,16 @@ class WeekdaySpendChart extends ReportChartWidget
                         },
                     },
                     scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                            },
+                        },
                         y: {
+                            beginAtZero: true,
                             ticks: {
-                                callback: (value) => money(value),
+                                maxTicksLimit: 5,
+                                callback: (value) => axisMoney(value),
                             },
                         },
                     },

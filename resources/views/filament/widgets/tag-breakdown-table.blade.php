@@ -1,7 +1,7 @@
 <x-filament-widgets::widget>
     <x-filament::section
         heading="Todas as tags"
-        description="A soma das tags pode passar do total gasto, pois um lançamento entra integralmente em cada tag vinculada."
+        description="Um lançamento entra inteiro em cada tag, então a soma das tags pode passar do total gasto."
     >
         @if ($total === 0)
             <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -11,7 +11,7 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
+                        <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 dark:border-white/10 dark:text-gray-400">
                             <th scope="col" class="py-2 pr-3">Tag</th>
                             <th scope="col" class="py-2 px-3 text-right whitespace-nowrap">Total</th>
                             <th scope="col" class="py-2 px-3 text-right whitespace-nowrap">Participação</th>

@@ -14,6 +14,8 @@ class TopTagsChart extends ReportChartWidget
 
     protected ?string $emptyStateDescription = 'Vincule tags aos lançamentos de gasto para ver o ranking.';
 
+    protected ?string $maxHeight = '380px';
+
     /**
      * @var array{tags: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, top: array<int, array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}>, untagged: array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}|null}|null
      */
@@ -69,7 +71,13 @@ class TopTagsChart extends ReportChartWidget
                 [
                     'label' => 'Gasto por tag',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
-                    'backgroundColor' => array_map(fn (array $row): string => $this->tagColorHex($row['color']), $rows),
+                    'backgroundColor' => array_map(
+                        fn (array $row, int $index): string => $index === 0 ? $this->chartColor() : $this->chartNeutralColor(),
+                        $rows,
+                        array_keys($rows),
+                    ),
+                    'borderRadius' => 4,
+                    'maxBarThickness' => 20,
                 ],
             ],
             'labels' => array_map(
@@ -88,6 +96,10 @@ class TopTagsChart extends ReportChartWidget
                     maximumFractionDigits: 2,
                 });
 
+                const axisMoney = (value) => Number(value) >= 1000
+                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                    : money(value);
+
                 return {
                     indexAxis: 'y',
                     plugins: {
@@ -102,12 +114,19 @@ class TopTagsChart extends ReportChartWidget
                     },
                     scales: {
                         x: {
+                            beginAtZero: true,
+                            grid: {
+                                display: false,
+                            },
                             ticks: {
-                                callback: (value) => money(value),
+                                maxTicksLimit: 4,
+                                callback: (value) => axisMoney(value),
                             },
                         },
                         y: {
-                            reverse: true,
+                            grid: {
+                                display: false,
+                            },
                         },
                     },
                 };

@@ -17,9 +17,11 @@ class HourlySpendChart extends ReportChartWidget
 
     protected ?string $emptyStateDescription = 'O gráfico considera apenas lançamentos manuais com gasto.';
 
+    protected ?string $maxHeight = '260px';
+
     protected function getType(): string
     {
-        return 'bubble';
+        return 'bar';
     }
 
     /**
@@ -33,30 +35,36 @@ class HourlySpendChart extends ReportChartWidget
             return [];
         }
 
-        $points = array_map(
-            fn (array $row): array => [
-                'x' => $row['hour'],
-                'y' => (float) $row['total'],
-                'r' => $row['radius'],
-                'count' => $row['count'],
-                'label' => $row['label'],
-            ],
-            app(SpendingReport::class)->hourly($user, $this->reportPeriod()),
-        );
+        $rows = app(SpendingReport::class)->hourly($user, $this->reportPeriod());
 
-        if ($points === []) {
+        if ($rows === []) {
             return [];
         }
+
+        $byHour = collect($rows)->keyBy('hour');
+        $hours = range(0, 23);
 
         return [
             'datasets' => [
                 [
                     'label' => 'Gasto por horário',
-                    'data' => $points,
+                    'data' => array_map(
+                        fn (int $hour): float => (float) ($byHour[$hour]['total'] ?? 0),
+                        $hours,
+                    ),
+                    'counts' => array_map(
+                        fn (int $hour): int => (int) ($byHour[$hour]['count'] ?? 0),
+                        $hours,
+                    ),
                     'backgroundColor' => $this->chartColor(),
-                    'borderColor' => $this->chartColor(),
+                    'borderRadius' => 4,
+                    'maxBarThickness' => 18,
                 ],
             ],
+            'labels' => array_map(
+                fn (int $hour): string => str_pad((string) $hour, 2, '0', STR_PAD_LEFT).'h',
+                $hours,
+            ),
         ];
     }
 
@@ -69,19 +77,26 @@ class HourlySpendChart extends ReportChartWidget
                     maximumFractionDigits: 2,
                 });
 
+                const axisMoney = (value) => Number(value) >= 1000
+                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                    : money(value);
+
                 return {
                     scales: {
                         x: {
-                            min: 0,
-                            max: 23,
+                            grid: {
+                                display: false,
+                            },
                             ticks: {
-                                stepSize: 1,
-                                callback: (value) => String(value).padStart(2, '0') + 'h',
+                                autoSkip: true,
+                                maxRotation: 0,
                             },
                         },
                         y: {
+                            beginAtZero: true,
                             ticks: {
-                                callback: (value) => money(value),
+                                maxTicksLimit: 5,
+                                callback: (value) => axisMoney(value),
                             },
                         },
                     },
@@ -91,12 +106,11 @@ class HourlySpendChart extends ReportChartWidget
                         },
                         tooltip: {
                             callbacks: {
-                                title: (items) => items[0]?.raw?.label ?? '',
                                 label: (context) => {
-                                    const point = context.raw;
-                                    const count = point.count === 1 ? '1 lançamento' : `${point.count} lançamentos`;
+                                    const count = context.dataset.counts?.[context.dataIndex] ?? 0;
+                                    const total = count === 1 ? '1 lançamento' : `${count} lançamentos`;
 
-                                    return `${money(point.y)} · ${count}`;
+                                    return `${money(context.raw)} · ${total}`;
                                 },
                             },
                         },

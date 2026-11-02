@@ -13,9 +13,11 @@ class MonthlyEvolutionChart extends ReportChartWidget
 
     protected ?string $description = 'Gasto total de cada mês dentro do período.';
 
+    protected ?string $maxHeight = '280px';
+
     protected function getType(): string
     {
-        return 'line';
+        return 'bar';
     }
 
     /**
@@ -41,7 +43,8 @@ class MonthlyEvolutionChart extends ReportChartWidget
                     'label' => 'Gasto por mês',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
                     'backgroundColor' => $this->chartColor(),
-                    'borderColor' => $this->chartColor(),
+                    'borderRadius' => 4,
+                    'maxBarThickness' => 32,
                 ],
             ],
             'labels' => array_map(fn (array $row): string => $row['label'], $rows),
@@ -57,6 +60,10 @@ class MonthlyEvolutionChart extends ReportChartWidget
                     maximumFractionDigits: 2,
                 });
 
+                const axisMoney = (value) => Number(value) >= 1000
+                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                    : money(value);
+
                 return {
                     plugins: {
                         legend: {
@@ -69,9 +76,16 @@ class MonthlyEvolutionChart extends ReportChartWidget
                         },
                     },
                     scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                            },
+                        },
                         y: {
+                            beginAtZero: true,
                             ticks: {
-                                callback: (value) => money(value),
+                                maxTicksLimit: 5,
+                                callback: (value) => axisMoney(value),
                             },
                         },
                     },

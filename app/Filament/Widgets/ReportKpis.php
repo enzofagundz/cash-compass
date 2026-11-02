@@ -52,7 +52,7 @@ class ReportKpis extends StatsOverviewWidget
             Stat::make('Total gasto', $this->formatMoney($summary['total']))
                 ->description($period['label']),
             Stat::make('Variação', $this->variationValue($summary['variation_percent']))
-                ->description($this->formatSignedMoney($summary['variation_cents']).' em relação ao período anterior')
+                ->description($this->variationDescription($summary['variation_cents'], $summary['variation_percent']))
                 ->color($this->variationColor($summary['variation_cents'], $summary['variation_percent'])),
             Stat::make(
                 'Média por dia ativo',
@@ -64,6 +64,19 @@ class ReportKpis extends StatsOverviewWidget
             Stat::make('Tag líder', $summary['top_tag']['name'] ?? '—')
                 ->description($summary['top_tag'] === null ? '—' : $this->formatMoney($summary['top_tag']['total'])),
         ];
+    }
+
+    private function variationDescription(int $variationCents, ?float $variationPercent): string
+    {
+        if ($variationPercent === null) {
+            return 'Nenhum gasto no período anterior para comparar.';
+        }
+
+        if ($variationCents === 0) {
+            return 'Mesmo valor do período anterior.';
+        }
+
+        return $this->formatSignedMoney($variationCents).' em relação ao período anterior';
     }
 
     private function variationValue(?float $percent): string
