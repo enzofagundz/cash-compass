@@ -55,7 +55,7 @@
                 </td>
             @endforeach
 
-            <td class="thermometer-total-balance"></td>
+            <td class="thermometer-total-balance">—</td>
         </tr>
     </tfoot>
 </table>

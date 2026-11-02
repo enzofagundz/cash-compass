@@ -1,10 +1,11 @@
 @php
     $addType = $this->detailType ?: App\Enums\TransactionType::Expense->value;
     $dailyForecast = $this->detailDailyForecast;
+    $totals = $this->detailTotals();
 @endphp
 
 <div class="thermometer-detail">
-    <div class="flex items-center gap-2">
+    <div class="thermometer-detail-nav flex items-center gap-2">
         <x-filament::icon-button
             icon="heroicon-o-chevron-left"
             label="Dia anterior"
@@ -30,7 +31,7 @@
 
             <select
                 wire:model.live="detailType"
-                class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                class="thermometer-select"
             >
                 <option value="">Todos os tipos</option>
 
@@ -48,6 +49,20 @@
             Adicionar
         </x-filament::button>
     </div>
+
+    <dl class="thermometer-detail-totals" aria-label="Totais do dia">
+        @foreach ($this->columns as $type)
+            <div class="thermometer-detail-total">
+                <dt>{{ $type->columnLabel() }}</dt>
+                <dd>{{ $totals[$type->value] }}</dd>
+            </div>
+        @endforeach
+
+        <div class="thermometer-detail-total thermometer-detail-total-balance">
+            <dt>Saldo do dia</dt>
+            <dd>{{ $totals['balance'] }}</dd>
+        </div>
+    </dl>
 
     <div class="thermometer-detail-list">
         @if ($dailyForecast !== null)
@@ -79,7 +94,7 @@
                     @endunless
                 </div>
 
-                <span class="thermometer-movement-title">{{ $movement['amount'] }}</span>
+                <span class="thermometer-movement-title thermometer-movement-amount">{{ $movement['amount'] }}</span>
 
                 <div class="thermometer-movement-actions">
                     <x-filament::icon-button
