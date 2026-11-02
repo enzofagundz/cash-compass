@@ -3,6 +3,8 @@
 namespace App\Filament\Widgets;
 
 use App\Services\SpendingReport;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
 
 class MonthlyEvolutionChart extends ReportChartWidget
@@ -12,6 +14,12 @@ class MonthlyEvolutionChart extends ReportChartWidget
     protected ?string $heading = 'Evolução mensal';
 
     protected ?string $description = 'Gasto total de cada mês dentro do período.';
+
+    protected ?string $emptyStateHeading = 'Nenhum gasto no período.';
+
+    protected ?string $emptyStateDescription = 'O gráfico soma os gastos realizados de cada mês.';
+
+    protected string|BackedEnum|null $emptyStateIcon = Heroicon::OutlinedChartBar;
 
     protected ?string $maxHeight = '280px';
 
@@ -37,13 +45,25 @@ class MonthlyEvolutionChart extends ReportChartWidget
             return [];
         }
 
+        $peakCents = array_reduce(
+            $rows,
+            fn (?int $carry, array $row): int => max($carry ?? 0, (int) $row['total_cents']),
+        ) ?? 0;
+
         return [
             'datasets' => [
                 [
                     'label' => 'Gasto por mês',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
-                    'backgroundColor' => $this->chartColor(),
-                    'borderRadius' => 4,
+                    'backgroundColor' => array_map(
+                        fn (array $row): string => (int) $row['total_cents'] === (int) $peakCents
+                            ? $this->chartEmphasisColor()
+                            : $this->chartColor(),
+                        $rows,
+                    ),
+                    'borderRadius' => 0,
+                    'borderColor' => $this->chartInk(),
+                    'hoverBorderColor' => $this->chartInk(),
                     'maxBarThickness' => 32,
                 ],
             ],
@@ -53,44 +73,40 @@ class MonthlyEvolutionChart extends ReportChartWidget
 
     protected function getOptions(): RawJs
     {
-        return RawJs::make(<<<'JS'
-            (() => {
-                const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                });
+        return $this->chartOptions(<<<'JS'
+            const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
 
-                const axisMoney = (value) => Number(value) >= 1000
-                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
-                    : money(value);
+            const axisMoney = (value) => Number(value) >= 1000
+                ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                : money(value);
 
-                return {
-                    plugins: {
-                        legend: {
-                            display: false,
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => money(context.raw),
-                            },
+            return {
+                ...theme,
+                scales: {
+                    ...theme.scales,
+                    y: {
+                        ...theme.scales.y,
+                        beginAtZero: true,
+                        ticks: {
+                            ...theme.scales.y.ticks,
+                            maxTicksLimit: 5,
+                            callback: (value) => axisMoney(value),
                         },
                     },
-                    scales: {
-                        x: {
-                            grid: {
-                                display: false,
-                            },
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                maxTicksLimit: 5,
-                                callback: (value) => axisMoney(value),
-                            },
+                },
+                plugins: {
+                    ...theme.plugins,
+                    tooltip: {
+                        ...theme.plugins.tooltip,
+                        callbacks: {
+                            label: (context) => money(context.raw),
                         },
                     },
-                };
-            })()
-        JS);
+                },
+            };
+            JS);
     }
 }

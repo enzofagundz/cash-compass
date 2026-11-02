@@ -24,6 +24,7 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
 
 class Reports extends Dashboard
@@ -58,6 +59,14 @@ class Reports extends Dashboard
     public function getSubheading(): ?string
     {
         return app(SpendingReport::class)->period($this->filters)['label'];
+    }
+
+    public function getHeader(): ?View
+    {
+        return view('filament.pages.reports-header', [
+            'heading' => $this->getHeading(),
+            'period' => $this->getSubheading(),
+        ]);
     }
 
     public function filtersForm(Schema $schema): Schema
@@ -143,21 +152,25 @@ class Reports extends Dashboard
             Tabs::make()
                 ->livewireProperty('activeTab')
                 ->tabs([
-                    'behavior' => Tab::make('Comportamento')->schema([
-                        Grid::make(2)->schema(fn (): array => $this->getWidgetsSchemaComponents([
-                            HourlySpendChart::class,
-                            WeekdaySpendChart::class,
-                            TypeBreakdownChart::class,
-                            MonthlyEvolutionChart::class,
-                            LargestTransactionsTable::class,
-                        ])),
-                    ]),
-                    'tags' => Tab::make('Tags')->schema([
-                        Grid::make(1)->schema(fn (): array => $this->getWidgetsSchemaComponents([
-                            TopTagsChart::class,
-                            TagBreakdownTable::class,
-                        ])),
-                    ]),
+                    'behavior' => Tab::make('Comportamento')
+                        ->icon(Heroicon::OutlinedClock)
+                        ->schema([
+                            Grid::make(2)->schema(fn (): array => $this->getWidgetsSchemaComponents([
+                                HourlySpendChart::class,
+                                WeekdaySpendChart::class,
+                                TypeBreakdownChart::class,
+                                MonthlyEvolutionChart::class,
+                                LargestTransactionsTable::class,
+                            ])),
+                        ]),
+                    'tags' => Tab::make('Tags')
+                        ->icon(Heroicon::OutlinedTag)
+                        ->schema([
+                            Grid::make(1)->schema(fn (): array => $this->getWidgetsSchemaComponents([
+                                TopTagsChart::class,
+                                TagBreakdownTable::class,
+                            ])),
+                        ]),
                 ]),
         ]);
     }
