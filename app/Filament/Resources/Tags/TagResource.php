@@ -28,6 +28,10 @@ class TagResource extends Resource
 
     protected static ?string $model = Tag::class;
 
+    protected static ?string $modelLabel = 'tag';
+
+    protected static ?string $pluralModelLabel = 'tags';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
     protected static ?string $navigationLabel = 'Tags';
@@ -72,9 +76,8 @@ class TagResource extends Resource
                     ->searchable(),
                 TextColumn::make('is_active')
                     ->label('Estado')
-                    ->badge()
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Ativa' : 'Arquivada')
-                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
+                    ->color(fn (bool $state): string => $state ? 'gray' : 'warning'),
                 TextColumn::make('daily_transactions_count')
                     ->label('Lançamentos')
                     ->numeric(),
@@ -91,11 +94,12 @@ class TagResource extends Resource
                     ->default(true),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->iconButton(),
                 Action::make('archive')
                     ->label('Arquivar')
                     ->icon(Heroicon::OutlinedArchiveBox)
                     ->color('gray')
+                    ->iconButton()
                     ->visible(fn (Tag $record): bool => $record->is_active)
                     ->requiresConfirmation()
                     ->modalHeading('Arquivar tag')
@@ -105,9 +109,11 @@ class TagResource extends Resource
                     ->label('Reativar')
                     ->icon(Heroicon::OutlinedArrowPath)
                     ->color('success')
+                    ->iconButton()
                     ->visible(fn (Tag $record): bool => ! $record->is_active)
                     ->action(fn (Tag $record): bool => $record->reactivate()),
                 DeleteAction::make()
+                    ->iconButton()
                     ->visible(fn (Tag $record): bool => (int) $record->daily_transactions_count === 0
                         && (int) $record->account_plans_count === 0)
                     ->failureNotificationTitle('Tag não pode ser excluída')
