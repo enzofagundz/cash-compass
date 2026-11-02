@@ -79,13 +79,13 @@ class ReportKpis extends StatsOverviewWidget
                 ->description($summary['active_days'].' '.($summary['active_days'] === 1 ? 'dia ativo' : 'dias ativos'))
                 ->icon(Heroicon::OutlinedCalendarDays)
                 ->extraAttributes($summary['average_per_active_day'] === null
-                    ? ['data-kpi' => 'average']
+                    ? ['class' => 'min-h-[9rem]', 'data-kpi' => 'average']
                     : $this->blockAttributes('average', '--cc-blue')),
             Stat::make('Tag líder', $summary['top_tag']['name'] ?? '—')
-                ->description($summary['top_tag'] === null ? '—' : $this->formatMoney($summary['top_tag']['total']))
+                ->description($summary['top_tag'] === null ? null : $this->formatMoney($summary['top_tag']['total']))
                 ->icon(Heroicon::OutlinedTag)
                 ->extraAttributes($summary['top_tag'] === null
-                    ? ['data-kpi' => 'top-tag']
+                    ? ['class' => 'min-h-[9rem]', 'data-kpi' => 'top-tag']
                     : $this->blockAttributes('top-tag', '--cc-yellow')),
         ];
     }
@@ -100,6 +100,7 @@ class ReportKpis extends StatsOverviewWidget
     private function blockAttributes(string $key, string $colorVariable): array
     {
         return [
+            'class' => 'min-h-[9rem]',
             'data-kpi' => $key,
             'style' => sprintf('background-color: var(%s); --cc-ink-muted: var(--cc-ink)', $colorVariable),
         ];
@@ -114,7 +115,7 @@ class ReportKpis extends StatsOverviewWidget
     private function variationAttributes(int $variationCents, ?float $variationPercent): array
     {
         if ($variationPercent === null || $variationCents === 0) {
-            return ['data-kpi' => 'variation'];
+            return ['class' => 'min-h-[9rem]', 'data-kpi' => 'variation'];
         }
 
         return $this->blockAttributes('variation', $variationCents > 0 ? '--cc-red' : '--cc-green');

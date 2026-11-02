@@ -9,7 +9,7 @@
                 icon-color="gray"
                 :icon="\Filament\Support\Icons\Heroicon::OutlinedTag"
                 heading="Nenhuma tag com gasto no período."
-                description="Vincule tags aos lançamentos de gasto para ver o ranking."
+                description="Vincule tags aos lançamentos de gasto para ver a participação."
             />
         @else
             <div class="overflow-x-auto">
