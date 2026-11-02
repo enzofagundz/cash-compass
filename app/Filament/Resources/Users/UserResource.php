@@ -21,6 +21,12 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
+    protected static ?string $modelLabel = 'usuário';
+
+    protected static ?string $pluralModelLabel = 'usuários';
+
+    protected static ?string $navigationLabel = 'Usuários';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
     protected static ?string $recordTitleAttribute = 'name';
@@ -35,17 +41,20 @@ class UserResource extends Resource
         return $schema
             ->components([
                 TextInput::make('name')
+                    ->label('Nome')
                     ->required(),
                 TextInput::make('email')
-                    ->label('Email address')
+                    ->label('E-mail')
                     ->email()
                     ->required(),
                 Select::make('role')
+                    ->label('Papel')
                     ->options(collect(UserRole::cases())
                         ->mapWithKeys(fn (UserRole $role): array => [$role->value => $role->label()])
                         ->all())
                     ->required(),
                 TextInput::make('password')
+                    ->label('Senha')
                     ->password()
                     ->required()
                     ->visibleOn('create'),
@@ -58,34 +67,41 @@ class UserResource extends Resource
             ->recordTitleAttribute('name')
             ->columns([
                 TextColumn::make('name')
+                    ->label('Nome')
                     ->searchable(),
                 TextColumn::make('email')
-                    ->label('Email address')
+                    ->label('E-mail')
                     ->searchable(),
                 TextColumn::make('role')
                     ->label('Papel')
-                    ->badge()
                     ->formatStateUsing(fn (UserRole $state): string => $state->label())
+                    ->color('gray')
                     ->sortable(),
                 TextColumn::make('is_active')
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Ativo' : 'Inativo')
+                    ->color(fn (bool $state): string => $state ? 'gray' : 'warning')
                     ->sortable(),
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->label('Criado em')
+                    ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->iconButton(),
                 Action::make('toggle_active')
                     ->label(fn (User $record): string => $record->is_active ? 'Desativar' : 'Reativar')
+                    ->icon(fn (User $record): string => $record->is_active ? 'heroicon-o-no-symbol' : 'heroicon-o-check-circle')
+                    ->iconButton()
                     ->visible(fn (User $record): bool => auth()->user()?->can('update', $record) ?? false)
                     ->requiresConfirmation()
                     ->action(fn (User $record): bool => $record->update(['is_active' => ! $record->is_active])),
                 Action::make('send_reset_link')
                     ->label('Redefinir senha')
+                    ->icon('heroicon-o-key')
+                    ->iconButton()
                     ->visible(fn (User $record): bool => auth()->user()?->can('update', $record) ?? false)
                     ->requiresConfirmation()
                     ->action(fn (User $record): string => Password::sendResetLink(['email' => $record->email])),
