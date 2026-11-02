@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use Filament\FontProviders\BunnyFontProvider;
 use Filament\Http\Controllers\RedirectToHomeController;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -10,6 +11,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -27,13 +29,24 @@ class AppPanelProvider extends PanelProvider
             ->id('app')
             ->path('/')
             ->brandName(fn () => config('app.name'))
+            ->brandLogo(fn () => view('filament.brand-logo'))
+            ->brandLogoHeight('2.5rem')
+            ->darkMode(false)
+            ->themeSwitcher(false)
+            ->font(
+                'Archivo',
+                'https://fonts.bunny.net/css?family=archivo:400,500,600,700,900,900i&display=swap',
+                BunnyFontProvider::class,
+            )
+            ->sidebarWidth('15rem')
+            ->maxContentWidth(Width::Full)
             ->login()
             ->registration()
             ->passwordReset()
             ->emailVerification()
             ->profile()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Red,
                 'red' => Color::Red,
                 'orange' => Color::Orange,
                 'yellow' => Color::Yellow,

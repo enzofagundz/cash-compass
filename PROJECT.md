@@ -284,9 +284,10 @@ AppPanelProvider:
   id: "app"
   path: "/"
   autenticacao: "login, registration, passwordReset, emailVerification, profile"
-  cor_primaria: "Amber"
+  cor_primaria: "Red"
   cores_tags: "paleta TagColor registrada em colors() (red…purple); sem registro o Filament não gera as classes fi-color-* e as badges ficam sem cor"
   tema: "resources/css/filament/app/theme.css"
+  identidade_visual: "neo-brutalista, somente claro: tokens --cc-* (creme #fbf6e9, tinta #16130f, acentos vermelho/amarelo/azul/verde), bordas de 3 px em superfícies e 2 px em controles, sombras sólidas deslocadas, raio de 4 px; Archivo via BunnyFontProvider; darkMode(false) e themeSwitcher(false); logo em resources/views/filament/brand-logo.blade.php; sidebar de 15rem e conteúdo em largura fluida"
   descoberta: "app/Filament/Resources, Pages, Widgets"
   home: "GET / → RedirectToHomeController (route panel home)"
 

@@ -27,7 +27,7 @@ class InitialBalanceSettings extends Page
 
     protected static ?string $slug = 'initial-balance';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::Wallet;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedWallet;
 
     protected static ?string $navigationLabel = 'Saldo inicial';
 

@@ -4,6 +4,1276 @@
 @source '../../../../resources/views/components/**/*';
 @source '../../../../resources/views/filament/**/*';
 
+/*
+ * Cash Compass — neo-brutalist foundation.
+ *
+ * Everything below the token block is intentionally unlayered: Filament ships its
+ * components inside `@layer components/utilities`, so plain CSS here wins without
+ * `!important` and without out-specifying vendor selectors. Only class names that
+ * exist in the vendor CSS (or that are defined here) are used, and no vendor view
+ * is overridden.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Tokens
+ * ------------------------------------------------------------------------- */
+
+:root {
+    color-scheme: light;
+
+    /* Canvas and ink */
+    --cc-cream: #fbf6e9;
+    --cc-paper: #fffdf6;
+    --cc-ink: #16130f;
+    --cc-ink-muted: #6a5f4e;
+    --cc-line: #dfd3b6;
+
+    /* Flat accents. Text is always ink on top of these: verified pairs are
+       ink on red 5.8:1, on blue 5.6:1, on green 10.7:1, on yellow 13.9:1. */
+    --cc-red: #ff5252;
+    --cc-yellow: #ffdd55;
+    --cc-blue: #5c8bef;
+    --cc-green: #93d585;
+
+    /* Red dark enough to carry text on paper (5.6:1). */
+    --cc-red-text: #c22b26;
+    /* Soft accent used for hover fills. */
+    --cc-yellow-soft: #fff6d6;
+
+    /* Borders, shadows and radii */
+    --cc-border-width: 3px;
+    --cc-border-width-control: 2px;
+    --cc-border: var(--cc-border-width) solid var(--cc-ink);
+    --cc-border-control: var(--cc-border-width-control) solid var(--cc-ink);
+    --cc-radius: 4px;
+    --cc-shadow-sm: 3px 3px 0 var(--cc-ink);
+    --cc-shadow: 4px 4px 0 var(--cc-ink);
+    --cc-shadow-lg: 6px 6px 0 var(--cc-ink);
+
+    /* Typography */
+    --cc-font:
+        var(--font-family, 'Archivo'), ui-sans-serif, system-ui, -apple-system,
+        'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --cc-font-display: var(--cc-font);
+    --cc-weight-medium: 500;
+    --cc-weight-semibold: 600;
+    --cc-weight-bold: 700;
+    --cc-weight-black: 900;
+
+    /* Spacing */
+    --cc-space-md: 1rem;
+    --cc-space-lg: 1.5rem;
+    --cc-space-xl: 2rem;
+
+    /* Motion */
+    --cc-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --cc-duration: 120ms;
+
+    /*
+     * Warm neutral ramp. Filament maps `--color-gray-*` (and therefore every
+     * `gray-*` utility) to these variables, so existing screens pick up the
+     * cream/ink palette without touching their markup.
+     */
+    --gray-50: #f7f0dd;
+    --gray-100: #efe5cb;
+    --gray-200: #dfd3b6;
+    --gray-300: #c8ba9c;
+    --gray-400: #8b7f68;
+    --gray-500: #6a5f4e;
+    --gray-600: #554b3d;
+    --gray-700: #40382d;
+    --gray-800: #2c261e;
+    --gray-900: #1e1a14;
+    --gray-950: #16130f;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base layout
+ * ------------------------------------------------------------------------- */
+
+html.fi {
+    background-color: var(--cc-cream);
+}
+
+.fi-body {
+    background-color: var(--cc-cream);
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+    -webkit-font-smoothing: antialiased;
+}
+
+.fi-layout {
+    background-color: var(--cc-cream);
+}
+
+.fi-main {
+    padding-inline: clamp(1rem, 2.5vw, 2.5rem);
+}
+
+.fi-page {
+    color: var(--cc-ink);
+}
+
+.fi-page-header-main-ctn {
+    padding-block: var(--cc-space-xl);
+}
+
+.fi-header-heading {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.fi-header-subheading {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-medium);
+}
+
+.fi-logo {
+    align-items: center;
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Brand mark
+ * ------------------------------------------------------------------------- */
+
+.cc-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 100%;
+    min-width: 0;
+}
+
+.cc-brand-mark {
+    height: 100%;
+    width: auto;
+    flex: 0 0 auto;
+    display: block;
+}
+
+.cc-brand-word {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: 1.0625rem;
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar
+ * ------------------------------------------------------------------------- */
+
+.fi-sidebar {
+    background-color: var(--cc-paper);
+    border-inline-end: var(--cc-border);
+    box-shadow: none;
+}
+
+.fi-sidebar.fi-sidebar-open {
+    box-shadow: none;
+}
+
+@media (max-width: 1023px) {
+    .fi-sidebar.fi-sidebar-open {
+        box-shadow: 4px 0 0 var(--cc-ink);
+    }
+}
+
+.fi-sidebar-close-overlay {
+    background-color: rgb(22 19 15 / 0.55);
+}
+
+.fi-sidebar-header {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border-control);
+    box-shadow: none;
+}
+
+.fi-sidebar-nav {
+    gap: var(--cc-space-md);
+    padding: var(--cc-space-md) 0.75rem;
+}
+
+.fi-sidebar-nav-groups {
+    gap: var(--cc-space-md);
+    margin-inline: 0;
+}
+
+.fi-sidebar-group-label {
+    color: var(--cc-ink-muted);
+    font-size: 0.6875rem;
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.fi-sidebar-group-btn .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-sidebar-item-btn {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink);
+    padding: 0.4375rem 0.5rem;
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease),
+        transform var(--cc-duration) var(--cc-ease);
+}
+
+.fi-sidebar-item-btn > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-sidebar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover > .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn .fi-sidebar-item-grouped-border-part {
+    background-color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-active-child-items > .fi-sidebar-item-btn {
+    background-color: var(--cc-cream);
+}
+
+.fi-sidebar-footer {
+    border-top: var(--cc-border-width-control) solid var(--cc-line);
+}
+
+.fi-sidebar-database-notifications-btn {
+    border-radius: var(--cc-radius);
+}
+
+.fi-sidebar-database-notifications-btn:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+/* ---------------------------------------------------------------------------
+ * Topbar
+ * ------------------------------------------------------------------------- */
+
+.fi-topbar-ctn {
+    background-color: var(--cc-paper);
+}
+
+.fi-topbar {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border);
+    box-shadow: none;
+}
+
+.fi-topbar-item-btn {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease);
+}
+
+.fi-topbar-item-btn > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-topbar-item-btn:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+}
+
+.fi-topbar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-topbar-item.fi-active .fi-topbar-item-btn {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-topbar-item.fi-active .fi-topbar-item-btn > .fi-icon,
+.fi-topbar-item.fi-active .fi-topbar-item-label {
+    color: var(--cc-ink);
+}
+
+.fi-topbar .fi-icon-btn,
+.fi-topbar .fi-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+}
+
+.fi-topbar .fi-avatar {
+    height: 2.5rem;
+    width: 2.5rem;
+}
+
+.fi-topbar-open-sidebar-btn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-topbar-open-sidebar-btn > .fi-icon {
+    color: var(--cc-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------- */
+
+.fi-btn {
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.01em;
+    transition:
+        transform var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease),
+        background-color var(--cc-duration) var(--cc-ease);
+}
+
+.fi-btn > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn:not(.fi-color) {
+    background-color: var(--cc-paper);
+}
+
+/* Toggle-button groups (e.g. the tag colour picker) keep Filament's colour
+   swatch on the selected option; add an unmistakable selection ring. */
+input:checked + label.fi-btn {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+input:checked + label.fi-btn:not(.fi-color) {
+    background-color: var(--cc-yellow);
+    color: var(--cc-ink);
+}
+
+/* Accent fills. Text stays ink on every accent, never white. */
+.fi-btn.fi-color:not(.fi-outlined):not(.fi-disabled):not([disabled]) {
+    color: var(--cc-ink);
+}
+
+.fi-btn.fi-color.fi-color-primary:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-red:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-danger:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-red);
+}
+
+.fi-btn.fi-color.fi-color-yellow:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-amber:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-yellow);
+}
+
+.fi-btn.fi-color.fi-color-blue:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-info:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-blue);
+}
+
+.fi-btn.fi-color.fi-color-green:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-success:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-green);
+}
+
+.fi-btn.fi-outlined {
+    background-color: var(--cc-paper);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+}
+
+.fi-btn.fi-outlined > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn:not(.fi-disabled):not([disabled]):hover {
+    box-shadow: 5px 5px 0 var(--cc-ink);
+    transform: translate(-1px, -1px);
+}
+
+.fi-btn:not(.fi-disabled):not([disabled]):active {
+    box-shadow: 1px 1px 0 var(--cc-ink);
+    transform: translate(2px, 2px);
+}
+
+.fi-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    color: var(--cc-ink-muted);
+    opacity: 1;
+}
+
+.fi-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn-group {
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+.fi-btn-group > .fi-btn {
+    box-shadow: none;
+    border-width: 0;
+    border-inline-end: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 0;
+}
+
+.fi-btn-group > .fi-btn:last-of-type {
+    border-inline-end: 0;
+}
+
+.fi-icon-btn {
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink-muted);
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        color var(--cc-duration) var(--cc-ease);
+}
+
+.fi-icon-btn:not(.fi-disabled):not([disabled]):hover {
+    background-color: var(--cc-yellow-soft);
+    color: var(--cc-ink);
+}
+
+.fi-icon-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) {
+    color: var(--cc-ink-muted);
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Focus — always visible on cream and on accents
+ * ------------------------------------------------------------------------- */
+
+.fi-btn:focus-visible,
+.fi-icon-btn:focus-visible,
+.fi-sidebar-item-btn:focus-visible,
+.fi-topbar-item-btn:focus-visible,
+.fi-tabs-item:focus-visible,
+.fi-dropdown-list-item:focus-visible,
+.fi-pagination-item-btn:focus-visible,
+.fi-link:focus-visible,
+.fi-ta-header-cell-sort-btn:focus-visible {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Inputs
+ * ------------------------------------------------------------------------- */
+
+.fi-input-wrp {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+    transition:
+        box-shadow var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease);
+}
+
+.fi-input-wrp:focus-within {
+    box-shadow: 2px 2px 0 var(--cc-ink);
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+.fi-input-wrp.fi-invalid,
+.fi-input-wrp.fi-invalid:focus-within {
+    border-color: var(--cc-red-text);
+    outline-color: var(--cc-red-text);
+}
+
+.fi-input-wrp.fi-disabled {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    opacity: 0.75;
+}
+
+.fi-input-wrp .fi-input-wrp-prefix,
+.fi-input-wrp .fi-input-wrp-suffix {
+    border-color: var(--cc-ink);
+}
+
+.fi-input-wrp .fi-input-wrp-suffix:not(.fi-inline) {
+    border-inline-start: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-input-wrp .fi-input-wrp-prefix > .fi-icon,
+.fi-input-wrp .fi-input-wrp-suffix > .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-input-wrp-label {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-medium);
+}
+
+input.fi-input {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+input.fi-input::placeholder {
+    color: var(--cc-ink-muted);
+    opacity: 0.85;
+}
+
+input.fi-input:disabled {
+    color: var(--cc-ink-muted);
+    -webkit-text-fill-color: var(--cc-ink-muted);
+}
+
+select.fi-select-input {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+select.fi-select-input option,
+select.fi-select-input optgroup {
+    background-color: var(--cc-paper);
+    color: var(--cc-ink);
+}
+
+.fi-select-input .fi-select-input-btn {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+.fi-select-input .fi-select-input-placeholder {
+    color: var(--cc-ink-muted);
+}
+
+.fi-fo-field-label-content {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-fo-field-label-required-mark {
+    color: var(--cc-red-text);
+}
+
+.fi-fo-field-wrp-error-message {
+    color: var(--cc-red-text);
+    font-weight: var(--cc-weight-medium);
+}
+
+/* Date picker panel */
+.fi-fo-date-time-picker-panel {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-fo-date-time-picker-month-select,
+.fi-fo-date-time-picker-year-input,
+.fi-fo-date-time-picker-display-text-input,
+.fi-fo-date-time-picker-time-inputs input {
+    color: var(--cc-ink);
+}
+
+.fi-fo-date-time-picker-calendar-header-day {
+    color: var(--cc-ink-muted);
+}
+
+.fi-fo-date-time-picker-calendar-day {
+    border-radius: 3px;
+    color: var(--cc-ink);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-selected {
+    background-color: var(--cc-yellow);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-focused:not(.fi-selected) {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-fo-date-time-picker-calendar-day-today {
+    color: var(--cc-red-text);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* Checkboxes, radios, toggles */
+input[type='checkbox'].fi-checkbox-input {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+input[type='checkbox'].fi-checkbox-input:checked,
+input[type='checkbox'].fi-checkbox-input:indeterminate {
+    background-color: var(--cc-ink);
+    border-color: var(--cc-ink);
+}
+
+input[type='radio'].fi-radio-input {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+input[type='radio'].fi-radio-input:checked {
+    background-color: var(--cc-ink);
+    border-color: var(--cc-ink);
+}
+
+input[type='checkbox'].fi-checkbox-input:focus-visible,
+input[type='radio'].fi-radio-input:focus-visible {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+input[type='checkbox'].fi-checkbox-input:disabled,
+input[type='radio'].fi-radio-input:disabled {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+}
+
+.fi-toggle {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-toggle > :first-child {
+    background-color: var(--cc-ink);
+}
+
+.fi-toggle.fi-toggle-on {
+    background-color: var(--cc-green);
+}
+
+.fi-toggle:disabled,
+.fi-toggle[disabled] {
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sections and cards
+ * ------------------------------------------------------------------------- */
+
+.fi-section:not(.fi-section-not-contained):not(.fi-aside),
+.fi-section:not(.fi-section-not-contained).fi-aside > .fi-section-content-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-section:not(.fi-section-not-contained).fi-secondary:not(.fi-aside),
+.fi-section:not(.fi-section-not-contained).fi-aside.fi-secondary > .fi-section-content-ctn {
+    background-color: var(--cc-cream);
+}
+
+.fi-section-header-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: -0.01em;
+}
+
+.fi-section-header-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-section-header > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-section:not(.fi-section-not-contained).fi-section-has-header:not(.fi-collapsed) > .fi-section-content-ctn {
+    border-top-color: var(--cc-line);
+    border-top-width: var(--cc-border-width-control);
+}
+
+.fi-section:not(.fi-section-not-contained) > .fi-section-content-ctn > .fi-section-footer {
+    border-top-color: var(--cc-line);
+    border-top-width: var(--cc-border-width-control);
+}
+
+.fi-sc-section-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* ---------------------------------------------------------------------------
+ * Stat cards
+ * ------------------------------------------------------------------------- */
+
+.fi-wi-stats-overview-stat {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-wi-stats-overview-stat-label {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-wi-stats-overview-stat-value {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+}
+
+.fi-wi-stats-overview-stat-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-wi-stats-overview-stat .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables
+ * ------------------------------------------------------------------------- */
+
+.fi-ta-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-ta-header {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-header-toolbar {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-line);
+}
+
+.fi-ta-header-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-ta-header-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-ta-content-ctn {
+    border-color: var(--cc-line);
+}
+
+.fi-ta-table > thead {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-table > thead > tr,
+.fi-ta-table > thead > tr.fi-ta-table-head-groups-row {
+    background-color: var(--cc-yellow);
+}
+
+.fi-ta-header-cell,
+.fi-ta-header-group-cell {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.fi-ta-header-cell .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-ta-table > tbody {
+    border-color: var(--cc-line);
+}
+
+.fi-ta-row.fi-striped {
+    background-color: transparent;
+}
+
+.fi-ta-row.fi-clickable:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-ta-row.fi-selected {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-ta-cell {
+    color: var(--cc-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-ta-cell .fi-ta-text,
+.fi-ta-cell .fi-ta-text-item {
+    color: var(--cc-ink);
+}
+
+.fi-ta-cell.fi-align-end,
+.fi-ta-header-cell.fi-align-end,
+.fi-ta-cell.fi-align-right,
+.fi-ta-header-cell.fi-align-right {
+    text-align: end;
+}
+
+.fi-ta-empty-state {
+    border-color: var(--cc-line);
+}
+
+.fi-ta-empty-state-icon-bg,
+.fi-empty-state-icon-bg {
+    background-color: var(--cc-cream);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-empty-state-heading,
+.fi-empty-state-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-ta-empty-state-description,
+.fi-empty-state-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-ta-empty-state .fi-icon,
+.fi-empty-state-icon-bg .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-empty-state:not(.fi-empty-state-not-contained) {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-ta-record {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+/* Pagination */
+.fi-pagination-items {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+.fi-pagination-item {
+    border-color: var(--cc-line);
+    border-width: 0 var(--cc-border-width-control);
+}
+
+.fi-pagination-item:first-of-type,
+.fi-pagination-item:last-of-type {
+    border-width: 0;
+}
+
+.fi-pagination-item-btn {
+    border-radius: 0;
+    color: var(--cc-ink);
+}
+
+.fi-pagination-item-btn:enabled:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-btn {
+    background-color: var(--cc-yellow);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-pagination-item-label {
+    color: var(--cc-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-pagination-overview {
+    color: var(--cc-ink-muted);
+}
+
+.fi-pagination-item-btn .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Modal
+ * ------------------------------------------------------------------------- */
+
+.fi-modal-close-overlay {
+    background-color: rgb(22 19 15 / 0.5);
+}
+
+.fi-modal-window {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-lg);
+}
+
+.fi-modal-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: -0.01em;
+}
+
+.fi-modal-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-modal-footer {
+    border-top: var(--cc-border-width-control) solid var(--cc-line);
+    padding-top: var(--cc-space-md);
+}
+
+.fi-modal-has-sticky-header > .fi-modal-window > .fi-modal-header {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border-width-control) solid var(--cc-line);
+}
+
+.fi-modal-has-sticky-footer > .fi-modal-window > .fi-modal-footer {
+    background-color: var(--cc-paper);
+}
+
+.fi-modal-icon-bg {
+    background-color: var(--cc-cream);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: var(--cc-radius);
+}
+
+/* ---------------------------------------------------------------------------
+ * Notifications
+ * ------------------------------------------------------------------------- */
+
+.fi-no-notification:not(.fi-inline) {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-no-notification.fi-color:not(.fi-inline) {
+    background-color: var(--cc-paper);
+    border-inline-start-width: 8px;
+    border-inline-start-color: var(--color-400, var(--cc-ink));
+}
+
+.fi-no-notification-title {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-no-notification-body,
+.fi-no-notification-date {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tabs
+ * ------------------------------------------------------------------------- */
+
+.fi-tabs {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    padding: 0.375rem;
+}
+
+.fi-tabs.fi-contained {
+    background-color: transparent;
+    border: 0;
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.fi-tabs-item {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-tabs-item:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-tabs-item .fi-tabs-item-label {
+    color: inherit;
+}
+
+.fi-tabs-item.fi-active {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-tabs-item.fi-active .fi-tabs-item-label,
+.fi-tabs-item.fi-active > .fi-icon {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* ---------------------------------------------------------------------------
+ * Badges
+ * ------------------------------------------------------------------------- */
+
+.fi-badge {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.01em;
+}
+
+.fi-badge.fi-color {
+    background-color: var(--color-300, var(--cc-cream));
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-badge .fi-badge-delete-btn-icon {
+    color: var(--cc-ink);
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dropdowns
+ * ------------------------------------------------------------------------- */
+
+.fi-dropdown-panel {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-dropdown-list-item {
+    border-radius: 3px;
+    color: var(--cc-ink);
+}
+
+.fi-dropdown-list-item:not(.fi-disabled):not([disabled]):hover,
+.fi-dropdown-list-item.fi-selected {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-dropdown-list-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-medium);
+}
+
+.fi-dropdown-list-item > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-dropdown-header {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Global search results panel */
+.fi-global-search-results-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-global-search-results {
+    border-color: var(--cc-line);
+}
+
+.fi-global-search-result {
+    border-color: var(--cc-line);
+}
+
+.fi-global-search-result:focus-within,
+.fi-global-search-result:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-global-search-result-group-header {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-global-search-no-results-message {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Avatar, breadcrumbs, links, loading
+ * ------------------------------------------------------------------------- */
+
+.fi-avatar {
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 3px;
+}
+
+.fi-breadcrumbs ol li {
+    color: var(--cc-ink-muted);
+}
+
+.fi-breadcrumbs ol li a:hover {
+    color: var(--cc-ink);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-breadcrumbs .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-link {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-loading-indicator {
+    color: var(--cc-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Authentication (simple layout)
+ * ------------------------------------------------------------------------- */
+
+.fi-simple-layout {
+    background-color: var(--cc-cream);
+}
+
+.fi-simple-main {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-simple-header-heading {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: 1.75rem;
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+}
+
+.fi-simple-header-subheading {
+    color: var(--cc-ink-muted);
+}
+
+.fi-simple-header-subheading a {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-simple-header .fi-logo {
+    justify-content: center;
+    margin-bottom: var(--cc-space-md);
+}
+
+.fi-simple-page-content {
+    gap: var(--cc-space-lg);
+}
+
+.fi-skip-link:focus {
+    background-color: var(--cc-yellow);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-btn,
+    .fi-icon-btn,
+    .fi-sidebar-item-btn,
+    .fi-topbar-item-btn,
+    .fi-tabs-item,
+    .fi-dropdown-list-item,
+    .fi-input-wrp,
+    .fi-ta-row {
+        transition: none;
+    }
+
+    .fi-btn:not(.fi-disabled):not([disabled]):hover,
+    .fi-btn:not(.fi-disabled):not([disabled]):active {
+        transform: none;
+    }
+}
+
 @layer components {
     .thermometer {
         --tmb-income: #2f6b4f;
