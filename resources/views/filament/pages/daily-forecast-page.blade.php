@@ -4,42 +4,41 @@
     @endphp
 
     <div class="flex flex-col gap-4">
-        <x-filament::section compact>
+        <div class="rounded-[4px] border-[3px] border-[color:var(--cc-ink)] bg-[var(--cc-yellow)] p-4 shadow-[4px_4px_0_var(--cc-ink)] sm:p-6">
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Previsão diária</p>
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-[color:var(--cc-ink-muted)]">Previsão diária</p>
 
-                    <p class="mt-1 text-2xl font-semibold tabular-nums text-gray-950 dark:text-white">
+                    <p class="mt-1 text-2xl font-black tabular-nums text-[color:var(--cc-ink)]">
                         {{ $this->formatMoney($summary['daily_amount']) }}
                     </p>
 
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p class="mt-1 text-xs text-[color:var(--cc-ink-muted)]">
                         Vale para cada dia a partir de hoje.
                     </p>
                 </div>
 
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Total mensal</p>
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-[color:var(--cc-ink-muted)]">Total mensal</p>
 
-                    <p class="mt-1 text-2xl font-semibold tabular-nums text-gray-950 dark:text-white">
+                    <p class="mt-1 text-2xl font-black tabular-nums text-[color:var(--cc-ink)]">
                         {{ $this->formatMoney($summary['monthly_total']) }}
                     </p>
 
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p class="mt-1 text-xs text-[color:var(--cc-ink-muted)]">
                         {{ $summary['count'] }} {{ $summary['count'] === 1 ? 'item' : 'itens' }} na previsão.
                     </p>
                 </div>
 
-                <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Divisor</p>
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wide text-[color:var(--cc-ink-muted)]">Divisor</p>
 
-                    <div class="mt-1 flex items-baseline gap-3">
-                        <p class="text-2xl font-semibold tabular-nums text-gray-950 dark:text-white">
+                    <div class="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <p class="text-2xl font-black tabular-nums text-[color:var(--cc-ink)]">
                             {{ $summary['divisor_days'] }} dias
                         </p>
 
                         <x-filament::link
-                            color="gray"
                             size="sm"
                             wire:click="mountAction('configureDivisor')"
                         >
@@ -47,12 +46,12 @@
                         </x-filament::link>
                     </div>
 
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p class="mt-1 text-xs text-[color:var(--cc-ink-muted)]">
                         O total mensal é dividido por este número de dias.
                     </p>
                 </div>
             </div>
-        </x-filament::section>
+        </div>
 
         <x-filament::section compact>
             <x-slot name="heading">Gastos variáveis do mês</x-slot>
@@ -68,20 +67,25 @@
             </x-slot>
 
             @if ($summary['items'] === [])
-                <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    Nenhuma previsão cadastrada. Adicione os gastos variáveis do mês para calcular a previsão diária.
-                </p>
+                <div class="rounded-[4px] border-[2px] border-dashed border-[color:var(--cc-line)] px-4 py-8 text-center">
+                    <p class="text-sm text-[color:var(--cc-ink-muted)]">
+                        Nenhuma previsão cadastrada. Adicione os gastos variáveis do mês para calcular a previsão diária.
+                    </p>
+                </div>
             @else
-                <ul class="divide-y divide-gray-200 dark:divide-white/10">
+                <ul class="flex flex-col gap-2">
                     @foreach ($summary['items'] as $item)
                         <li
                             wire:key="daily-forecast-{{ $item['id'] }}"
-                            class="flex items-center justify-between gap-3 py-3"
+                            class="flex items-center gap-3 rounded-[4px] border-[2px] border-[color:var(--cc-ink)] bg-[var(--cc-paper)] px-3 py-2"
                         >
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-medium text-gray-950 dark:text-white">{{ $item['description'] }}</p>
-                                <p class="text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ $this->formatMoney($item['amount']) }}</p>
-                            </div>
+                            <p class="min-w-0 flex-1 text-sm font-semibold break-words text-[color:var(--cc-ink)]">
+                                {{ $item['description'] }}
+                            </p>
+
+                            <p class="shrink-0 text-right text-sm font-bold tabular-nums whitespace-nowrap text-[color:var(--cc-ink)]">
+                                {{ $this->formatMoney($item['amount']) }}
+                            </p>
 
                             <div class="flex shrink-0 items-center gap-1">
                                 <x-filament::icon-button
