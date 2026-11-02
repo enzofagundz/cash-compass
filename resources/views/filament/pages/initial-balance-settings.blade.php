@@ -1,3 +1,5 @@
 <x-filament-panels::page>
-    {{ $this->content }}
+    <div class="max-w-xl">
+        {{ $this->content }}
+    </div>
 </x-filament-panels::page>

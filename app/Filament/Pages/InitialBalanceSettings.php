@@ -31,6 +31,8 @@ class InitialBalanceSettings extends Page
 
     protected static ?string $navigationLabel = 'Saldo inicial';
 
+    protected static ?string $title = 'Saldo inicial';
+
     /**
      * @var array<string, mixed> | null
      */
