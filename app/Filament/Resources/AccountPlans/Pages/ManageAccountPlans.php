@@ -12,6 +12,8 @@ class ManageAccountPlans extends ManageRecords
 {
     protected static string $resource = AccountPlanResource::class;
 
+    protected static ?string $title = 'Planos de conta';
+
     protected function getHeaderActions(): array
     {
         return [

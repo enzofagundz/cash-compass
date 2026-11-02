@@ -37,6 +37,10 @@ class AccountPlanResource extends Resource
 
     protected static ?string $model = AccountPlan::class;
 
+    protected static ?string $modelLabel = 'plano de conta';
+
+    protected static ?string $pluralModelLabel = 'planos de conta';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
     protected static ?string $recordTitleAttribute = 'description';
@@ -140,8 +144,8 @@ class AccountPlanResource extends Resource
             ->columns([
                 TextColumn::make('type')
                     ->label('Tipo')
-                    ->badge()
-                    ->formatStateUsing(fn (TransactionType $state): string => $state->label()),
+                    ->formatStateUsing(fn (TransactionType $state): string => $state->label())
+                    ->color('gray'),
                 TextColumn::make('description')
                     ->label('Descrição')
                     ->searchable(),
@@ -151,11 +155,12 @@ class AccountPlanResource extends Resource
                 TextColumn::make('expected_amount')
                     ->label('Valor esperado')
                     ->money('BRL')
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('frequency')
                     ->label('Frequência')
-                    ->badge()
-                    ->formatStateUsing(fn (RecurrenceFrequency $state): string => $state->label()),
+                    ->formatStateUsing(fn (RecurrenceFrequency $state): string => $state->label())
+                    ->color('gray'),
                 TextColumn::make('starts_at')
                     ->label('Início')
                     ->date('d/m/Y')
@@ -182,8 +187,10 @@ class AccountPlanResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()
+                    ->iconButton()
                     ->after(fn (AccountPlan $record): int => app(RecurrenceGenerator::class)->generate($record)),
                 DeleteAction::make()
+                    ->iconButton()
                     ->action(function (AccountPlan $record): void {
                         if ($record->delete() === false) {
                             Notification::make()
