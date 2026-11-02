@@ -36,6 +36,10 @@ class DailyTransactionResource extends Resource
 
     protected static ?string $model = DailyTransaction::class;
 
+    protected static ?string $modelLabel = 'lançamento';
+
+    protected static ?string $pluralModelLabel = 'lançamentos';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
     protected static ?string $recordTitleAttribute = 'description';
@@ -109,12 +113,12 @@ class DailyTransactionResource extends Resource
                     ->sortable(),
                 TextColumn::make('type')
                     ->label('Tipo')
-                    ->badge()
                     ->formatStateUsing(fn (TransactionType $state): string => $state->label())
-                    ->color(fn (TransactionType $state): string => $state === TransactionType::Income ? 'success' : 'danger'),
+                    ->color('gray'),
                 TextColumn::make('amount')
                     ->label('Valor')
                     ->money('BRL')
+                    ->alignEnd()
                     ->sortable(),
                 TextColumn::make('description')
                     ->label('Descrição')
@@ -129,14 +133,12 @@ class DailyTransactionResource extends Resource
                     ->formatStateUsing(fn (TransactionStatus $state): string => $state->label())
                     ->color(fn (TransactionStatus $state): string => match ($state) {
                         TransactionStatus::Pending => 'warning',
-                        TransactionStatus::Realized => 'success',
-                        TransactionStatus::Skipped => 'gray',
+                        TransactionStatus::Realized, TransactionStatus::Skipped => 'gray',
                     }),
                 TextColumn::make('is_recurring')
                     ->label('Origem')
-                    ->badge()
                     ->formatStateUsing(fn (bool $state): string => $state ? 'Recorrente' : 'Manual')
-                    ->color(fn (bool $state): string => $state ? 'info' : 'gray'),
+                    ->color('gray'),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -174,10 +176,11 @@ class DailyTransactionResource extends Resource
                     )),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->iconButton(),
                 Action::make('confirm')
                     ->label('Confirmar')
                     ->icon(Heroicon::OutlinedCheckCircle)
+                    ->iconButton()
                     ->visible(fn (DailyTransaction $record): bool => $record->status === TransactionStatus::Pending)
                     ->requiresConfirmation()
                     ->action(fn (DailyTransaction $record): bool => $record->update(['status' => TransactionStatus::Realized])),
@@ -185,12 +188,14 @@ class DailyTransactionResource extends Resource
                     ->label('Pular')
                     ->icon(Heroicon::OutlinedForward)
                     ->color('gray')
+                    ->iconButton()
                     ->visible(fn (DailyTransaction $record): bool => $record->status === TransactionStatus::Pending)
                     ->requiresConfirmation()
                     ->modalHeading('Pular lançamento')
                     ->action(fn (DailyTransaction $record): bool => $record->update(['status' => TransactionStatus::Skipped])),
                 DeleteAction::make()
-                    ->label('Excluir'),
+                    ->label('Excluir')
+                    ->iconButton(),
             ]);
     }
 
