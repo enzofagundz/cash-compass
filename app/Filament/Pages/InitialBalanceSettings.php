@@ -27,7 +27,7 @@ class InitialBalanceSettings extends Page
 
     protected static ?string $slug = 'initial-balance';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::Wallet;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedWallet;
 
     protected static ?string $navigationLabel = 'Saldo inicial';
 
@@ -78,7 +78,8 @@ class InitialBalanceSettings extends Page
                     ->required()
                     ->prefix('R$'),
                 DatePicker::make('base_date')
-                    ->label('Data base'),
+                    ->label('Data base')
+                    ->helperText('Sem data base, o saldo conta a partir da data de cadastro. Com data, o valor entra no início desse dia, antes dos movimentos.'),
             ]);
     }
 

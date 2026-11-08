@@ -4,6 +4,8 @@ namespace App\Filament\Widgets;
 
 use App\Enums\TagColor;
 use App\Services\SpendingReport;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
 
 class TopTagsChart extends ReportChartWidget
@@ -13,6 +15,8 @@ class TopTagsChart extends ReportChartWidget
     protected ?string $emptyStateHeading = 'Nenhuma tag com gasto no período.';
 
     protected ?string $emptyStateDescription = 'Vincule tags aos lançamentos de gasto para ver o ranking.';
+
+    protected string|BackedEnum|null $emptyStateIcon = Heroicon::OutlinedTag;
 
     protected ?string $maxHeight = '380px';
 
@@ -72,11 +76,14 @@ class TopTagsChart extends ReportChartWidget
                     'label' => 'Gasto por tag',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
                     'backgroundColor' => array_map(
-                        fn (array $row, int $index): string => $index === 0 ? $this->chartColor() : $this->chartNeutralColor(),
+                        fn (array $row): string => $row['color'] === null
+                            ? $this->chartNeutralColor()
+                            : $this->tagColorHex($row['color']),
                         $rows,
-                        array_keys($rows),
                     ),
-                    'borderRadius' => 4,
+                    'borderRadius' => 0,
+                    'borderColor' => $this->chartInk(),
+                    'hoverBorderColor' => $this->chartInk(),
                     'maxBarThickness' => 20,
                 ],
             ],
@@ -89,49 +96,53 @@ class TopTagsChart extends ReportChartWidget
 
     protected function getOptions(): RawJs
     {
-        return RawJs::make(<<<'JS'
-            (() => {
-                const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                });
+        return $this->chartOptions(<<<'JS'
+            const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
 
-                const axisMoney = (value) => Number(value) >= 1000
-                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
-                    : money(value);
+            const axisMoney = (value) => Number(value) >= 1000
+                ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                : money(value);
 
-                return {
-                    indexAxis: 'y',
-                    plugins: {
-                        legend: {
+            return {
+                ...theme,
+                indexAxis: 'y',
+                scales: {
+                    ...theme.scales,
+                    x: {
+                        ...theme.scales.x,
+                        beginAtZero: true,
+                        grid: {
+                            ...theme.scales.x.grid,
+                            display: true,
+                        },
+                        ticks: {
+                            ...theme.scales.x.ticks,
+                            maxTicksLimit: 4,
+                            callback: (value) => axisMoney(value),
+                        },
+                    },
+                    y: {
+                        ...theme.scales.y,
+                        grid: {
+                            ...theme.scales.y.grid,
                             display: false,
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => money(context.raw),
-                            },
+                    },
+                },
+                plugins: {
+                    ...theme.plugins,
+                    tooltip: {
+                        ...theme.plugins.tooltip,
+                        callbacks: {
+                            label: (context) => money(context.raw),
                         },
                     },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            grid: {
-                                display: false,
-                            },
-                            ticks: {
-                                maxTicksLimit: 4,
-                                callback: (value) => axisMoney(value),
-                            },
-                        },
-                        y: {
-                            grid: {
-                                display: false,
-                            },
-                        },
-                    },
-                };
-            })()
-        JS);
+                },
+            };
+            JS);
     }
 
     /**

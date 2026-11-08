@@ -48,19 +48,37 @@ trait InteractsWithSpendingReport
         return number_format($value, 1, ',', '.').'%';
     }
 
+    /**
+     * Primary chart fill: the foundation red (`--cc-red`). Chart.js paints on a
+     * canvas, so the palette is mirrored here instead of read from the theme.
+     */
     protected function chartColor(): string
     {
-        $palette = FilamentColor::getColor('primary') ?? Color::Amber;
-
-        return Color::convertToHex((string) ($palette[500] ?? $palette[400]));
+        return '#ff5252';
     }
 
     /**
-     * Neutral step used for the data that is not the point of the chart.
+     * Accent fill for the point of the chart (peak, largest bar): `--cc-yellow`.
+     */
+    protected function chartEmphasisColor(): string
+    {
+        return '#ffdd55';
+    }
+
+    /**
+     * Warm neutral used for the data that is not the point of the chart.
      */
     protected function chartNeutralColor(): string
     {
-        return '#a1a1aa';
+        return '#dfd3b6';
+    }
+
+    /**
+     * Ink used for the bar outline, so every bar reads as a block.
+     */
+    protected function chartInk(): string
+    {
+        return '#16130f';
     }
 
     protected function tagColorHex(?TagColor $color): string

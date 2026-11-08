@@ -299,6 +299,39 @@ class ThermometerPage extends Page
     }
 
     /**
+     * Display-only totals of the day open in the detail panel.
+     *
+     * @return array<string, string>
+     */
+    public function detailTotals(): array
+    {
+        $day = $this->detailDay();
+
+        $totals = [];
+
+        foreach ([...TransactionType::values(), 'balance'] as $key) {
+            $totals[$key] = $this->formatMoney((string) ($day[$key] ?? '0'));
+        }
+
+        return $totals;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function detailDay(): array
+    {
+        $user = auth()->user();
+        $date = $this->sanitizeDate($this->detailDate);
+
+        if (! $user instanceof User || $date === null) {
+            return [];
+        }
+
+        return $this->balanceCalculator->day($user, $date);
+    }
+
+    /**
      * Movements of the selected day, prepared for the detail panel.
      *
      * @return array<int, array<string, mixed>>

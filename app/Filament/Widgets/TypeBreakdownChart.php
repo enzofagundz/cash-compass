@@ -3,6 +3,8 @@
 namespace App\Filament\Widgets;
 
 use App\Services\SpendingReport;
+use BackedEnum;
+use Filament\Support\Icons\Heroicon;
 use Filament\Support\RawJs;
 
 class TypeBreakdownChart extends ReportChartWidget
@@ -10,6 +12,12 @@ class TypeBreakdownChart extends ReportChartWidget
     protected ?string $heading = 'Tipos de gasto';
 
     protected ?string $description = 'Participação de Saída, Diário e Cartão no total do período.';
+
+    protected ?string $emptyStateHeading = 'Nenhum gasto no período.';
+
+    protected ?string $emptyStateDescription = 'O gráfico considera Saída, Diário e Cartão.';
+
+    protected string|BackedEnum|null $emptyStateIcon = Heroicon::OutlinedChartBar;
 
     protected ?string $maxHeight = '260px';
 
@@ -41,7 +49,9 @@ class TypeBreakdownChart extends ReportChartWidget
                     'label' => 'Gasto por tipo',
                     'data' => array_map(fn (array $row): float => (float) $row['total'], $rows),
                     'backgroundColor' => $this->chartColor(),
-                    'borderRadius' => 4,
+                    'borderRadius' => 0,
+                    'borderColor' => $this->chartInk(),
+                    'hoverBorderColor' => $this->chartInk(),
                     'maxBarThickness' => 24,
                 ],
             ],
@@ -54,48 +64,52 @@ class TypeBreakdownChart extends ReportChartWidget
 
     protected function getOptions(): RawJs
     {
-        return RawJs::make(<<<'JS'
-            (() => {
-                const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                });
+        return $this->chartOptions(<<<'JS'
+            const money = (value) => 'R$ ' + Number(value).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
 
-                const axisMoney = (value) => Number(value) >= 1000
-                    ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
-                    : money(value);
+            const axisMoney = (value) => Number(value) >= 1000
+                ? 'R$ ' + (Number(value) / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil'
+                : money(value);
 
-                return {
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            grid: {
-                                display: false,
-                            },
-                            ticks: {
-                                maxTicksLimit: 4,
-                                callback: (value) => axisMoney(value),
-                            },
+            return {
+                ...theme,
+                indexAxis: 'y',
+                scales: {
+                    ...theme.scales,
+                    x: {
+                        ...theme.scales.x,
+                        beginAtZero: true,
+                        grid: {
+                            ...theme.scales.x.grid,
+                            display: true,
                         },
-                        y: {
-                            grid: {
-                                display: false,
-                            },
+                        ticks: {
+                            ...theme.scales.x.ticks,
+                            maxTicksLimit: 4,
+                            callback: (value) => axisMoney(value),
                         },
                     },
-                    plugins: {
-                        legend: {
+                    y: {
+                        ...theme.scales.y,
+                        grid: {
+                            ...theme.scales.y.grid,
                             display: false,
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => money(context.raw),
-                            },
+                    },
+                },
+                plugins: {
+                    ...theme.plugins,
+                    tooltip: {
+                        ...theme.plugins.tooltip,
+                        callbacks: {
+                            label: (context) => money(context.raw),
                         },
                     },
-                };
-            })()
-        JS);
+                },
+            };
+            JS);
     }
 }

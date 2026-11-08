@@ -4,35 +4,50 @@
         description="Maiores gastos do período."
     >
         @if ($rows === [])
-            <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                Nenhum lançamento de gasto no período.
-            </p>
+            <x-filament::empty-state
+                :contained="false"
+                icon-color="gray"
+                :icon="\Filament\Support\Icons\Heroicon::OutlinedBanknotes"
+                heading="Nenhum lançamento de gasto no período."
+                description="Ajuste o período para ver outros lançamentos."
+            />
         @else
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full border-collapse text-sm text-[var(--cc-ink)]">
                     <thead>
-                        <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 dark:border-white/10 dark:text-gray-400">
-                            <th scope="col" class="py-2 pr-3 whitespace-nowrap">Data</th>
-                            <th scope="col" class="py-2 pr-3">Descrição</th>
-                            <th scope="col" class="py-2 pr-3">Tags</th>
-                            <th scope="col" class="py-2 pl-3 text-right whitespace-nowrap">Valor</th>
+                        <tr class="bg-[var(--cc-yellow)] text-left">
+                            <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-[0.6875rem] font-bold uppercase tracking-[0.08em] whitespace-nowrap">
+                                Data
+                            </th>
+                            <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+                                Descrição
+                            </th>
+                            <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-[0.6875rem] font-bold uppercase tracking-[0.08em]">
+                                Tags
+                            </th>
+                            <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-right text-[0.6875rem] font-bold uppercase tracking-[0.08em] whitespace-nowrap">
+                                Valor
+                            </th>
                         </tr>
                     </thead>
 
-                    <tbody class="divide-y divide-gray-200 dark:divide-white/10">
+                    <tbody class="divide-y-2 divide-[var(--cc-line)]">
                         @foreach ($rows as $row)
-                            <tr wire:key="largest-transaction-{{ $row['id'] }}">
-                                <td class="py-2 pr-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                            <tr
+                                wire:key="largest-transaction-{{ $row['id'] }}"
+                                class="transition-colors hover:bg-[var(--cc-yellow-soft)]"
+                            >
+                                <td class="px-3 py-2 text-[var(--cc-ink-muted)] whitespace-nowrap">
                                     {{ $row['date'] }}
                                 </td>
 
-                                <td class="py-2 pr-3 font-medium text-gray-950 dark:text-white">
+                                <td class="px-3 py-2 font-semibold">
                                     {{ $row['description'] }}
                                 </td>
 
-                                <td class="py-2 pr-3">
+                                <td class="px-3 py-2">
                                     @if ($row['tags'] === [])
-                                        <span class="text-gray-400 dark:text-gray-500">—</span>
+                                        <span class="text-[var(--cc-ink-muted)]">—</span>
                                     @else
                                         <div class="flex flex-wrap gap-1">
                                             @foreach ($row['tags'] as $tag)
@@ -44,7 +59,7 @@
                                     @endif
                                 </td>
 
-                                <td class="py-2 pl-3 text-right font-medium text-gray-950 dark:text-white whitespace-nowrap">
+                                <td class="px-3 py-2 text-right font-bold tabular-nums whitespace-nowrap">
                                     {{ $row['amount'] }}
                                 </td>
                             </tr>

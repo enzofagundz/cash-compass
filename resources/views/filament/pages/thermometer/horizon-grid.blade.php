@@ -26,26 +26,72 @@
         </p>
     @endif
 
-    <div x-data="{ index: 0 }">
+    <div
+        x-data="{
+            index: 0,
+            atEnd: false,
+            updateAtEnd() {
+                const el = this.$refs.scroller;
+
+                if (!el) {
+                    return;
+                }
+
+                // Browsers stop a few pixels short of the trailing padding, so
+                // the end is reached slightly before scrollWidth - clientWidth.
+                this.atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 32;
+            },
+            scrollNext() {
+                const el = this.$refs.scroller;
+
+                if (el) {
+                    el.scrollBy({ left: Math.round(el.clientWidth * 0.8), behavior: 'smooth' });
+                }
+            },
+        }"
+        x-init="$nextTick(() => {
+            updateAtEnd();
+
+            if ($refs.months) {
+                new ResizeObserver(() => updateAtEnd()).observe($refs.months);
+            }
+        })"
+        x-on:resize.window.debounce.150ms="updateAtEnd()"
+    >
         @include('filament.pages.thermometer.icons')
 
-        <div class="thermometer-scroll">
-            <div class="thermometer-months">
-                @foreach ($months as $offset => $month)
-                    <div
-                        class="thermometer-month-wrapper"
-                        wire:key="thermometer-month-{{ $month['year'] }}-{{ $month['month'] }}"
-                        x-bind:class="index === {{ $offset }} ? '' : 'hidden lg:block'"
-                    >
-                        @include('filament.pages.thermometer.month-grid', [
-                            'month' => $month,
-                            'columns' => $columns,
-                            'badges' => $badges,
-                            'badgeIcons' => $badgeIcons,
-                        ])
-                    </div>
-                @endforeach
+        <div class="thermometer-scroll-wrap">
+            <div class="thermometer-scroll" x-ref="scroller" x-on:scroll.debounce.100ms="updateAtEnd()">
+                <div class="thermometer-months" x-ref="months">
+                    @foreach ($months as $offset => $month)
+                        <div
+                            class="thermometer-month-wrapper"
+                            wire:key="thermometer-month-{{ $month['year'] }}-{{ $month['month'] }}"
+                            x-bind:class="index === {{ $offset }} ? '' : 'hidden lg:block'"
+                        >
+                            @include('filament.pages.thermometer.month-grid', [
+                                'month' => $month,
+                                'columns' => $columns,
+                                'badges' => $badges,
+                                'badgeIcons' => $badgeIcons,
+                            ])
+                        </div>
+                    @endforeach
+                </div>
             </div>
+
+            <button
+                type="button"
+                class="thermometer-scroll-cue"
+                aria-label="Ver mais colunas"
+                x-cloak
+                x-show="!atEnd"
+                x-on:click="scrollNext()"
+            >
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false">
+                    <path fill-rule="evenodd" d="M7.22 4.22a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06-1.06L11.94 10 7.22 5.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+                </svg>
+            </button>
         </div>
 
         @if (count($months) > 1)
@@ -60,7 +106,7 @@
                     Anterior
                 </x-filament::button>
 
-                <span class="text-xs" x-text="'Mês ' + (index + 1) + ' de {{ count($months) }}'"></span>
+                <span class="thermometer-mobile-nav-label" x-text="'Mês ' + (index + 1) + ' de {{ count($months) }}'"></span>
 
                 <x-filament::button
                     color="gray"

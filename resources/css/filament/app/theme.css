@@ -4,45 +4,1480 @@
 @source '../../../../resources/views/components/**/*';
 @source '../../../../resources/views/filament/**/*';
 
+/*
+ * Cash Compass — neo-brutalist foundation.
+ *
+ * Everything below the token block is intentionally unlayered: Filament ships its
+ * components inside `@layer components/utilities`, so plain CSS here wins without
+ * `!important` and without out-specifying vendor selectors. Only class names that
+ * exist in the vendor CSS (or that are defined here) are used, and no vendor view
+ * is overridden.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Tokens
+ * ------------------------------------------------------------------------- */
+
+:root {
+    color-scheme: light;
+
+    /* Canvas and ink */
+    --cc-cream: #fbf6e9;
+    --cc-paper: #fffdf6;
+    --cc-ink: #16130f;
+    --cc-ink-muted: #6a5f4e;
+    --cc-line: #dfd3b6;
+
+    /* Flat accents. Text is always ink on top of these: verified pairs are
+       ink on red 5.8:1, on blue 5.6:1, on green 10.7:1, on yellow 13.9:1. */
+    --cc-red: #ff5252;
+    --cc-yellow: #ffdd55;
+    --cc-blue: #5c8bef;
+    --cc-green: #93d585;
+
+    /* Red dark enough to carry text on paper (5.6:1). */
+    --cc-red-text: #c22b26;
+    /* Soft accent used for hover fills. */
+    --cc-yellow-soft: #fff6d6;
+
+    /* Borders, shadows and radii */
+    --cc-border-width: 3px;
+    --cc-border-width-control: 2px;
+    --cc-border: var(--cc-border-width) solid var(--cc-ink);
+    --cc-border-control: var(--cc-border-width-control) solid var(--cc-ink);
+    --cc-radius: 4px;
+    --cc-shadow-sm: 3px 3px 0 var(--cc-ink);
+    --cc-shadow: 4px 4px 0 var(--cc-ink);
+    --cc-shadow-lg: 6px 6px 0 var(--cc-ink);
+
+    /* Typography */
+    --cc-font:
+        var(--font-family, 'Archivo'), ui-sans-serif, system-ui, -apple-system,
+        'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --cc-font-display: var(--cc-font);
+    --cc-weight-medium: 500;
+    --cc-weight-semibold: 600;
+    --cc-weight-bold: 700;
+    --cc-weight-black: 900;
+
+    /* Spacing */
+    --cc-space-md: 1rem;
+    --cc-space-lg: 1.5rem;
+    --cc-space-xl: 2rem;
+
+    /* Motion */
+    --cc-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --cc-duration: 120ms;
+
+    /*
+     * Warm neutral ramp. Filament maps `--color-gray-*` (and therefore every
+     * `gray-*` utility) to these variables, so existing screens pick up the
+     * cream/ink palette without touching their markup.
+     */
+    --gray-50: #f7f0dd;
+    --gray-100: #efe5cb;
+    --gray-200: #dfd3b6;
+    --gray-300: #c8ba9c;
+    --gray-400: #8b7f68;
+    --gray-500: #6a5f4e;
+    --gray-600: #554b3d;
+    --gray-700: #40382d;
+    --gray-800: #2c261e;
+    --gray-900: #1e1a14;
+    --gray-950: #16130f;
+}
+
+/* ---------------------------------------------------------------------------
+ * Base layout
+ * ------------------------------------------------------------------------- */
+
+html.fi {
+    background-color: var(--cc-cream);
+}
+
+.fi-body {
+    background-color: var(--cc-cream);
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+    -webkit-font-smoothing: antialiased;
+}
+
+.fi-layout {
+    background-color: var(--cc-cream);
+}
+
+.fi-main {
+    padding-inline: clamp(1rem, 2.5vw, 2.5rem);
+}
+
+.fi-page {
+    color: var(--cc-ink);
+}
+
+.fi-page-header-main-ctn {
+    padding-block: var(--cc-space-xl);
+}
+
+.fi-header {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+    padding: 1rem 1.25rem;
+}
+
+.fi-header-heading {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+.fi-header-subheading {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-medium);
+}
+
+.fi-logo {
+    align-items: center;
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Brand mark
+ * ------------------------------------------------------------------------- */
+
+.cc-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 100%;
+    min-width: 0;
+}
+
+.cc-brand-mark {
+    height: 100%;
+    width: auto;
+    flex: 0 0 auto;
+    display: block;
+}
+
+.cc-brand-word {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: 1.0625rem;
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar
+ * ------------------------------------------------------------------------- */
+
+.fi-sidebar {
+    background-color: var(--cc-paper);
+    border-inline-end: var(--cc-border);
+    box-shadow: none;
+}
+
+.fi-sidebar.fi-sidebar-open {
+    box-shadow: none;
+}
+
+@media (max-width: 1023px) {
+    .fi-sidebar.fi-sidebar-open {
+        box-shadow: 4px 0 0 var(--cc-ink);
+    }
+}
+
+.fi-sidebar-close-overlay {
+    background-color: rgb(22 19 15 / 0.55);
+}
+
+.fi-sidebar-header {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border-control);
+    box-shadow: none;
+}
+
+.fi-sidebar-nav {
+    gap: var(--cc-space-md);
+    padding: var(--cc-space-md) 0.75rem;
+}
+
+.fi-sidebar-nav-groups {
+    gap: var(--cc-space-md);
+    margin-inline: 0;
+}
+
+.fi-sidebar-group-label {
+    color: var(--cc-ink-muted);
+    font-size: 0.6875rem;
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.fi-sidebar-group-btn .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-sidebar-item-btn {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink);
+    padding: 0.4375rem 0.5rem;
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease),
+        transform var(--cc-duration) var(--cc-ease);
+}
+
+.fi-sidebar-item-btn > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-sidebar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover > .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn .fi-sidebar-item-grouped-border-part {
+    background-color: var(--cc-ink);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-active-child-items > .fi-sidebar-item-btn {
+    background-color: var(--cc-cream);
+}
+
+.fi-sidebar-footer {
+    border-top: var(--cc-border-width-control) solid var(--cc-line);
+}
+
+.fi-sidebar-database-notifications-btn {
+    border-radius: var(--cc-radius);
+}
+
+.fi-sidebar-database-notifications-btn:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+/* ---------------------------------------------------------------------------
+ * Topbar
+ * ------------------------------------------------------------------------- */
+
+.fi-topbar-ctn {
+    background-color: var(--cc-paper);
+}
+
+.fi-topbar {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border);
+    box-shadow: none;
+}
+
+.fi-topbar-item-btn {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease);
+}
+
+.fi-topbar-item-btn > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-topbar-item-btn:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+}
+
+.fi-topbar-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-topbar-item.fi-active .fi-topbar-item-btn {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-topbar-item.fi-active .fi-topbar-item-btn > .fi-icon,
+.fi-topbar-item.fi-active .fi-topbar-item-label {
+    color: var(--cc-ink);
+}
+
+.fi-topbar .fi-icon-btn,
+.fi-topbar .fi-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+}
+
+.fi-topbar .fi-avatar {
+    height: 2.5rem;
+    width: 2.5rem;
+}
+
+.fi-topbar-open-sidebar-btn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-topbar-open-sidebar-btn > .fi-icon {
+    color: var(--cc-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------- */
+
+.fi-btn {
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.01em;
+    transition:
+        transform var(--cc-duration) var(--cc-ease),
+        box-shadow var(--cc-duration) var(--cc-ease),
+        background-color var(--cc-duration) var(--cc-ease);
+}
+
+.fi-btn > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn:not(.fi-color) {
+    background-color: var(--cc-paper);
+}
+
+/* Toggle-button groups (e.g. the tag colour picker) keep Filament's colour
+   swatch on the selected option; add an unmistakable selection ring. */
+input:checked + label.fi-btn {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+input:checked + label.fi-btn:not(.fi-color) {
+    background-color: var(--cc-yellow);
+    color: var(--cc-ink);
+}
+
+/* Accent fills. Text stays ink on every accent, never white. */
+.fi-btn.fi-color:not(.fi-outlined):not(.fi-disabled):not([disabled]) {
+    color: var(--cc-ink);
+}
+
+.fi-btn.fi-color.fi-color-primary:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-red:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-danger:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-red);
+}
+
+.fi-btn.fi-color.fi-color-yellow:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-amber:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-yellow);
+}
+
+.fi-btn.fi-color.fi-color-blue:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-info:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-blue);
+}
+
+.fi-btn.fi-color.fi-color-green:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label),
+.fi-btn.fi-color.fi-color-success:not(.fi-outlined):not(.fi-disabled):not([disabled]):not(label) {
+    background-color: var(--cc-green);
+}
+
+.fi-btn.fi-outlined {
+    background-color: var(--cc-paper);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+}
+
+.fi-btn.fi-outlined > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn:not(.fi-disabled):not([disabled]):hover {
+    box-shadow: 5px 5px 0 var(--cc-ink);
+    transform: translate(-1px, -1px);
+}
+
+.fi-btn:not(.fi-disabled):not([disabled]):active {
+    box-shadow: 1px 1px 0 var(--cc-ink);
+    transform: translate(2px, 2px);
+}
+
+.fi-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    color: var(--cc-ink-muted);
+    opacity: 1;
+}
+
+.fi-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) > .fi-icon {
+    color: currentColor;
+}
+
+.fi-btn-group {
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+.fi-btn-group > .fi-btn {
+    box-shadow: none;
+    border-width: 0;
+    border-inline-end: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 0;
+}
+
+.fi-btn-group > .fi-btn:last-of-type {
+    border-inline-end: 0;
+}
+
+.fi-icon-btn {
+    border-radius: var(--cc-radius);
+    transition:
+        background-color var(--cc-duration) var(--cc-ease),
+        color var(--cc-duration) var(--cc-ease);
+}
+
+/* Neutral icons take muted ink; coloured ones keep their own hue. */
+.fi-icon-btn:not(.fi-color) {
+    color: var(--cc-ink-muted);
+}
+
+.fi-icon-btn.fi-color {
+    color: var(--color-600, var(--cc-ink));
+}
+
+.fi-icon-btn:not(.fi-disabled):not([disabled]):hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-icon-btn:not(.fi-color):not(.fi-disabled):not([disabled]):hover {
+    color: var(--cc-ink);
+}
+
+.fi-icon-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) {
+    color: var(--cc-ink-muted);
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Focus — always visible on cream and on accents
+ * ------------------------------------------------------------------------- */
+
+.fi-btn:focus-visible,
+.fi-icon-btn:focus-visible,
+.fi-sidebar-item-btn:focus-visible,
+.fi-topbar-item-btn:focus-visible,
+.fi-tabs-item:focus-visible,
+.fi-dropdown-list-item:focus-visible,
+.fi-pagination-item-btn:focus-visible,
+.fi-link:focus-visible,
+.fi-ta-header-cell-sort-btn:focus-visible {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Inputs
+ * ------------------------------------------------------------------------- */
+
+.fi-input-wrp {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+    transition:
+        box-shadow var(--cc-duration) var(--cc-ease),
+        border-color var(--cc-duration) var(--cc-ease);
+}
+
+.fi-input-wrp:focus-within {
+    box-shadow: 2px 2px 0 var(--cc-ink);
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+.fi-input-wrp.fi-invalid,
+.fi-input-wrp.fi-invalid:focus-within {
+    border-color: var(--cc-red-text);
+    outline-color: var(--cc-red-text);
+}
+
+.fi-input-wrp.fi-disabled {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    opacity: 0.75;
+}
+
+.fi-input-wrp .fi-input-wrp-prefix,
+.fi-input-wrp .fi-input-wrp-suffix {
+    border-color: var(--cc-ink);
+}
+
+.fi-input-wrp .fi-input-wrp-suffix:not(.fi-inline) {
+    border-inline-start: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-input-wrp .fi-input-wrp-prefix > .fi-icon,
+.fi-input-wrp .fi-input-wrp-suffix > .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-input-wrp-label {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-medium);
+}
+
+input.fi-input {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+input.fi-input::placeholder {
+    color: var(--cc-ink-muted);
+    opacity: 0.85;
+}
+
+input.fi-input:disabled {
+    color: var(--cc-ink-muted);
+    -webkit-text-fill-color: var(--cc-ink-muted);
+}
+
+select.fi-select-input {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+select.fi-select-input option,
+select.fi-select-input optgroup {
+    background-color: var(--cc-paper);
+    color: var(--cc-ink);
+}
+
+.fi-select-input .fi-select-input-btn {
+    color: var(--cc-ink);
+    font-family: var(--cc-font);
+}
+
+.fi-select-input .fi-select-input-placeholder {
+    color: var(--cc-ink-muted);
+}
+
+.fi-fo-field-label-content {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-fo-field-label-required-mark {
+    color: var(--cc-red-text);
+}
+
+.fi-fo-field-wrp-error-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.375rem;
+    color: var(--cc-red-text);
+    font-weight: 600;
+}
+
+/* A marker as well as the red: colour alone is not a reliable signal. */
+.fi-fo-field-wrp-error-message::before {
+    content: '!';
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.0625rem;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+    font-size: 0.6875rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+/* Date picker panel */
+.fi-fo-date-time-picker-panel {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-fo-date-time-picker-month-select,
+.fi-fo-date-time-picker-year-input,
+.fi-fo-date-time-picker-display-text-input,
+.fi-fo-date-time-picker-time-inputs input {
+    color: var(--cc-ink);
+}
+
+.fi-fo-date-time-picker-calendar-header-day {
+    color: var(--cc-ink-muted);
+}
+
+.fi-fo-date-time-picker-calendar-day {
+    border-radius: 3px;
+    color: var(--cc-ink);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-selected {
+    background-color: var(--cc-yellow);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-focused:not(.fi-selected) {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-fo-date-time-picker-calendar-day.fi-fo-date-time-picker-calendar-day-today {
+    color: var(--cc-red-text);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* Checkboxes, radios, toggles */
+input[type='checkbox'].fi-checkbox-input {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+input[type='checkbox'].fi-checkbox-input:checked,
+input[type='checkbox'].fi-checkbox-input:indeterminate {
+    background-color: var(--cc-ink);
+    border-color: var(--cc-ink);
+}
+
+input[type='radio'].fi-radio-input {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+input[type='radio'].fi-radio-input:checked {
+    background-color: var(--cc-ink);
+    border-color: var(--cc-ink);
+}
+
+input[type='checkbox'].fi-checkbox-input:focus-visible,
+input[type='radio'].fi-radio-input:focus-visible {
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+input[type='checkbox'].fi-checkbox-input:disabled,
+input[type='radio'].fi-radio-input:disabled {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+}
+
+.fi-toggle {
+    background-color: var(--cc-cream);
+    border-color: var(--cc-ink);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+}
+
+.fi-toggle > :first-child {
+    background-color: var(--cc-ink);
+}
+
+.fi-toggle.fi-toggle-on {
+    background-color: var(--cc-green);
+}
+
+.fi-toggle:disabled,
+.fi-toggle[disabled] {
+    border-color: var(--cc-ink-muted);
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sections and cards
+ * ------------------------------------------------------------------------- */
+
+.fi-section:not(.fi-section-not-contained):not(.fi-aside),
+.fi-section:not(.fi-section-not-contained).fi-aside > .fi-section-content-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-section:not(.fi-section-not-contained).fi-secondary:not(.fi-aside),
+.fi-section:not(.fi-section-not-contained).fi-aside.fi-secondary > .fi-section-content-ctn {
+    background-color: var(--cc-cream);
+}
+
+.fi-section-header-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: -0.01em;
+}
+
+.fi-section-header-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-section-header > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-section:not(.fi-section-not-contained).fi-section-has-header:not(.fi-collapsed) > .fi-section-content-ctn {
+    border-top-color: var(--cc-line);
+    border-top-width: var(--cc-border-width-control);
+}
+
+.fi-section:not(.fi-section-not-contained) > .fi-section-content-ctn > .fi-section-footer {
+    border-top-color: var(--cc-line);
+    border-top-width: var(--cc-border-width-control);
+}
+
+.fi-sc-section-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* ---------------------------------------------------------------------------
+ * Stat cards
+ * ------------------------------------------------------------------------- */
+
+.fi-wi-stats-overview-stat {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-wi-stats-overview-stat-label {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-wi-stats-overview-stat-value {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+}
+
+.fi-wi-stats-overview-stat-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-wi-stats-overview-stat .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables
+ * ------------------------------------------------------------------------- */
+
+.fi-ta-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-ta-header {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-header-toolbar {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-line);
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+}
+
+/* The filter trigger keeps its badge fully visible when the toolbar wraps. */
+.fi-ta-filters-trigger-action-ctn {
+    flex-shrink: 0;
+}
+
+.fi-ta-header-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-ta-header-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-ta-content-ctn {
+    border-color: var(--cc-line);
+    scrollbar-color: var(--cc-ink) var(--cc-line);
+    scrollbar-width: auto;
+}
+
+/* Safari keeps the legacy pseudo-elements (it has no scrollbar-width). */
+.fi-ta-content-ctn::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.fi-ta-content-ctn::-webkit-scrollbar-track {
+    background-color: var(--cc-line);
+}
+
+.fi-ta-content-ctn::-webkit-scrollbar-thumb {
+    background-color: var(--cc-ink);
+    border: 2px solid var(--cc-line);
+    border-radius: 2px;
+}
+
+.fi-ta-content-ctn::-webkit-scrollbar-thumb:hover {
+    background-color: var(--cc-red-text);
+}
+
+.fi-ta-content-ctn::-webkit-scrollbar-corner {
+    background-color: var(--cc-line);
+}
+
+.fi-ta-table > thead {
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-table > thead > tr,
+.fi-ta-table > thead > tr.fi-ta-table-head-groups-row {
+    background-color: var(--cc-yellow);
+}
+
+.fi-ta-header-cell,
+.fi-ta-header-group-cell {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.fi-ta-header-cell .fi-icon {
+    color: var(--cc-ink);
+}
+
+.fi-ta-table > tbody {
+    border-color: var(--cc-line);
+}
+
+.fi-ta-row.fi-striped {
+    background-color: transparent;
+}
+
+.fi-ta-row.fi-clickable:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-ta-row.fi-selected {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-ta-cell {
+    color: var(--cc-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-ta-cell .fi-ta-text,
+.fi-ta-cell .fi-ta-text-item {
+    color: var(--cc-ink);
+}
+
+.fi-ta-cell.fi-align-end,
+.fi-ta-header-cell.fi-align-end,
+.fi-ta-cell.fi-align-right,
+.fi-ta-header-cell.fi-align-right {
+    text-align: end;
+}
+
+.fi-ta-empty-state {
+    border-color: var(--cc-line);
+}
+
+.fi-ta-empty-state-icon-bg,
+.fi-empty-state-icon-bg {
+    background-color: var(--cc-cream);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-ta-empty-state-heading,
+.fi-empty-state-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-ta-empty-state-description,
+.fi-empty-state-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-ta-empty-state .fi-icon,
+.fi-empty-state-icon-bg .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-empty-state:not(.fi-empty-state-not-contained) {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+/* A chart with no data keeps the chart height inline; collapse it so two lines
+   of copy do not reserve a whole panel. Charts with data are untouched. */
+.fi-wi-chart:has(.fi-empty-state) .fi-wi-chart-frame {
+    min-height: 0 !important;
+}
+
+.fi-wi-chart .fi-empty-state {
+    padding-block: 0.75rem;
+}
+
+.fi-wi-chart .fi-empty-state .fi-empty-state-icon-bg {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+}
+
+.fi-ta-record {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+/* Pagination */
+.fi-pagination-items {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+}
+
+.fi-pagination-item {
+    border-color: var(--cc-line);
+    border-width: 0 var(--cc-border-width-control);
+}
+
+.fi-pagination-item:first-of-type,
+.fi-pagination-item:last-of-type {
+    border-width: 0;
+}
+
+.fi-pagination-item-btn {
+    border-radius: 0;
+    color: var(--cc-ink);
+}
+
+.fi-pagination-item-btn:enabled:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-btn {
+    background-color: var(--cc-yellow);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-pagination-item-label {
+    color: var(--cc-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-pagination-overview {
+    color: var(--cc-ink-muted);
+}
+
+.fi-pagination-item-btn .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Modal
+ * ------------------------------------------------------------------------- */
+
+.fi-modal-close-overlay {
+    background-color: rgb(22 19 15 / 0.5);
+}
+
+.fi-modal-window {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-lg);
+}
+
+.fi-modal-heading {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: -0.01em;
+}
+
+.fi-modal-description {
+    color: var(--cc-ink-muted);
+}
+
+.fi-modal-footer {
+    border-top: var(--cc-border-width-control) solid var(--cc-line);
+    padding-top: var(--cc-space-md);
+}
+
+.fi-modal-has-sticky-header > .fi-modal-window > .fi-modal-header {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border-width-control) solid var(--cc-line);
+}
+
+.fi-modal-has-sticky-footer > .fi-modal-window > .fi-modal-footer {
+    background-color: var(--cc-paper);
+}
+
+.fi-modal-icon-bg {
+    background-color: var(--cc-cream);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: var(--cc-radius);
+}
+
+/* ---------------------------------------------------------------------------
+ * Notifications
+ * ------------------------------------------------------------------------- */
+
+.fi-no-notification:not(.fi-inline) {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-no-notification.fi-color:not(.fi-inline) {
+    background-color: var(--cc-paper);
+    border-inline-start-width: 8px;
+    border-inline-start-color: var(--color-400, var(--cc-ink));
+}
+
+.fi-no-notification-title {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-no-notification-body,
+.fi-no-notification-date {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tabs
+ * ------------------------------------------------------------------------- */
+
+.fi-tabs {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    padding: 0.375rem;
+}
+
+.fi-tabs.fi-contained {
+    background-color: transparent;
+    border: 0;
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Contained tabs wrap their panels in one bordered surface. */
+.fi-sc-tabs.fi-contained {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-tabs-item {
+    border: var(--cc-border-width-control) solid transparent;
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-semibold);
+}
+
+.fi-tabs-item:hover {
+    background-color: var(--cc-yellow-soft);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-tabs-item .fi-tabs-item-label {
+    color: inherit;
+}
+
+.fi-tabs-item.fi-active {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-tabs-item.fi-active .fi-tabs-item-label,
+.fi-tabs-item.fi-active > .fi-icon {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+/* ---------------------------------------------------------------------------
+ * Badges
+ * ------------------------------------------------------------------------- */
+
+.fi-badge {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: var(--cc-radius);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.01em;
+}
+
+.fi-badge.fi-color {
+    background-color: var(--color-300, var(--cc-cream));
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-badge .fi-badge-delete-btn-icon {
+    color: var(--cc-ink);
+    opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dropdowns
+ * ------------------------------------------------------------------------- */
+
+.fi-dropdown-panel {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-dropdown-list-item {
+    border-radius: 3px;
+    color: var(--cc-ink);
+}
+
+.fi-dropdown-list-item:not(.fi-disabled):not([disabled]):hover,
+.fi-dropdown-list-item.fi-selected {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-dropdown-list-item-label {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-medium);
+}
+
+.fi-dropdown-list-item > .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-dropdown-header {
+    color: var(--cc-ink-muted);
+    font-weight: var(--cc-weight-bold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Global search results panel */
+.fi-global-search-results-ctn {
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-global-search-results {
+    border-color: var(--cc-line);
+}
+
+.fi-global-search-result {
+    border-color: var(--cc-line);
+}
+
+.fi-global-search-result:focus-within,
+.fi-global-search-result:hover {
+    background-color: var(--cc-yellow-soft);
+}
+
+.fi-global-search-result-group-header {
+    background-color: var(--cc-yellow);
+    border-color: var(--cc-ink);
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-bold);
+}
+
+.fi-global-search-no-results-message {
+    color: var(--cc-ink-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Avatar, breadcrumbs, links, loading
+ * ------------------------------------------------------------------------- */
+
+.fi-avatar {
+    border: var(--cc-border-width-control) solid var(--cc-ink);
+    border-radius: 3px;
+}
+
+.fi-breadcrumbs ol li {
+    color: var(--cc-ink-muted);
+}
+
+.fi-breadcrumbs ol li a:hover {
+    color: var(--cc-ink);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-breadcrumbs .fi-icon {
+    color: var(--cc-ink-muted);
+}
+
+.fi-link {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-loading-indicator {
+    color: var(--cc-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Authentication (simple layout)
+ * ------------------------------------------------------------------------- */
+
+.fi-simple-layout {
+    background-color: var(--cc-cream);
+}
+
+/* The auth card carries a 4px hard shadow: keep it off the viewport edge. */
+.fi-simple-main-ctn {
+    padding-inline: 1rem;
+}
+
+.fi-simple-main {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow);
+}
+
+.fi-simple-header-heading {
+    color: var(--cc-ink);
+    font-family: var(--cc-font-display);
+    font-size: 1.75rem;
+    font-weight: var(--cc-weight-black);
+    letter-spacing: -0.03em;
+}
+
+.fi-simple-header-subheading {
+    color: var(--cc-ink-muted);
+}
+
+.fi-simple-header-subheading a {
+    color: var(--cc-ink);
+    font-weight: var(--cc-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.fi-simple-header .fi-logo {
+    justify-content: center;
+    margin-bottom: var(--cc-space-md);
+}
+
+.fi-simple-page-content {
+    gap: var(--cc-space-lg);
+}
+
+.fi-skip-link:focus {
+    background-color: var(--cc-yellow);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: var(--cc-shadow-sm);
+    color: var(--cc-ink);
+    outline: 3px solid var(--cc-ink);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-btn,
+    .fi-icon-btn,
+    .fi-sidebar-item-btn,
+    .fi-topbar-item-btn,
+    .fi-tabs-item,
+    .fi-dropdown-list-item,
+    .fi-input-wrp,
+    .fi-ta-row {
+        transition: none;
+    }
+
+    .fi-btn:not(.fi-disabled):not([disabled]):hover,
+    .fi-btn:not(.fi-disabled):not([disabled]):active {
+        transform: none;
+    }
+}
+
 @layer components {
+    /*
+     * Termômetro — grade, toolbar, previsão e detalhe do dia.
+     *
+     * Só regras `.thermometer*` (mais o enquadramento do slide-over do dia, que
+     * é escopado por `:has(.thermometer-detail)`). Tokens --cc-* vêm do :root;
+     * o detalhe do dia é portalizado para fora de `.thermometer`, por isso não
+     * herda variáveis locais e usa os tokens globais direto.
+     */
+
     .thermometer {
-        --tmb-income: #2f6b4f;
-        --tmb-expense: #a13c33;
-        --tmb-daily: #a86f2a;
-        --tmb-savings: #2f6b6b;
-        --tmb-card: #5a4a7a;
-        --tmb-today: #232428;
-        --tmb-weekend: #f2f2f0;
-        --tmb-border: #e4e4e1;
-        --tmb-text: #232428;
-        --tmb-muted: #6b7280;
+        /* Pale fills for the light balance bands; ink on both is above 12:1. */
+        --tmb-soft-red: #ffd6d1;
+        --tmb-soft-green: #dcf2d6;
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
 
-    .dark .thermometer {
-        --tmb-income: #6fae8b;
-        --tmb-expense: #d08b83;
-        --tmb-daily: #d8a662;
-        --tmb-savings: #7ab5b5;
-        --tmb-card: #9b8cbb;
-        --tmb-today: #f3f4f6;
-        --tmb-weekend: #1f2429;
-        --tmb-border: #2f363d;
-        --tmb-text: #f3f4f6;
-        --tmb-muted: #9ca3af;
-    }
+    /* -----------------------------------------------------------------------
+     * Toolbar
+     * --------------------------------------------------------------------- */
 
     .thermometer-toolbar {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 0.5rem;
+        padding: 0.5rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border);
+        border-radius: var(--cc-radius);
+        box-shadow: var(--cc-shadow);
     }
 
     .thermometer-toolbar-spacer {
         flex: 1 1 auto;
+    }
+
+    /* The five period controls never split across rows; the period label is the
+       only thing that shrinks. */
+    .thermometer-toolbar-group {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .thermometer-toolbar-group .fi-icon-btn {
+        flex: 0 0 auto;
+    }
+
+    .thermometer-toolbar-group .fi-btn {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    /* The range wraps at the dash instead of truncating: both ends stay
+       readable at 390px, where the button only has room for two short lines. */
+    .thermometer-period-label {
+        display: block;
+        min-width: 0;
+        line-height: 1.2;
+        overflow: visible;
+        text-align: center;
+        text-overflow: clip;
+        white-space: normal;
+    }
+
+    /* Chevrons read as controls of the same group as the period label. */
+    .thermometer-toolbar .fi-icon-btn {
+        /* Filament centers icon buttons with a negative margin declared through
+           :has(); `!important` is the only way to zero it out of the cascade. */
+        margin-inline: 0 !important;
+        background-color: var(--cc-paper);
+        border: var(--cc-border-control);
+        box-shadow: 2px 2px 0 var(--cc-ink);
+        color: var(--cc-ink);
+    }
+
+    .thermometer-toolbar .fi-icon-btn:not(.fi-disabled):not([disabled]):hover {
+        background-color: var(--cc-yellow-soft);
+        box-shadow: 3px 3px 0 var(--cc-ink);
+    }
+
+    .thermometer-toolbar .fi-icon-btn:is(.fi-disabled, [disabled]):not(.fi-force-enabled) {
+        background-color: var(--cc-cream);
+        border-color: var(--cc-ink-muted);
+        box-shadow: none;
+        color: var(--cc-ink-muted);
+        opacity: 1;
+    }
+
+    .thermometer-loading {
+        padding: 0.125rem 0.5rem;
+        background-color: var(--cc-yellow);
+        border: var(--cc-border-control);
+        border-radius: var(--cc-radius);
+        color: var(--cc-ink);
+        font-size: 0.6875rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
     }
 
     .thermometer-legend {
@@ -50,9 +1485,30 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 0.75rem;
+        margin: 0;
+        color: var(--cc-ink-muted);
         font-size: 0.75rem;
-        color: var(--tmb-muted);
+        line-height: 1.5;
     }
+
+    /* -----------------------------------------------------------------------
+     * Initial balance alert
+     * --------------------------------------------------------------------- */
+
+    .thermometer-alert {
+        padding: 0.75rem 1rem;
+        background-color: var(--cc-yellow-soft);
+        border: var(--cc-border);
+        border-radius: var(--cc-radius);
+        box-shadow: var(--cc-shadow);
+        color: var(--cc-ink);
+        font-size: 0.8125rem;
+        line-height: 1.5;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Forecast summary
+     * --------------------------------------------------------------------- */
 
     .thermometer-forecast {
         display: flex;
@@ -60,58 +1516,169 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--tmb-border);
-        border-radius: 0.75rem;
+        padding: 1rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border);
+        border-radius: var(--cc-radius);
+        box-shadow: var(--cc-shadow);
     }
 
     .thermometer-forecast-title {
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--tmb-muted);
+        color: var(--cc-ink-muted);
+        font-size: 0.6875rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
     .thermometer-forecast-value {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--tmb-text);
+        color: var(--cc-ink);
+        font-size: 1.5rem;
         font-variant-numeric: tabular-nums;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Scroll frame — a visible ink scrollbar plus the right-edge cue tell that
+     * the twelve months continue past the right edge.
+     * --------------------------------------------------------------------- */
+
+    .thermometer-scroll-wrap {
+        position: relative;
+        /* Gutter that keeps the cue out of the data area. */
+        padding-bottom: 3rem;
     }
 
     .thermometer-scroll {
-        overflow: auto;
-        max-height: calc(100vh - 17rem);
-        border: 1px solid var(--tmb-border);
-        border-radius: 0.75rem;
+        /* Keep the bottom edge (and its horizontal scrollbar) inside the
+           viewport, so the twelve months read as scrollable. */
+        max-height: max(12rem, calc(100dvh - 28rem));
+        overflow-x: auto;
+        overflow-y: auto;
+        background-color: var(--cc-paper);
+        border: var(--cc-border);
+        border-radius: var(--cc-radius);
+        box-shadow: var(--cc-shadow);
+        overscroll-behavior-x: contain;
+        scrollbar-color: var(--cc-ink) var(--cc-line);
+        scrollbar-gutter: stable;
+        scrollbar-width: auto;
+    }
+
+    /* Safari keeps the legacy pseudo-elements (it has no scrollbar-width). */
+    .thermometer-scroll::-webkit-scrollbar {
+        width: 14px;
+        height: 14px;
+    }
+
+    .thermometer-scroll::-webkit-scrollbar-track {
+        background-color: var(--cc-line);
+    }
+
+    .thermometer-scroll::-webkit-scrollbar-thumb {
+        background-color: var(--cc-ink);
+        border: 2px solid var(--cc-line);
+        border-radius: 2px;
+    }
+
+    .thermometer-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: var(--cc-red-text);
+    }
+
+    .thermometer-scroll::-webkit-scrollbar-corner {
+        background-color: var(--cc-line);
+    }
+
+    .thermometer-scroll-cue {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0;
+        background-color: var(--cc-yellow);
+        border: var(--cc-border-control);
+        border-radius: var(--cc-radius);
+        box-shadow: 2px 2px 0 var(--cc-ink);
+        color: var(--cc-ink);
+        cursor: pointer;
+        transition:
+            background-color var(--cc-duration) var(--cc-ease),
+            box-shadow var(--cc-duration) var(--cc-ease);
+    }
+
+    .thermometer-scroll-cue:hover {
+        background-color: var(--cc-yellow-soft);
+        box-shadow: 3px 3px 0 var(--cc-ink);
+    }
+
+    .thermometer-scroll-cue:focus-visible {
+        outline: 3px solid var(--cc-ink);
+        outline-offset: 2px;
+    }
+
+    .thermometer-scroll-cue > svg {
+        width: 1.125rem;
+        height: 1.125rem;
+        fill: currentColor;
+    }
+
+    .thermometer-scroll-cue[x-cloak] {
+        display: none !important;
     }
 
     .thermometer-months {
         display: flex;
         align-items: flex-start;
         gap: 0.875rem;
+        width: max-content;
+        min-width: 100%;
         padding: 0.75rem;
-        min-width: max-content;
     }
 
-    .thermometer-month {
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: 0.75rem;
-        color: var(--tmb-text);
-        font-variant-numeric: tabular-nums;
+    .thermometer-month-wrapper {
         flex: 0 0 auto;
     }
 
+    /* -----------------------------------------------------------------------
+     * Month table
+     * --------------------------------------------------------------------- */
+
+    .thermometer-month {
+        flex: 0 0 auto;
+        border-collapse: separate;
+        border-spacing: 0;
+        color: var(--cc-ink);
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+    }
+
     .thermometer-month-caption {
+        caption-side: top;
+        padding: 0.375rem 0.5rem;
+        background-color: var(--cc-cream);
+        border: var(--cc-border-control);
+        border-bottom: 0;
+        border-radius: var(--cc-radius) var(--cc-radius) 0 0;
+        color: var(--cc-ink);
+        font-size: 0.75rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.06em;
         text-align: left;
-        font-size: 0.875rem;
-        font-weight: 600;
-        padding: 0 0 0.5rem;
+        text-transform: uppercase;
+        white-space: nowrap;
     }
 
     .thermometer-col-day {
-        width: 2.5rem;
-        min-width: 2.5rem;
+        width: 2.75rem;
+        min-width: 2.75rem;
     }
 
     .thermometer-col-type {
@@ -120,29 +1687,33 @@
     }
 
     .thermometer-col-balance {
-        width: 8rem;
-        min-width: 8rem;
+        width: 8.25rem;
+        min-width: 8.25rem;
     }
 
     .thermometer-month thead th {
         position: sticky;
         top: 0;
         z-index: 2;
-        background: var(--tmb-weekend);
-        border-bottom: 1px solid var(--tmb-border);
         padding: 0.375rem 0.5rem;
-        font-weight: 600;
+        background-color: var(--cc-yellow);
+        border-block: var(--cc-border-width-control) solid var(--cc-ink);
+        color: var(--cc-ink);
+        font-size: 0.6875rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.05em;
         text-align: right;
+        text-transform: uppercase;
         white-space: nowrap;
     }
 
-    .dark .thermometer-month thead th {
-        background: var(--tmb-weekend);
+    .thermometer-month thead th.thermometer-col-day {
+        text-align: left;
     }
 
-    .thermometer-month thead th.thermometer-col-day,
+    /* "Saldos" sits over right-aligned values. */
     .thermometer-month thead th.thermometer-col-balance {
-        text-align: left;
+        text-align: right;
     }
 
     .thermometer-month tfoot th,
@@ -150,33 +1721,63 @@
         position: sticky;
         bottom: 0;
         z-index: 2;
-        background: var(--tmb-weekend);
-        border-top: 1px solid var(--tmb-text);
         padding: 0.375rem 0.5rem;
-        font-weight: 500;
+        background-color: var(--cc-cream);
+        border-block-start: var(--cc-border-width-control) solid var(--cc-ink);
+        color: var(--cc-ink);
+        font-size: 0.75rem;
+        font-weight: var(--cc-weight-bold);
         text-align: right;
         white-space: nowrap;
     }
 
     .thermometer-month tfoot th {
+        font-size: 0.6875rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.05em;
         text-align: left;
+        text-transform: uppercase;
     }
 
-    .thermometer-month tfoot .thermometer-total-balance {
-        background: transparent;
-        border-top-color: transparent;
+    /* The balance column has no summable total: a muted dash marks it. */
+    .thermometer-month tfoot td.thermometer-total-balance {
+        color: var(--cc-ink-muted);
+        font-weight: var(--cc-weight-bold);
+        text-align: right;
     }
+
+    /* -----------------------------------------------------------------------
+     * Body rows
+     * --------------------------------------------------------------------- */
 
     .thermometer-row > th,
     .thermometer-row > td {
-        border-bottom: 1px solid var(--tmb-border);
-        padding: 0;
         height: 2.125rem;
+        padding: 0;
+        border-bottom: 1px solid var(--cc-line);
     }
 
+    .thermometer-row-weekend > th,
+    .thermometer-row-weekend > td {
+        background-color: var(--cc-yellow-soft);
+    }
+
+    /* Today: cream fill (never the weekend wash) with ink rules inset across the
+       row and a yellow date cell. Inset shadows keep the row height stable. */
     .thermometer-row-today > th,
     .thermometer-row-today > td {
-        border-bottom-color: var(--tmb-text);
+        background-color: var(--cc-cream);
+        box-shadow:
+            inset 0 var(--cc-border-width) 0 var(--cc-ink),
+            inset 0 calc(var(--cc-border-width) * -1) 0 var(--cc-ink);
+    }
+
+    .thermometer-row-today > th {
+        background-color: var(--cc-yellow);
+        box-shadow:
+            inset var(--cc-border-width) 0 0 var(--cc-ink),
+            inset 0 var(--cc-border-width) 0 var(--cc-ink),
+            inset 0 calc(var(--cc-border-width) * -1) 0 var(--cc-ink);
     }
 
     .thermometer-day-cell {
@@ -192,70 +1793,80 @@
         gap: 0.125rem;
         width: 100%;
         height: 2.125rem;
+        padding: 0;
+        background-color: transparent;
+        color: inherit;
         font-variant-numeric: tabular-nums;
-        color: var(--tmb-text);
+        font-weight: var(--cc-weight-bold);
     }
 
     .thermometer-day-button {
+        border-radius: 3px;
         cursor: pointer;
-        border-radius: 0.25rem;
+        transition: background-color var(--cc-duration) var(--cc-ease);
     }
 
-    .thermometer-row-weekend .thermometer-day-button,
-    .thermometer-row-weekend .thermometer-day-static {
-        background: var(--tmb-weekend);
+    .thermometer-day-button:hover {
+        background-color: var(--cc-yellow);
     }
 
-    .thermometer-row-today .thermometer-day-button,
-    .thermometer-row-today .thermometer-day-static {
-        background: var(--tmb-today);
-        color: var(--tmb-weekend);
-    }
-
-    .dark .thermometer-row-today .thermometer-day-button,
-    .dark .thermometer-row-today .thermometer-day-static {
-        color: #111827;
+    .thermometer-day-button[aria-pressed='true'] {
+        background-color: var(--cc-yellow);
+        box-shadow: inset 0 0 0 var(--cc-border-width-control) var(--cc-ink);
+        color: var(--cc-ink);
+        font-weight: var(--cc-weight-black);
     }
 
     .thermometer-day-check {
-        width: 0.75rem;
-        height: 0.75rem;
+        width: 0.8125rem;
+        height: 0.8125rem;
+        color: var(--cc-ink);
         fill: currentColor;
-        color: var(--tmb-income);
     }
+
+    /* -----------------------------------------------------------------------
+     * Value cells
+     * --------------------------------------------------------------------- */
 
     .thermometer-cell-inner {
         display: flex;
         align-items: center;
-        gap: 0.125rem;
-        padding: 0 0.25rem 0 0.5rem;
+        gap: 0.25rem;
         height: 100%;
+        padding: 0 0.25rem 0 0.5rem;
     }
 
     .thermometer-value-button {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
         flex: 1 1 auto;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.375rem;
         min-width: 0;
         height: 100%;
-        justify-content: flex-end;
+        padding: 0;
+        background-color: transparent;
+        border-radius: 3px;
+        color: var(--cc-ink-muted);
         cursor: pointer;
-        border-radius: 0.25rem;
-        color: var(--tmb-muted);
+    }
+
+    .thermometer-value-button:hover {
+        background-color: var(--cc-yellow-soft);
+        color: var(--cc-ink);
+    }
+
+    .thermometer-value-button[data-filled='true'] {
+        color: var(--cc-ink);
+        font-weight: var(--cc-weight-semibold);
     }
 
     .thermometer-value-button:focus-visible,
     .thermometer-add-button:focus-visible,
     .thermometer-day-button:focus-visible,
     .thermometer-balance-button:focus-visible {
-        outline: 2px solid var(--tmb-text);
+        outline: 2px solid var(--cc-ink);
         outline-offset: -2px;
-    }
-
-    .thermometer-value-button[data-filled='true'] {
-        color: var(--tmb-text);
-        font-weight: 600;
     }
 
     .thermometer-value {
@@ -263,26 +1874,31 @@
     }
 
     .thermometer-value-projection {
-        color: var(--tmb-muted);
+        color: var(--cc-ink-muted);
     }
 
     .thermometer-add-button {
-        flex: 0 0 auto;
         display: flex;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: center;
-        width: 1.25rem;
-        height: 1.25rem;
-        border-radius: 0.25rem;
-        color: var(--tmb-muted);
-        cursor: pointer;
-        font-size: 0.875rem;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        min-height: 24px;
+        padding: 0;
+        background-color: var(--cc-paper);
+        border: var(--cc-border-control);
+        border-radius: 3px;
+        color: var(--cc-ink);
+        font-size: 0.75rem;
+        font-weight: var(--cc-weight-black);
         line-height: 1;
+        cursor: pointer;
     }
 
     .thermometer-add-button:hover {
-        background: var(--tmb-weekend);
-        color: var(--tmb-text);
+        background-color: var(--cc-yellow);
     }
 
     @media (hover: hover) {
@@ -291,59 +1907,39 @@
         }
 
         .thermometer-cell-inner:hover .thermometer-add-button,
+        .thermometer-cell-inner:focus-within .thermometer-add-button,
         .thermometer-add-button:focus-visible {
             opacity: 1;
         }
     }
 
+    /* -----------------------------------------------------------------------
+     * Balance bands — flat fills, ink text, AA on every pair
+     * --------------------------------------------------------------------- */
+
     .thermometer-balance-cell[data-balance-color='dark-red'] {
-        background: #8f2f2f;
-        color: #ffffff;
+        background-color: var(--cc-red);
+        color: var(--cc-ink);
     }
 
     .thermometer-balance-cell[data-balance-color='light-red'] {
-        background: #f6e3df;
-        color: #7a2620;
+        background-color: var(--tmb-soft-red);
+        color: var(--cc-ink);
     }
 
     .thermometer-balance-cell[data-balance-color='light-yellow'] {
-        background: #f7edd9;
-        color: #6b4a14;
+        background-color: var(--cc-yellow);
+        color: var(--cc-ink);
     }
 
     .thermometer-balance-cell[data-balance-color='light-green'] {
-        background: #e8f1ea;
-        color: #235b3e;
+        background-color: var(--tmb-soft-green);
+        color: var(--cc-ink);
     }
 
     .thermometer-balance-cell[data-balance-color='dark-green'] {
-        background: #d7e8dd;
-        color: #1e4c34;
-    }
-
-    .dark .thermometer-balance-cell[data-balance-color='dark-red'] {
-        background: #4a1f1c;
-        color: #e7b3ad;
-    }
-
-    .dark .thermometer-balance-cell[data-balance-color='light-red'] {
-        background: #6b2a24;
-        color: #f3cdc7;
-    }
-
-    .dark .thermometer-balance-cell[data-balance-color='light-yellow'] {
-        background: #5c4318;
-        color: #f0d9b0;
-    }
-
-    .dark .thermometer-balance-cell[data-balance-color='light-green'] {
-        background: #1f4531;
-        color: #cce6d6;
-    }
-
-    .dark .thermometer-balance-cell[data-balance-color='dark-green'] {
-        background: #2a5740;
-        color: #e3f1e8;
+        background-color: var(--cc-green);
+        color: var(--cc-ink);
     }
 
     .thermometer-balance-button {
@@ -353,50 +1949,69 @@
         width: 100%;
         height: 100%;
         padding: 0 0.5rem;
-        font-weight: 600;
-        cursor: pointer;
-        border-radius: 0.25rem;
+        background-color: transparent;
+        border-radius: 3px;
         color: inherit;
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--cc-weight-bold);
         white-space: nowrap;
+        cursor: pointer;
     }
+
+    .thermometer-balance-button:hover {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+        text-underline-offset: 2px;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Type badges — flat accents with ink borders; empty cells show none
+     * --------------------------------------------------------------------- */
 
     .thermometer-badge {
         display: inline-flex;
+        flex: 0 0 auto;
         align-items: center;
         justify-content: center;
-        width: 1rem;
-        height: 1rem;
-        border-radius: 0.25rem;
+        width: 1.125rem;
+        height: 1.125rem;
+        background-color: transparent;
+        border: var(--cc-border-control) solid transparent;
+        border-radius: var(--cc-radius);
+        color: var(--cc-ink-muted);
         font-size: 0.625rem;
-        font-weight: 500;
+        font-weight: var(--cc-weight-black);
         line-height: 1;
-        color: var(--tmb-muted);
-        background: transparent;
-        flex: 0 0 auto;
+    }
+
+    .thermometer-badge[data-filled='false'] {
+        display: none;
     }
 
     .thermometer-badge[data-filled='true'] {
-        color: #ffffff;
+        border-color: var(--cc-ink);
+        color: var(--cc-ink);
     }
 
     .thermometer-badge[data-filled='true'][data-type='income'] {
-        background: var(--tmb-income);
+        background-color: var(--cc-green);
     }
 
     .thermometer-badge[data-filled='true'][data-type='expense'] {
-        background: var(--tmb-expense);
+        background-color: var(--cc-red);
     }
 
     .thermometer-badge[data-filled='true'][data-type='daily'] {
-        background: var(--tmb-daily);
+        background-color: var(--cc-yellow);
     }
 
     .thermometer-badge[data-filled='true'][data-type='savings'] {
-        background: var(--tmb-savings);
+        background-color: var(--cc-blue);
     }
 
     .thermometer-badge[data-filled='true'][data-type='card'] {
-        background: var(--tmb-card);
+        background-color: var(--cc-ink);
+        color: var(--cc-cream);
     }
 
     .thermometer-badge-icon {
@@ -405,71 +2020,216 @@
         fill: currentColor;
     }
 
+    /* -----------------------------------------------------------------------
+     * Day detail (slide-over content)
+     * --------------------------------------------------------------------- */
+
     .thermometer-detail {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.875rem;
     }
 
+    /* The slide-over heading already carries the day, so this in-body copy of
+       it stays secondary. */
     .thermometer-detail-header {
+        flex: 1 1 auto;
+        min-width: 0;
+        color: var(--cc-ink-muted);
+        font-size: 0.8125rem;
+        font-weight: var(--cc-weight-semibold);
+        letter-spacing: -0.005em;
+        line-height: 1.3;
+    }
+
+    .thermometer-detail-nav .fi-icon-btn {
+        /* Filament centers icon buttons with a negative margin declared through
+           :has(); `!important` is the only way to zero it out of the cascade. */
+        margin-inline: 0 !important;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border-control);
+        box-shadow: 2px 2px 0 var(--cc-ink);
+    }
+
+    .thermometer-detail-nav .fi-icon-btn:not(.fi-color) {
+        color: var(--cc-ink);
+    }
+
+    .thermometer-detail-nav .fi-icon-btn:not(.fi-disabled):not([disabled]):hover {
+        background-color: var(--cc-yellow-soft);
+        box-shadow: 3px 3px 0 var(--cc-ink);
+    }
+
+    .thermometer-select {
+        display: block;
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0.4375rem 0.5rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border);
+        border-radius: var(--cc-radius);
+        box-shadow: 2px 2px 0 var(--cc-ink);
+        color: var(--cc-ink);
+        font-size: 0.8125rem;
+        font-weight: var(--cc-weight-medium);
+    }
+
+    .thermometer-select:focus-visible {
+        outline: 3px solid var(--cc-ink);
+        outline-offset: 2px;
+    }
+
+    .thermometer-detail-totals {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.375rem 0.75rem;
+        margin: 0;
+        padding: 0.625rem 0.75rem;
+        background-color: var(--cc-cream);
+        border: var(--cc-border-control);
+        border-radius: var(--cc-radius);
+    }
+
+    .thermometer-detail-total {
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 600;
+        flex-direction: column;
+        gap: 0.0625rem;
+        min-width: 0;
+    }
+
+    .thermometer-detail-total dt {
+        color: var(--cc-ink-muted);
+        font-size: 0.625rem;
+        font-weight: var(--cc-weight-black);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .thermometer-detail-total dd {
+        margin: 0;
+        color: var(--cc-ink);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--cc-weight-bold);
+        white-space: nowrap;
+    }
+
+    .thermometer-detail-total-balance {
+        padding: 0 0.375rem;
+        background-color: var(--cc-yellow-soft);
+        border-radius: 3px;
+    }
+
+    @media (min-width: 640px) {
+        .thermometer-detail-totals {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
     }
 
     .thermometer-detail-list {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.625rem;
     }
 
     .thermometer-movement {
         display: flex;
+        flex-wrap: wrap;
         align-items: flex-start;
-        gap: 0.75rem;
-        border: 1px solid var(--tmb-border);
-        border-radius: 0.75rem;
-        padding: 0.625rem 0.75rem;
+        gap: 0.5rem 0.75rem;
+        padding: 0.625rem 0.75rem 0.75rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border-control);
+        border-radius: var(--cc-radius);
+        box-shadow: var(--cc-shadow-sm);
+        color: var(--cc-ink);
         font-size: 0.8125rem;
     }
 
     .thermometer-movement-body {
         display: flex;
-        flex: 1 1 auto;
+        flex: 1 1 12rem;
         flex-direction: column;
         gap: 0.125rem;
         min-width: 0;
     }
 
     .thermometer-movement-title {
-        font-weight: 600;
+        color: var(--cc-ink);
+        font-weight: var(--cc-weight-bold);
+        overflow-wrap: anywhere;
+    }
+
+    .thermometer-movement-amount {
+        margin-inline-start: auto;
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--cc-weight-black);
+        text-align: right;
+        white-space: nowrap;
     }
 
     .thermometer-movement-meta {
-        color: var(--tmb-muted);
+        color: var(--cc-ink-muted);
         font-size: 0.75rem;
+        line-height: 1.45;
     }
 
     .thermometer-movement-excluded {
+        color: var(--cc-red-text);
         font-size: 0.75rem;
-        color: #8a5a1a;
-    }
-
-    .dark .thermometer-movement-excluded {
-        color: #d8a662;
+        font-weight: var(--cc-weight-semibold);
     }
 
     .thermometer-movement-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 0.25rem;
+        margin-inline-start: auto;
+        /* Keep the 3px hard shadows of the 44px buttons off the card border. */
+        padding-bottom: 0.125rem;
+        row-gap: 0.375rem;
+    }
+
+    .thermometer-movement-actions .fi-icon-btn {
+        /* Filament centers icon buttons with a negative margin declared through
+           :has(); `!important` is the only way to zero it out of the cascade. */
+        margin-inline: 0 !important;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        background-color: var(--cc-paper);
+        border: var(--cc-border-control);
+        box-shadow: 2px 2px 0 var(--cc-ink);
+    }
+
+    /* Colour carries meaning (danger/success), so only neutral icons take ink. */
+    .thermometer-movement-actions .fi-icon-btn:not(.fi-color) {
+        color: var(--cc-ink);
+    }
+
+    .thermometer-movement-actions .fi-icon-btn:not(.fi-disabled):not([disabled]):hover {
+        background-color: var(--cc-yellow-soft);
+        box-shadow: 3px 3px 0 var(--cc-ink);
     }
 
     .thermometer-empty {
+        padding: 1.5rem 1rem;
+        border: var(--cc-border-width-control) dashed var(--cc-ink-muted);
+        border-radius: var(--cc-radius);
+        color: var(--cc-ink-muted);
         text-align: center;
-        color: var(--tmb-muted);
-        padding: 2rem 1rem;
+    }
+
+    /* -----------------------------------------------------------------------
+     * Narrow screens
+     * --------------------------------------------------------------------- */
+
+    .thermometer-mobile-nav-label {
+        color: var(--cc-ink);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--cc-weight-bold);
     }
 
     @media (max-width: 1023px) {
@@ -483,4 +2243,87 @@
             min-width: 6.5rem;
         }
     }
+
+    @media (min-width: 1024px) {
+        .thermometer-scroll {
+            max-height: max(12rem, calc(100dvh - 21rem));
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .thermometer-day-button,
+        .thermometer-value-button,
+        .thermometer-add-button,
+        .thermometer-balance-button,
+        .thermometer-movement-actions .fi-icon-btn {
+            transition: none;
+        }
+    }
+}
+
+/*
+ * Termômetro — slide-over do dia.
+ *
+ * Fora da camada de propósito: as regras de modal da fundação são CSS sem
+ * camada, então só uma regra sem camada as substitui. `:has()` escopa tudo ao
+ * slide-over que contém o detalhe do dia; nenhum outro modal herda.
+ */
+
+.fi-modal-slide-over:has(.thermometer-detail) > .fi-modal-window-ctn > .fi-modal-window {
+    background-color: var(--cc-paper);
+    border: var(--cc-border);
+    box-shadow: var(--cc-shadow-lg);
+    /* A short list should not float in the middle of a wide desktop slide-over. */
+    max-width: 40rem;
+}
+
+.fi-modal-slide-over:has(.thermometer-detail) > .fi-modal-window-ctn > .fi-modal-window > .fi-modal-header {
+    background-color: var(--cc-paper);
+    border-bottom: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+.fi-modal-slide-over:has(.thermometer-detail) > .fi-modal-window-ctn > .fi-modal-window > .fi-modal-footer {
+    background-color: var(--cc-paper);
+    border-top: var(--cc-border-width-control) solid var(--cc-ink);
+}
+
+/* Keep the heading clear of the bordered close button. */
+.fi-modal-slide-over:has(.thermometer-detail) .fi-modal-heading {
+    padding-inline-end: 3rem;
+}
+
+/* Close button: a bordered control instead of a bare icon. */
+.fi-modal-slide-over:has(.thermometer-detail) .fi-modal-close-btn {
+    /* Negative icon-button margin would push the absolutely placed button off. */
+    margin: 0 !important;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    background-color: var(--cc-paper);
+    border: var(--cc-border-control);
+    border-radius: var(--cc-radius);
+    box-shadow: 2px 2px 0 var(--cc-ink);
+    color: var(--cc-ink);
+}
+
+.fi-modal-slide-over:has(.thermometer-detail) .fi-modal-close-btn:hover {
+    background-color: var(--cc-yellow-soft);
+    box-shadow: 3px 3px 0 var(--cc-ink);
+}
+
+/* Footer actions keep a 44px touch target. */
+.fi-modal-slide-over:has(.thermometer-detail) .fi-modal-footer .fi-btn {
+    min-height: 2.75rem;
+}
+
+/*
+ * Filament desenha o foco com um anel na cor primária (vermelho). Os controles
+ * do Termômetro usam o contorno de tinta da fundação; sem camada para vencer as
+ * utilities de `ring`.
+ */
+.thermometer-toolbar .fi-icon-btn:focus-visible,
+.thermometer-toolbar .fi-btn:focus-visible,
+.thermometer-detail .fi-icon-btn:focus-visible,
+.thermometer-detail .fi-btn:focus-visible,
+.thermometer-movement-actions .fi-icon-btn:focus-visible {
+    --tw-ring-shadow: 0 0 #0000;
 }

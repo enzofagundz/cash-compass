@@ -105,6 +105,7 @@ class DailyTransactionResource extends Resource
     {
         return $table
             ->recordTitleAttribute('description')
+            ->stackedOnMobile()
             ->defaultSort('date', 'desc')
             ->columns([
                 TextColumn::make('date')
@@ -129,7 +130,7 @@ class DailyTransactionResource extends Resource
                     ->view('filament.tables.columns.tag-list'),
                 TextColumn::make('status')
                     ->label('Status')
-                    ->badge()
+                    ->badge(fn (TransactionStatus $state): bool => $state === TransactionStatus::Pending)
                     ->formatStateUsing(fn (TransactionStatus $state): string => $state->label())
                     ->color(fn (TransactionStatus $state): string => match ($state) {
                         TransactionStatus::Pending => 'warning',
