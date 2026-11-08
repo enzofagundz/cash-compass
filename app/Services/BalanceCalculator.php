@@ -173,6 +173,25 @@ class BalanceCalculator
         $months = max(1, $months);
         $start = CarbonImmutable::create($year, $month, 1)->startOfDay();
         $end = $start->addMonthsNoOverflow($months - 1)->endOfMonth();
+
+        return $this->grid($user, $start, $end, $months);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function day(User $user, CarbonImmutable|string $date): array
+    {
+        $date = $this->toDate($date);
+
+        return $this->grid($user, $date, $date, 1)[0]['days'][0];
+    }
+
+    /**
+     * @return array<int, array{year: int, month: int, label: string, days: array<int, array{day: int, date: string, income: string, expense: string, daily: string, savings: string, card: string, balance: string, balance_cents: int, is_today: bool, is_future: bool, pending_types: array<int, string>, projected_types: array<int, string>}>, totals: array{income: string, expense: string, daily: string, savings: string, card: string}}>
+     */
+    private function grid(User $user, CarbonImmutable $start, CarbonImmutable $end, int $months): array
+    {
         $today = $this->today();
         $forecastStart = $this->forecastStart($user);
         $forecastDaily = $this->forecastDailyCents($user);
@@ -211,12 +230,12 @@ class BalanceCalculator
         $horizon = [];
 
         for ($offset = 0; $offset < $months; $offset++) {
-            $first = $start->addMonthsNoOverflow($offset);
-            $last = $first->endOfMonth();
+            $first = $start->startOfMonth()->addMonthsNoOverflow($offset);
+            $last = $first->endOfMonth()->min($end);
             $days = [];
             $totals = ['income' => 0, 'expense' => 0, 'daily' => 0, 'savings' => 0, 'card' => 0];
 
-            for ($day = 1; $day <= $last->day; $day++) {
+            for ($day = $offset === 0 ? $start->day : 1; $day <= $last->day; $day++) {
                 $date = $first->setDay($day);
                 $key = $date->toDateString();
                 $values = ['income' => 0, 'expense' => 0, 'daily' => 0, 'savings' => 0, 'card' => 0];

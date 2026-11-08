@@ -742,3 +742,32 @@ it('starts the horizon balance on the start date', function () {
         ->and($days[10]['balance'])->toBe('150.00')
         ->and($days[11]['balance'])->toBe('150.00');
 });
+
+it('calculates isolated days with the same canonical values as the horizon', function (?string $baseDate) {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => $baseDate]);
+    DailyForecast::factory()->create(['user_id' => $user->id, 'amount' => 300]);
+
+    foreach (['2026-09-09', '2026-09-10', '2026-09-14', '2026-09-15', '2026-09-16', '2026-09-20', '2026-10-01'] as $date) {
+        foreach (TransactionType::cases() as $type) {
+            foreach (TransactionStatus::cases() as $status) {
+                DailyTransaction::factory()->create(['user_id' => $user->id, 'date' => $date, 'type' => $type, 'status' => $status, 'amount' => '1.23']);
+            }
+        }
+    }
+
+    $calculator = app(BalanceCalculator::class);
+    $horizon = $calculator->horizonGrid($user, 2026, 9, 2);
+
+    foreach ($horizon as $month) {
+        foreach ($month['days'] as $day) {
+            expect($calculator->day($user, $day['date']))->toBe($day);
+        }
+    }
+})->with([
+    'past start' => ['2026-09-10'],
+    'future start' => ['2026-09-20'],
+    'creation date start' => [null],
+]);

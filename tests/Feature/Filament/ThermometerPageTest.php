@@ -3,6 +3,7 @@
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Pages\DailyForecastPage;
+use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Pages\ThermometerPage;
 use App\Models\AccountPlan;
 use App\Models\DailyForecast;
@@ -282,6 +283,34 @@ it('shows the empty state when a cell has no movements', function () {
         ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
         ->assertMountedActionModalSee('Sem movimentações por aqui');
 });
+
+it('opens canonical day totals without materializing the horizon', function (string $date, string $balance) {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $user->saveInitialBalance(['amount' => 1000, 'base_date' => '2026-09-01']);
+    DailyForecast::factory()->create(['user_id' => $user->id, 'amount' => 300]);
+    DailyTransaction::factory()->create(['user_id' => $user->id, 'date' => $date, 'type' => TransactionType::Income, 'amount' => 500]);
+    DailyTransaction::factory()->pending()->create(['user_id' => $user->id, 'date' => $date, 'type' => TransactionType::Expense, 'amount' => 50]);
+    DailyTransaction::factory()->create(['user_id' => $user->id, 'date' => $date, 'type' => TransactionType::Daily, 'status' => TransactionStatus::Skipped, 'amount' => 999]);
+    DailyTransaction::factory()->create(['user_id' => User::factory()->create()->id, 'date' => $date, 'type' => TransactionType::Income, 'amount' => 9999]);
+    $component = Livewire::test(ThermometerPage::class)->set('months', 1);
+    $this->partialMock(ThermometerGrid::class)->shouldNotReceive('months');
+
+    $component->call('openCell', $date, TransactionType::Expense->value);
+
+    expect($component->instance()->detailTotals())->toBe([
+        'income' => 'R$ 500,00',
+        'expense' => 'R$ 50,00',
+        'daily' => 'R$ 10,00',
+        'savings' => 'R$ 0,00',
+        'card' => 'R$ 0,00',
+        'balance' => $balance,
+    ]);
+})->with([
+    'inside horizon' => ['2026-09-16', 'R$ 1.440,00'],
+    'outside horizon' => ['2026-10-01', 'R$ 1.290,00'],
+]);
 
 it('does not show tags in the thermometer grid', function () {
     $this->travelTo('2026-09-15');

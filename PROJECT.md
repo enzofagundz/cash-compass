@@ -195,6 +195,7 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - `BalanceCalculator` é a fonte única de verdade para saldos e grades; views não recalculam.
 - O saldo de abertura é somado pelo banco em uma consulta agregada (sinal derivado de `TransactionType::sign()`), e saldo inicial, data de início, dias com lançamento diário e total da previsão são memoizados por request; o custo do cálculo não cresce com o histórico de lançamentos. Memoização vale por request: o calculator só deve ser lido depois das mutações do mesmo request.
 - `horizonGrid()` retorna arrays formatados com strings decimais (2 casas); a view apenas formata/exibe.
+- O detalhe do dia usa `BalanceCalculator::day()`, inclusive fora do horizonte visível, sem materializar a grade mensal. Dia isolado e horizonte compartilham o mesmo cálculo canônico de colunas, saldo e projeções no servidor.
 - Moeda: valores trafegam como `decimal:2`/string; formatação de exibição usa `R$` com vírgula decimal.
 - O cálculo acumula em centavos inteiros (saldo de abertura, colunas do dia, totais e previsão) e converte para string decimal de 2 casas só na saída; `horizonGrid()` também expõe `balance_cents` por dia, usado para a cor do saldo.
 

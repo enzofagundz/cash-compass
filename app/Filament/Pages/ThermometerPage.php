@@ -301,9 +301,6 @@ class ThermometerPage extends Page
     /**
      * Display-only totals of the day open in the detail panel.
      *
-     * Read from the already computed horizon: no extra queries and no balance
-     * recalculation. Unknown days fall back to zeros.
-     *
      * @return array<string, string>
      */
     public function detailTotals(): array
@@ -320,29 +317,18 @@ class ThermometerPage extends Page
     }
 
     /**
-     * Day row of the detail panel taken from the computed horizon.
-     *
      * @return array<string, mixed>
      */
     private function detailDay(): array
     {
+        $user = auth()->user();
         $date = $this->sanitizeDate($this->detailDate);
 
-        if ($date === null) {
+        if (! $user instanceof User || $date === null) {
             return [];
         }
 
-        $target = $date->toDateString();
-
-        foreach ($this->horizon as $month) {
-            foreach ($month['days'] as $day) {
-                if ($day['date'] === $target) {
-                    return $day;
-                }
-            }
-        }
-
-        return [];
+        return $this->balanceCalculator->day($user, $date);
     }
 
     /**
