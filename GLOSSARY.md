@@ -26,11 +26,16 @@ dias ativos, o indicador fica vazio.
 
 ## Relatório de tags
 
-Leitura agregada do gasto por tag no período. Cada lançamento soma seu valor
-integral em cada tag vinculada, então a soma das tags pode passar do total
-gasto e a participação de cada tag pode somar mais de 100%. Tags arquivadas com
-gasto no período entram com indicação textual; tags sem gasto ficam fora. O
-gasto sem tag aparece em uma linha "Sem tag" ao final da tabela.
+Leitura agregada do gasto por tag no período. A unidade é o **registro**: um
+lançamento comum conta como um registro, e um cartão detalhado contribui com um
+registro por item, então o valor do pai não é contado à parte. Cada registro
+soma seu valor integral em cada tag vinculada, então a soma das tags pode
+passar do total gasto e a participação de cada tag pode somar mais de 100%.
+Um item com tags próprias é atribuído a elas; sem tag própria, herda as tags do
+lançamento-pai; sem nenhuma das duas, vai para "Sem tag". A data usada é a do
+pai. Tags arquivadas com gasto no período entram com indicação textual; tags
+sem gasto ficam fora. O gasto sem tag aparece em uma linha "Sem tag" ao final
+da tabela.
 
 ## Item de cartão
 

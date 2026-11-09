@@ -3,6 +3,7 @@
 use App\Enums\TagColor;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -360,4 +361,132 @@ it('returns empty structures when the period has no spending', function () {
         ->and(collect($this->report->weekdays($this->user, $period))->sum('total_cents'))->toBe(0)
         ->and($this->report->types($this->user, $period))->toHaveCount(3)
         ->and(collect($this->report->types($this->user, $period))->sum('total_cents'))->toBe(0);
+});
+
+it('attributes a detailed card per item instead of the parent amount', function () {
+    $market = Tag::factory()->for($this->user)->create(['name' => 'Mercado']);
+    $pharmacy = Tag::factory()->for($this->user)->create(['name' => 'Farmácia']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    $first = CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '60.00']);
+    $first->tags()->attach($market);
+    $second = CardItem::factory()->forTransaction($card)->create(['description' => 'Remédio', 'amount' => '40.00']);
+    $second->tags()->attach($pharmacy);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows->pluck('name')->all())->toBe(['Mercado', 'Farmácia'])
+        ->and($rows[0])->toMatchArray(['total' => '60.00', 'count' => 1, 'average' => '60.00', 'percentage' => 60.0])
+        ->and($rows[1])->toMatchArray(['total' => '40.00', 'count' => 1, 'average' => '40.00', 'percentage' => 40.0]);
+});
+
+it('inherits the parent tags for items without their own tags', function () {
+    $parentTag = Tag::factory()->for($this->user)->create(['name' => 'Casa']);
+    $itemTag = Tag::factory()->for($this->user)->create(['name' => 'Mercado']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    $card->tags()->attach($parentTag);
+
+    $withOwnTag = CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '60.00']);
+    $withOwnTag->tags()->attach($itemTag);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Gás', 'amount' => '40.00']);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)))->keyBy('name');
+
+    expect($rows['Mercado'])->toMatchArray(['total' => '60.00', 'count' => 1])
+        ->and($rows['Casa'])->toMatchArray(['total' => '40.00', 'count' => 1])
+        ->and($rows->keys()->all())->toBe(['Mercado', 'Casa']);
+});
+
+it('sends a detailed card item without any tag to the untagged row', function () {
+    $parentTag = Tag::factory()->for($this->user)->create(['name' => 'Casa']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    $card->tags()->attach($parentTag);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Sem nada', 'amount' => '100.00']);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows->pluck('name')->all())->toBe(['Casa'])
+        ->and($rows[0])->toMatchArray(['total' => '100.00', 'count' => 1]);
+
+    $plain = spending(['type' => TransactionType::Card, 'amount' => '50.00']);
+    CardItem::factory()->forTransaction($plain)->create(['description' => 'Sem nada', 'amount' => '50.00']);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows->last())->toMatchArray([
+        'name' => 'Sem tag',
+        'total' => '50.00',
+        'count' => 1,
+        'is_untagged' => true,
+    ]);
+});
+
+it('adds the full item amount to every tag of the item', function () {
+    $first = Tag::factory()->for($this->user)->create(['name' => 'Primeira']);
+    $second = Tag::factory()->for($this->user)->create(['name' => 'Segunda']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Misto', 'amount' => '100.00']);
+    $item->tags()->attach([$first->id, $second->id]);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows->sum('percentage'))->toBe(200.0)
+        ->and($rows->every(fn (array $row): bool => $row['percentage'] === 100.0))->toBeTrue();
+});
+
+it('counts records and the parent date on the tag rows of a detailed card', function () {
+    $tag = Tag::factory()->for($this->user)->create(['name' => 'Mercado']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00', 'date' => '2026-10-07']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'A', 'amount' => '30.00'])->tags()->attach($tag);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'B', 'amount' => '70.00'])->tags()->attach($tag);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows[0])->toMatchArray([
+        'name' => 'Mercado',
+        'total' => '100.00',
+        'count' => 2,
+        'average' => '50.00',
+        'last_date' => '2026-10-07',
+    ]);
+});
+
+it('keeps the tag leader on the item rows of a detailed card', function () {
+    $small = Tag::factory()->for($this->user)->create(['name' => 'Pequena']);
+    $big = Tag::factory()->for($this->user)->create(['name' => 'Grande']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'A', 'amount' => '20.00'])->tags()->attach($small);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'B', 'amount' => '80.00'])->tags()->attach($big);
+
+    $summary = $this->report->summary($this->user, $this->report->period(null));
+
+    expect($summary['top_tag']['name'])->toBe('Grande')
+        ->and($summary['top_tag']['total'])->toBe('80.00');
+});
+
+it('keeps total, type breakdown, active days and largest transactions on the parent', function () {
+    $tag = Tag::factory()->for($this->user)->create(['name' => 'Mercado']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00', 'description' => 'Fatura']);
+    $card->tags()->attach($tag);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'A', 'amount' => '60.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'B', 'amount' => '40.00']);
+
+    $period = $this->report->period(null);
+    $summary = $this->report->summary($this->user, $period);
+    $largest = $this->report->largest($this->user, $period);
+
+    expect($summary['total'])->toBe('100.00')
+        ->and($summary['active_days'])->toBe(1)
+        ->and($summary['average_per_active_day'])->toBe('100.00')
+        ->and(collect($this->report->types($this->user, $period))->firstWhere('type', 'card')['total'])->toBe('100.00')
+        ->and(collect($this->report->monthly($this->user, $period))->sum('total_cents'))->toBe(10000)
+        ->and($largest[0]['amount'])->toBe('100.00')
+        ->and($largest[0]['description'])->toBe('Fatura')
+        ->and($largest[0]['tags'])->toBe(['Mercado']);
 });
