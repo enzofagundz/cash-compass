@@ -410,9 +410,12 @@ class ThermometerPage extends Page
             return null;
         }
 
-        $total = $movement->cardItems->sum(fn (CardItem $item): int => (int) round((float) $item->amount * 100));
+        $set = app(CardItemSet::class);
+        $total = $set->cents(
+            $movement->cardItems->map(fn (CardItem $item): array => ['amount' => $item->amount])->all(),
+        );
 
-        return $count.($count === 1 ? ' item' : ' itens').' · R$ '.number_format($total / 100, 2, ',', '.');
+        return $count.($count === 1 ? ' item' : ' itens').' · '.$set->formatMoney($total);
     }
 
     /**

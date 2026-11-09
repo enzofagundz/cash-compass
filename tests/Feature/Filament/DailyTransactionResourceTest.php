@@ -696,3 +696,21 @@ it('details a pending recurring card occurrence from the panel', function () {
 
     expect($pending->refresh()->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
 });
+
+it('shows the item sum and the closing difference in the card form', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '40.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction(TestAction::make('edit')->table($card))
+        ->assertMountedActionModalSee('Soma dos itens: R$ 100,00')
+        ->assertMountedActionModalSee('Diferença para o valor do lançamento: R$ 0,00');
+});

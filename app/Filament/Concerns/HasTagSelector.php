@@ -50,7 +50,7 @@ trait HasTagSelector
             Select::make($name)
                 ->label($label)
                 ->multiple()
-                ->options(fn (Get $get): array => self::attachableTagOptions(self::tagIdsFrom($get($name))))
+                ->options(fn (Get $get): array => self::attachableTagOptions(Tag::idsFrom($get($name))))
                 ->getOptionLabelsUsing(fn (array $values): array => self::tagBadgeLabels($values)),
         );
     }
@@ -59,10 +59,10 @@ trait HasTagSelector
      * @param  array<int, int>  $selectedTagIds
      * @return array<int, string>
      */
-    public static function attachableTagOptions(array $selectedTagIds): array
+    private static function attachableTagOptions(array $selectedTagIds): array
     {
         return Tag::query()
-            ->attachableTo((int) auth()->id(), self::tagIdsFrom($selectedTagIds))
+            ->attachableTo((int) auth()->id(), Tag::idsFrom($selectedTagIds))
             ->orderBy('tags.normalized_name')
             ->pluck('name', 'tags.id')
             ->all();
@@ -72,9 +72,9 @@ trait HasTagSelector
      * @param  array<int, int>  $values
      * @return array<int, HtmlString>
      */
-    public static function tagBadgeLabels(array $values): array
+    private static function tagBadgeLabels(array $values): array
     {
-        $tagIds = self::tagIdsFrom($values);
+        $tagIds = Tag::idsFrom($values);
 
         if ($tagIds === []) {
             return [];
@@ -88,30 +88,11 @@ trait HasTagSelector
             ->all();
     }
 
-    public static function tagBadge(Tag $tag): HtmlString
+    private static function tagBadge(Tag $tag): HtmlString
     {
         return new HtmlString(
             view('components.tag-badge', ['tag' => $tag])->render(),
         );
-    }
-
-    /**
-     * Normalise a raw multiselect state into a list of tag ids.
-     *
-     * @return array<int, int>
-     */
-    public static function tagIdsFrom(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
-
-        return collect($value)
-            ->filter(fn (mixed $id): bool => is_numeric($id))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
     }
 
     private static function configureQuickCreate(Select $select): Select

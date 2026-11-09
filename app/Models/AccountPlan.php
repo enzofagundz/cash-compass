@@ -117,10 +117,12 @@ class AccountPlan extends Model
      */
     public function pendingDetailedOccurrences(?CarbonImmutable $from = null): Collection
     {
+        $fromDate = $from?->startOfDay()->toDateString();
+
         return $this->dailyTransactions()
             ->where('status', TransactionStatus::Pending)
             ->where('is_recurring', true)
-            ->when($from !== null, fn (Builder $query) => $query->where('date', '>=', $from?->startOfDay()->toDateString()))
+            ->when($fromDate !== null, fn (Builder $query): Builder => $query->where('date', '>=', $fromDate))
             ->whereHas('cardItems')
             ->orderBy('date')
             ->get();

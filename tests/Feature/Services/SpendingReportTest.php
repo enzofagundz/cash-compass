@@ -490,3 +490,19 @@ it('keeps total, type breakdown, active days and largest transactions on the par
         ->and($largest[0]['description'])->toBe('Fatura')
         ->and($largest[0]['tags'])->toBe(['Mercado']);
 });
+
+it('keeps an archived tag of a card item with its inactive flag', function () {
+    $archived = Tag::factory()->for($this->user)->archived()->create(['name' => 'Antiga']);
+
+    $card = spending(['type' => TransactionType::Card, 'amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00'])
+        ->tags()->attach($archived);
+
+    $rows = collect($this->report->tags($this->user, $this->report->period(null)));
+
+    expect($rows[0])->toMatchArray([
+        'name' => 'Antiga',
+        'total' => '100.00',
+        'is_active' => false,
+    ]);
+});

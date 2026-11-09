@@ -158,16 +158,7 @@ class CardItemSet
      */
     private function resolveTagIds(CardItem $item, mixed $tagIds): array
     {
-        if (! is_array($tagIds)) {
-            return [];
-        }
-
-        $ids = collect($tagIds)
-            ->filter(fn (mixed $id): bool => is_numeric($id))
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        $ids = Tag::idsFrom($tagIds);
 
         if ($ids === []) {
             return [];
