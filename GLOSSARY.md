@@ -46,3 +46,10 @@ não excluída enquanto houver vínculo. Zero itens significa cartão sem detalh
 tem que fechar exatamente com o valor do lançamento-pai, comparada em centavos,
 e o valor do pai continua sendo o único que move saldo, previsão, colunas e
 totais de gasto.
+
+## Ocorrência detalhada pendente
+
+Ocorrência recorrente de cartão com status pendente que já tem itens de compra.
+Ela é o motivo pelo qual editar, desativar ou excluir o plano pode ser recusado:
+a mutação cancelaria a ocorrência e o detalhamento digitado junto com ela. Sair
+de pendente (realizar) libera o plano.

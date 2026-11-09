@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @property int $id
@@ -104,6 +106,45 @@ class AccountPlan extends Model
             ->where('status', TransactionStatus::Realized)
             ->where('date', '<=', CarbonImmutable::now()->startOfDay()->toDateString())
             ->exists();
+    }
+
+    /**
+     * Pending recurring occurrences that already carry card items. Any plan
+     * change that cancels them would silently drop a detail the user typed, so
+     * the mutation is refused while they exist.
+     *
+     * @return Collection<int, DailyTransaction>
+     */
+    public function pendingDetailedOccurrences(?CarbonImmutable $from = null): Collection
+    {
+        return $this->dailyTransactions()
+            ->where('status', TransactionStatus::Pending)
+            ->where('is_recurring', true)
+            ->when($from !== null, fn (Builder $query) => $query->where('date', '>=', $from?->startOfDay()->toDateString()))
+            ->whereHas('cardItems')
+            ->orderBy('date')
+            ->get();
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function assertNoDetailedPendingOccurrencesToCancel(?CarbonImmutable $from = null): void
+    {
+        $occurrences = $this->pendingDetailedOccurrences($from);
+
+        if ($occurrences->isEmpty()) {
+            return;
+        }
+
+        $dates = $occurrences
+            ->map(fn (DailyTransaction $transaction): string => $transaction->date->format('d/m/Y'))
+            ->implode(', ');
+
+        throw ValidationException::withMessages([
+            'is_active' => 'O plano não pode mudar: as ocorrências pendentes '.$dates
+                .' têm itens de cartão. Realize-as ou remova o detalhamento antes de editar, desativar ou excluir o plano.',
+        ]);
     }
 
     /**

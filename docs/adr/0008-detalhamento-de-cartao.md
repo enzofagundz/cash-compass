@@ -40,11 +40,16 @@ continuidade do saldo quebraria na primeira divergência.
   escrita — formulário, action do Termômetro ou MCP — escape dela.
 - **Cascata na exclusão.** Excluir o lançamento-pai exclui os itens
   (`cascadeOnDelete` no banco e `hasMany` no model).
-- **Intervalo de detalhamento permitido.** Ocorrências pendentes de cartão
-  geradas por plano só podem ser detalhadas depois da proteção de planos
-  (ADR desta mesma entrega, seção de planos): qualquer mutação do plano que
-  apagaria uma ocorrência pendente detalhada é bloqueada. Ocorrências
-  realizadas ou puladas podem ser detalhadas livremente.
+- **Planos protegidos contra perda de detalhamento.** Ocorrências de cartão
+  geradas por plano podem ser detalhadas em qualquer status. Enquanto uma
+  ocorrência pendente tiver itens, qualquer mutação do plano que a apagaria —
+  editar, desativar ou excluir — é bloqueada com mensagem que lista as
+  ocorrências, e o plano não muda; as tools de plano do MCP devolvem o mesmo
+  erro. Ocorrências pendentes sem itens continuam sendo canceladas e regeradas
+  como antes, e realizar a ocorrência (sair de pendente) libera a edição do
+  plano. A guarda vive em `AccountPlan::assertNoDetailedPendingOccurrencesToCancel()` e
+  roda no evento `updating` (antes de gravar, para o plano não ficar pela
+  metade) e no `deleting`.
 - **Tags do item alimentam o relatório, o valor não.** Item com tags próprias é
   atribuído a elas; item sem tag própria herda as tags do pai; sem nenhuma das
   duas, vai para "Sem tag". O valor do pai não é atribuído separadamente. Item

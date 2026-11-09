@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\CardItem;
 use App\Models\DailyTransaction;
@@ -95,12 +94,6 @@ class CardItemSet
             $this->deleteAll($transaction);
 
             return;
-        }
-
-        if ($transaction->is_recurring && $transaction->status === TransactionStatus::Pending) {
-            throw ValidationException::withMessages([
-                'card_items' => 'Ocorrências recorrentes pendentes só podem ser detalhadas depois de confirmadas ou puladas.',
-            ]);
         }
 
         $this->validate($transaction->type, $parentAmount ?? $transaction->amount, $items);

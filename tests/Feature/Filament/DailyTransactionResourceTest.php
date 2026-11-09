@@ -666,3 +666,33 @@ it('rejects quick creation from an item when the equivalent tag is archived', fu
 
     expect(Tag::count())->toBe(1);
 });
+
+it('details a pending recurring card occurrence from the panel', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($pending), data: [
+            'date' => '2026-01-10',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'description' => 'Assinaturas',
+            'status' => TransactionStatus::Pending->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 60],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($pending->refresh()->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
+});

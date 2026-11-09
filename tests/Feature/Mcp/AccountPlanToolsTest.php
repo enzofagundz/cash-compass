@@ -5,11 +5,13 @@ use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Mcp\Servers\CashCompassServer;
 use App\Mcp\Tools\ActivateAccountPlanTool;
+use App\Mcp\Tools\ConfirmTransactionTool;
 use App\Mcp\Tools\CreateAccountPlanTool;
 use App\Mcp\Tools\DeactivateAccountPlanTool;
 use App\Mcp\Tools\DeleteAccountPlanTool;
 use App\Mcp\Tools\UpdateAccountPlanTool;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\McpMutationAudit;
 use App\Models\McpOperation;
@@ -498,4 +500,102 @@ it('returns a fresh plan read after a create in the same process', function () {
     expect($createdId)->toBeGreaterThan(0)
         ->and(data_get($transport->messages[1], 'result.structuredContent.account_plan.id'))->toBe($createdId)
         ->and(data_get($transport->messages[1], 'result.structuredContent.account_plan.expected_amount'))->toBe('120.00');
+});
+
+it('blocks editing, deactivating and deleting a plan with a detailed pending occurrence', function (string $tool, array $arguments) {
+    $this->travelTo('2026-01-10');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool($tool, ['id' => $plan->getKey(), ...$arguments])
+        ->assertHasErrors(['itens de cartão']);
+
+    expect($plan->refresh()->exists)->toBeTrue()
+        ->and($plan->description)->toBe('Assinaturas')
+        ->and($plan->is_active)->toBeTrue()
+        ->and($pending->refresh()->exists)->toBeTrue();
+})->with([
+    'update' => [UpdateAccountPlanTool::class, ['description' => 'Nova']],
+    'deactivate' => [DeactivateAccountPlanTool::class, []],
+    'delete' => [DeleteAccountPlanTool::class, []],
+]);
+
+it('blocks deleting a plan with a detailed pending occurrence and no realized transactions', function () {
+    $this->travelTo('2026-01-10');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->card()->create([
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool(DeleteAccountPlanTool::class, ['id' => $plan->getKey()])
+        ->assertHasErrors(['itens de cartão']);
+
+    expect($plan->refresh()->exists)->toBeTrue();
+});
+
+it('releases plan editing after the detailed occurrence is realized', function () {
+    $this->travelTo('2026-01-10');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool(ConfirmTransactionTool::class, ['id' => $pending->getKey()])
+        ->assertOk();
+
+    CashCompassServer::tool(UpdateAccountPlanTool::class, [
+        'id' => $plan->getKey(),
+        'description' => 'Nova descrição',
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('account_plan.description', 'Nova descrição')
+            ->etc());
+});
+
+it('keeps cancelling and regenerating pending occurrences without items when the plan is edited', function () {
+    $this->travelTo('2026-01-10');
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $plan = AccountPlan::factory()->for($account)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+
+    CashCompassServer::tool(UpdateAccountPlanTool::class, [
+        'id' => $plan->getKey(),
+        'description' => 'Nova descrição',
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('account_plan.description', 'Nova descrição')
+            ->etc());
+
+    expect($plan->refresh()->description)->toBe('Nova descrição')
+        ->and($plan->dailyTransactions()->where('status', TransactionStatus::Pending)->count())->toBeGreaterThan(0);
 });

@@ -22,7 +22,7 @@ class DeactivateAccountPlanTool extends AccountTool
 
     protected string $title = 'Desativar plano de contas';
 
-    protected string $description = 'Desativa um plano de contas da conta fixa. O observer existente cancela as ocorrências pendentes futuras e preserva os lançamentos realizados, sem criar nova regra de recorrência. Não aceita identidade.';
+    protected string $description = 'Desativa um plano de contas da conta fixa. O observer existente cancela as ocorrências pendentes futuras e preserva os lançamentos realizados, sem criar nova regra de recorrência. É recusado quando cancelaria uma ocorrência pendente que tem itens de cartão. Não aceita identidade.';
 
     /**
      * @return array<string, Type>

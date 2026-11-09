@@ -36,6 +36,15 @@ class AccountPlanObserver
         $this->generator->generate($plan);
     }
 
+    public function updating(AccountPlan $plan): void
+    {
+        if (! $plan->isDirty(self::SCHEDULING_FIELDS)) {
+            return;
+        }
+
+        $plan->assertNoDetailedPendingOccurrencesToCancel(CarbonImmutable::now());
+    }
+
     public function updated(AccountPlan $plan): void
     {
         if (! $plan->wasChanged(self::SCHEDULING_FIELDS)) {
@@ -49,6 +58,8 @@ class AccountPlanObserver
 
     public function deleting(AccountPlan $plan): bool
     {
+        $plan->assertNoDetailedPendingOccurrencesToCancel();
+
         if ($plan->hasRealizedTransactionsUpToToday()) {
             return false;
         }

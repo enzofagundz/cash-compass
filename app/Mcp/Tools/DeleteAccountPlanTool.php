@@ -22,7 +22,7 @@ class DeleteAccountPlanTool extends AccountTool
 
     protected string $title = 'Excluir plano de contas';
 
-    protected string $description = 'Exclui um plano de contas da conta fixa quando não há lançamentos realizados até hoje. Ação destrutiva e irreversível: o Hermes deve explicar o efeito e pedir confirmação na conversa antes de chamar esta ferramenta. O observer existente cancela as ocorrências pendentes; planos com lançamentos realizados até hoje não podem ser excluídos e devem ser desativados. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
+    protected string $description = 'Exclui um plano de contas da conta fixa quando não há lançamentos realizados até hoje. Ação destrutiva e irreversível: o Hermes deve explicar o efeito e pedir confirmação na conversa antes de chamar esta ferramenta. O observer existente cancela as ocorrências pendentes; planos com lançamentos realizados até hoje não podem ser excluídos e devem ser desativados. A exclusão também é recusada quando cancelaria uma ocorrência pendente que tem itens de cartão. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
 
     /**
      * @return array<string, Type>
