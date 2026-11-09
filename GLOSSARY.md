@@ -36,7 +36,8 @@ gasto sem tag aparece em uma linha "Sem tag" ao final da tabela.
 
 Compra que detalha o valor de um lançamento do tipo Cartão. Tem descrição
 obrigatória, valor maior que zero e zero ou mais tags; não tem data, status nem
-tipo próprios. Zero itens significa cartão sem detalhamento. Com itens, a soma
+tipo próprios. Uma tag vinculada a item conta como uso: pode ser arquivada, mas
+não excluída enquanto houver vínculo. Zero itens significa cartão sem detalhamento. Com itens, a soma
 tem que fechar exatamente com o valor do lançamento-pai, comparada em centavos,
 e o valor do pai continua sendo o único que move saldo, previsão, colunas e
 totais de gasto.

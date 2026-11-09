@@ -22,7 +22,7 @@ class DeleteTagTool extends AccountTool
 
     protected string $title = 'Excluir tag';
 
-    protected string $description = 'Exclui uma tag sem vínculos da conta fixa. Ação destrutiva e irreversível: o Hermes deve pedir confirmação na conversa, resumindo a tag e seu efeito, antes de chamar esta ferramenta. Tags vinculadas a lançamentos ou planos não podem ser excluídas; arquive-as para preservar o histórico. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
+    protected string $description = 'Exclui uma tag sem vínculos da conta fixa. Ação destrutiva e irreversível: o Hermes deve pedir confirmação na conversa, resumindo a tag e seu efeito, antes de chamar esta ferramenta. Tags vinculadas a lançamentos, planos ou itens de cartão não podem ser excluídas; arquive-as para preservar o histórico. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
 
     /**
      * @return array<string, Type>
@@ -52,7 +52,7 @@ class DeleteTagTool extends AccountTool
 
         if ($tag->hasUsage()) {
             throw ValidationException::withMessages([
-                'id' => 'Tag vinculada a lançamentos ou planos não pode ser excluída; arquive-a para preservar o histórico.',
+                'id' => 'Tag vinculada a lançamentos, planos ou itens de cartão não pode ser excluída; arquive-a para preservar o histórico.',
             ]);
         }
 

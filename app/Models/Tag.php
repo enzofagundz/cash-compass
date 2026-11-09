@@ -101,7 +101,16 @@ class Tag extends Model
     public function hasUsage(): bool
     {
         return $this->dailyTransactions()->withoutGlobalScope('user')->exists()
-            || $this->accountPlans()->withoutGlobalScope('user')->exists();
+            || $this->accountPlans()->withoutGlobalScope('user')->exists()
+            || $this->cardItems()->withoutGlobalScope('user')->exists();
+    }
+
+    /**
+     * @return BelongsToMany<CardItem, $this>
+     */
+    public function cardItems(): BelongsToMany
+    {
+        return $this->belongsToMany(CardItem::class)->withTimestamps();
     }
 
     /**

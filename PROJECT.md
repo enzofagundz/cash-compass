@@ -143,7 +143,7 @@ Tag:
   campos: "name, normalized_name, color (TagColor), is_active"
   unicidade: "unique(user_id, normalized_name), incluindo tags arquivadas"
   regras: "nome normalizado por espaços e caixa; cor visual fora de cálculo; o vínculo da tag alimenta análise e relatório; ativa por padrão; arquivar preserva vínculos; excluir somente sem vínculos"
-  relacoes: "belongsToMany dailyTransactions, accountPlans"
+  relacoes: "belongsToMany dailyTransactions, accountPlans, cardItems"
 
 DayCheckIn:
   tabela: "day_check_ins"
@@ -225,6 +225,8 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - Mudar o valor do pai exige ajustar os itens no mesmo salvamento. Trocar o tipo para fora de Cartão com itens existentes é bloqueado; remover todos os itens no mesmo salvamento libera a troca. O hook `saving` de `DailyTransaction` reforça as duas regras para qualquer caminho de escrita.
 - Excluir o pai exclui os itens em cascata (`card_items.daily_transaction_id` com `cascadeOnDelete`).
 - Ocorrências pendentes de cartão geradas por plano só podem ser detalhadas depois da proteção de planos (abaixo); realizadas e puladas podem ser detalhadas.
+- Cada item aceita zero ou mais tags pelo mesmo seletor do lançamento, com criação rápida e as mesmas regras de tag arquivada (`HasTagSelector::tagIdsSelector()`). Item só aceita tag ativa da conta, exceto as já vinculadas.
+- As tags dos itens aparecem nas linhas do painel do dia. Nesta fatia o relatório de tags continua usando as tags e o valor do lançamento-pai; a atribuição por item entra na fatia seguinte.
 - Formulário: o repetidor de itens entra em `DailyTransactionResource::formComponents()`, condicional ao tipo Cartão, e vale para a tela de Lançamentos e para as actions do Termômetro (criar, adicionar por célula e editar pelo lápis do painel do dia). O formulário mostra a soma dos itens e a diferença para o valor do pai e bloqueia o salvamento enquanto não fechar.
 - Exibição: a tabela de Lançamentos mostra a contagem de itens; o painel do dia mostra "N itens · R$ X" e uma lista colapsável com descrição, valor e tags. A grade mensal continua mostrando apenas o total de Cartão.
 - A semântica canônica está em `docs/adr/0008-detalhamento-de-cartao.md` e o termo está em `GLOSSARY.md`.
@@ -281,7 +283,7 @@ painel:
 - Dependência externa da imagem: chaves `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN` (token com permissão de Browser Rendering; plano gratuito basta) lidas por `cash_compass.thermometer_image`; o caminho da API ficou em `browser-run/screenshot` (o nome legado é `browser-rendering`) e o payload exige `viewport.width` e `viewport.height`. Credenciais ausentes ou falha da API degradam para o resumo em texto com aviso explícito — a tool nunca derruba o relatório diário.
 - Comando local `thermometer:image` (`--output` opcional) gera o mesmo PNG para aprovação visual e diagnóstico, sem passar pelo Hermes.
 - Escopo de mutação de lançamentos individuais: `create_transaction` (somente manual, nunca recorrente), `update_transaction`, `confirm_transaction`, `skip_transaction` e `delete_transaction`. Criar um lançamento sem `date` (chave omitida ou nula) registra no dia corrente do fuso do app (`America/Sao_Paulo`), e a data resolvida entra nos argumentos da chave de operação. Criação exige `operation_key` única por conta; repetir a mesma chave com os mesmos argumentos devolve o lançamento anterior sem duplicar e a mesma chave com argumentos diferentes é rejeitada. Criar um lançamento para um plano que já tem ocorrência na mesma data retorna erro de validação claro em vez de falha bruta. Confirmar e pular só aceitam lançamentos pendentes e são transições de estado sem chave de operação, portanto não são anunciadas como idempotentes; excluir só aceita lançamento manual (recorrentes são bloqueados) e a ferramenta é anotada como destrutiva. Não há SQL, escrita genérica nem operações em massa. Não existem tools de item de cartão: `get_transaction` e `list_transactions` devolvem o lançamento-pai com `card_items_count` e nunca os itens; `update_transaction` recusa mudança de valor ou de tipo em cartão detalhado (descrição, data, status, plano e tags seguem editáveis); `delete_transaction` exclui o pai e leva os itens junto.
-- Escopo de mutação de tags: `create_tag` (nome normalizado, cor da paleta `TagColor`, `operation_key` idempotente), `update_tag` (nome/cor), `archive_tag`, `reactivate_tag` e `delete_tag` (destrutiva). A unicidade por conta é `(user_id, normalized_name)` e inclui tags arquivadas; arquivar preserva os vínculos e novos vínculos só aceitam tags ativas; a exclusão é bloqueada quando há vínculos com lançamentos ou planos. Vínculos de lançamentos reutilizam `Tag::attachableTo` (tags ativas da conta, preservando as já vinculadas em edições).
+- Escopo de mutação de tags: `create_tag` (nome normalizado, cor da paleta `TagColor`, `operation_key` idempotente), `update_tag` (nome/cor), `archive_tag`, `reactivate_tag` e `delete_tag` (destrutiva). `list_tags` e `get_tag` devolvem `daily_transactions_count`, `account_plans_count` e `card_items_count`, e a exclusão considera item de cartão como vínculo. A unicidade por conta é `(user_id, normalized_name)` e inclui tags arquivadas; arquivar preserva os vínculos e novos vínculos só aceitam tags ativas; a exclusão é bloqueada quando há vínculos com lançamentos ou planos. Vínculos de lançamentos reutilizam `Tag::attachableTo` (tags ativas da conta, preservando as já vinculadas em edições).
 - Escopo de mutação de planos de contas: `create_account_plan` (`operation_key` idempotente), `update_account_plan`, `activate_account_plan`, `deactivate_account_plan` e `delete_account_plan` (destrutiva). O tipo Diário é exclusivo de lançamentos manuais e não é aceito em planos; frequência, intervalo, datas e limites de recorrência seguem os mesmos contratos do painel e o valor esperado usa decimal exato. Criação e edição usam o model `AccountPlan`, preservando os eventos do `AccountPlanObserver` (geração, cancelamento/regeneração de pendências e bloqueio de exclusão com realizado até hoje), sem regra de recorrência paralela nem operação em massa. O plano é a fonte de verdade das tags das ocorrências pendentes recorrentes; tags novas exigem tags ativas da conta e vínculos arquivados existentes são preservados. A exclusão com lançamento realizado até hoje retorna erro, nunca sucesso silencioso.
 - Idempotência e histórico mínimo ficam em `mcp_operations` (chave, ferramenta, hash dos argumentos e resultado) e `mcp_mutation_audits` (usuário, ferramenta, registro afetado, resultado, horário). Criação e registro da chave são atômicos na mesma transação, com a chave única por `(user_id, operation_key)` cobrindo concorrência e repetição após timeout. A mesma chave usada por ferramenta diferente é rejeitada como conflito, nunca reproduz o resultado de outra ferramenta. O histórico não guarda conversa, credenciais nem conteúdo financeiro completo.
 - Escopo de configurações e check-ins: `update_initial_balance` cria ou altera o saldo inicial (exige `operation_key`, com `base_date` vazia contando a partir da criação do registro, e confirmação conversacional por ser de efeito amplo), `create_daily_forecast` (exige `operation_key`), `update_daily_forecast`, `delete_daily_forecast` (destrutiva) e `set_forecast_divisor` (1 a 31) gerenciam a previsão de diário, e `set_day_check_in` define o estado explícito de um dia rejeitando datas futuras e reutilizando o modelo de check-in. Cada chamada resolve a conta e os calculadores de novo, sem memoização obsoleta entre chamadas do processo stdio.
@@ -328,8 +330,8 @@ recursos:
     label: "Tags"
     pagina: "ManageTags (única, modal)"
     visibilidade: "somente usuários não-admin, sempre isolado por user_id"
-    listagem: "ativas por padrão, busca por nome, filtro ativas/arquivadas/todas, contagens de lançamentos e planos"
-    acoes_linha: "Editar nome/cor, Arquivar, Reativar, Excluir somente sem vínculos"
+    listagem: "ativas por padrão, busca por nome, filtro ativas/arquivadas/todas, contagens de lançamentos, planos e itens de cartão"
+    acoes_linha: "Editar nome/cor, Arquivar, Reativar, Excluir somente sem vínculos (lançamentos, planos ou itens de cartão)"
   UserResource:
     label: "Usuários"
     pagina: "ManageUsers"
@@ -544,7 +546,8 @@ Regras adicionais:
 - Não alterar o global scope `BelongsToUser` nem aceitar `user_id` do navegador.
 - Preservar a continuidade do saldo e a semântica dos status (`pending`/`realized`/`skipped`).
 - Tags são classificações privadas por usuário; a cor (`TagColor`, paleta fixa) é visual e não entra em cálculos de saldo nem filtros financeiros. O vínculo da tag alimenta a análise e o relatório de gastos, com soma integral por tag.
-- Tags arquivadas permanecem nos lançamentos e planos existentes, inclusive nas ocorrências pendentes de planos recorrentes; novos vínculos aceitam somente tags ativas.
+- Tags arquivadas permanecem nos lançamentos, planos e itens de cartão existentes, inclusive nas ocorrências pendentes de planos recorrentes; novos vínculos aceitam somente tags ativas.
+- Tag vinculada a item de cartão conta como uso: arquivar é permitido e excluir é bloqueado (`Tag::hasUsage()` considera lançamentos, planos e itens).
 - Ao alterar o Termômetro ou o `BalanceCalculator`, atualizar/executar os testes correspondentes em `tests/Feature/Filament/ThermometerPageTest.php` e `tests/Feature/Services/BalanceCalculatorTest.php`.
 - Nunca comitar `.references/` (não versionado) nem credenciais reais em código ou documentação.
 

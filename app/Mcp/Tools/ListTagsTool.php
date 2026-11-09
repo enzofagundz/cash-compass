@@ -48,7 +48,7 @@ class ListTagsTool extends AccountTool
 
         $query = Tag::query()
             ->forUser($account)
-            ->withCount(['dailyTransactions', 'accountPlans'])
+            ->withCount(['dailyTransactions', 'accountPlans', 'cardItems'])
             ->orderBy('normalized_name');
 
         if ($request->get('is_active') !== null) {

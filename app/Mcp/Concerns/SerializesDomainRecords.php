@@ -84,6 +84,10 @@ trait SerializesDomainRecords
             $record['account_plans_count'] = (int) $tag->account_plans_count;
         }
 
+        if (array_key_exists('card_items_count', $tag->getAttributes())) {
+            $record['card_items_count'] = (int) $tag->card_items_count;
+        }
+
         return $record;
     }
 

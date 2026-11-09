@@ -62,7 +62,7 @@ class TagResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->withCount(['dailyTransactions', 'accountPlans'])
+            ->withCount(['dailyTransactions', 'accountPlans', 'cardItems'])
             ->orderBy('normalized_name');
     }
 
@@ -88,6 +88,10 @@ class TagResource extends Resource
                     ->label('Planos')
                     ->numeric()
                     ->alignEnd(),
+                TextColumn::make('card_items_count')
+                    ->label('Itens de cartão')
+                    ->numeric()
+                    ->alignEnd(),
             ])
             ->filters([
                 TernaryFilter::make('is_active')
@@ -107,7 +111,7 @@ class TagResource extends Resource
                     ->visible(fn (Tag $record): bool => $record->is_active)
                     ->requiresConfirmation()
                     ->modalHeading('Arquivar tag')
-                    ->modalDescription(fn (Tag $record): string => "{$record->daily_transactions_count} lançamento(s) e {$record->account_plans_count} plano(s) continuarão vinculados.")
+                    ->modalDescription(fn (Tag $record): string => "{$record->daily_transactions_count} lançamento(s), {$record->account_plans_count} plano(s) e {$record->card_items_count} item(ns) de cartão continuarão vinculados.")
                     ->action(fn (Tag $record): bool => $record->archive()),
                 Action::make('reactivate')
                     ->label('Reativar')
@@ -119,9 +123,10 @@ class TagResource extends Resource
                 DeleteAction::make()
                     ->iconButton()
                     ->visible(fn (Tag $record): bool => (int) $record->daily_transactions_count === 0
-                        && (int) $record->account_plans_count === 0)
+                        && (int) $record->account_plans_count === 0
+                        && (int) $record->card_items_count === 0)
                     ->failureNotificationTitle('Tag não pode ser excluída')
-                    ->failureNotificationBody('Remova os vínculos ou arquive a tag para preservar o histórico.')
+                    ->failureNotificationBody('Existem lançamentos, planos ou itens de cartão vinculados. Arquive a tag para preservar o histórico.')
                     ->action(function (Tag $record, DeleteAction $action): void {
                         if ($record->hasUsage() || ! $record->delete()) {
                             $action->failure();

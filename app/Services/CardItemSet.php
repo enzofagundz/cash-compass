@@ -6,6 +6,7 @@ use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\CardItem;
 use App\Models\DailyTransaction;
+use App\Models\Tag;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -119,14 +120,13 @@ class CardItemSet
                     'amount' => $this->normalizeAmount($item['amount'] ?? null),
                 ];
 
-                if ($stored instanceof CardItem) {
-                    $stored->update($payload);
-                    $keptIds[] = (int) $stored->getKey();
+                $record = $stored instanceof CardItem
+                    ? tap($stored)->update($payload)
+                    : $transaction->cardItems()->create($payload);
 
-                    continue;
-                }
+                $record->tags()->sync($this->resolveTagIds($record, $item['tag_ids'] ?? []));
 
-                $keptIds[] = (int) $transaction->cardItems()->create($payload)->getKey();
+                $keptIds[] = (int) $record->getKey();
             }
 
             $existing
@@ -143,14 +143,57 @@ class CardItemSet
     public function formState(DailyTransaction $transaction): array
     {
         return $transaction->cardItems()
+            ->with('tags')
             ->orderBy('id')
             ->get()
             ->map(fn (CardItem $item): array => [
                 'id' => (int) $item->getKey(),
                 'description' => $item->description,
                 'amount' => $item->amount,
+                'tag_ids' => $item->tags->pluck('id')->all(),
             ])
             ->all();
+    }
+
+    /**
+     * Keep only tags the account may link, preserving archived tags that were
+     * already attached to the item.
+     *
+     * @return array<int, int>
+     *
+     * @throws ValidationException
+     */
+    private function resolveTagIds(CardItem $item, mixed $tagIds): array
+    {
+        if (! is_array($tagIds)) {
+            return [];
+        }
+
+        $ids = collect($tagIds)
+            ->filter(fn (mixed $id): bool => is_numeric($id))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $allowed = Tag::query()
+            ->attachableTo((int) $item->user_id, $item->tags()->pluck('tags.id')->all())
+            ->whereKey($ids)
+            ->pluck('tags.id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        if (count($allowed) !== count($ids)) {
+            throw ValidationException::withMessages([
+                'card_items' => 'Uma das tags do item é de outra conta ou está arquivada. Reative-a na área Tags antes de usá-la.',
+            ]);
+        }
+
+        return $allowed;
     }
 
     public function deleteAll(DailyTransaction $transaction): void

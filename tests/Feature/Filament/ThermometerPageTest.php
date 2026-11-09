@@ -737,7 +737,9 @@ it('shows the item count and the item list of a detailed card in the day detail'
         'amount' => '100.00',
         'description' => 'Compra no cartão',
     ]);
-    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    $tag = Tag::create(['name' => 'Mercado', 'color' => 'green']);
+    $market = CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    $market->tags()->attach($tag);
     CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '40.00']);
 
     Livewire::test(ThermometerPage::class)
@@ -746,7 +748,8 @@ it('shows the item count and the item list of a detailed card in the day detail'
         ->assertMountedActionModalSee('Mercado')
         ->assertMountedActionModalSee('Farmácia')
         ->assertMountedActionModalSee('R$ 60,00')
-        ->assertMountedActionModalSee('R$ 40,00');
+        ->assertMountedActionModalSee('R$ 40,00')
+        ->assertMountedActionModalSeeHtml('fi-color-green');
 });
 
 it('does not show an item summary for a card without items', function () {

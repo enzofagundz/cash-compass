@@ -544,3 +544,125 @@ it('shows the item count of a card in the transactions table', function () {
         ->assertCanSeeTableRecords([$card])
         ->assertTableColumnStateSet('card_items_count', 2, $card);
 });
+
+it('attaches tags to each card item', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $market = Tag::create(['name' => 'Mercado', 'color' => 'green']);
+    $health = Tag::create(['name' => 'Saúde', 'color' => 'teal']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Feira', 'amount' => 60, 'tag_ids' => [$market->id]],
+                ['description' => 'Farmácia', 'amount' => 40, 'tag_ids' => [$health->id]],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    $items = DailyTransaction::firstOrFail()->cardItems()->with('tags')->get();
+
+    expect($items[0]->tags->pluck('name')->all())->toBe(['Mercado'])
+        ->and($items[1]->tags->pluck('name')->all())->toBe(['Saúde']);
+});
+
+it('keeps an archived tag already linked to a card item when editing', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $archived = Tag::factory()->archived()->for($user)->create(['name' => 'Antiga']);
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00']);
+    $item->tags()->attach($archived);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($card), data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'description' => 'Atualizado',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['id' => $item->id, 'description' => 'Feira', 'amount' => 100, 'tag_ids' => [$archived->id]],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($item->refresh()->tags->pluck('id')->all())->toBe([$archived->id]);
+});
+
+it('rejects a tag of another user on a card item', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    $this->actingAs($other);
+    $foreign = Tag::create(['name' => 'Lazer']);
+    $this->actingAs($user);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Feira', 'amount' => 100, 'tag_ids' => [$foreign->id]],
+            ],
+        ])
+        ->assertHasActionErrors();
+
+    expect(DailyTransaction::count())->toBe(0);
+});
+
+it('creates a tag quickly from the card item selector', function () {
+    $this->actingAs(User::factory()->create());
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->setActionData([
+            'type' => TransactionType::Card->value,
+            'card_items' => [['description' => 'Feira', 'amount' => 10]],
+        ])
+        ->call('$refresh')
+        ->callAction(TestAction::make('createOption')->schemaComponent('card_items.0.tag_ids'), data: [
+            'name' => 'Feira',
+            'color' => 'green',
+        ]);
+
+    $tag = Tag::firstOrFail();
+
+    expect($tag->name)->toBe('Feira')
+        ->and($tag->color->value)->toBe('green');
+});
+
+it('rejects quick creation from an item when the equivalent tag is archived', function () {
+    $this->actingAs(User::factory()->create());
+    $tag = Tag::create(['name' => 'Feira']);
+    $tag->archive();
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->mountAction('create')
+        ->setActionData([
+            'type' => TransactionType::Card->value,
+            'card_items' => [['description' => 'Feira', 'amount' => 10]],
+        ])
+        ->call('$refresh')
+        ->callAction(TestAction::make('createOption')->schemaComponent('card_items.0.tag_ids'), data: [
+            'name' => 'feira',
+            'color' => 'green',
+        ])
+        ->assertHasActionErrors();
+
+    expect(Tag::count())->toBe(1);
+});

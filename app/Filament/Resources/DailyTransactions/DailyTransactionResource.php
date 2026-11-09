@@ -153,6 +153,7 @@ class DailyTransactionResource extends Resource
                     ->minValue(0.01)
                     ->rules(['gt:0'])
                     ->required(),
+                self::tagIdsSelector(),
             ])
             ->validationAttribute('itens do cartão')
             ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
