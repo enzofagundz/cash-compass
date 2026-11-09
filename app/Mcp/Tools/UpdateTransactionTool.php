@@ -31,7 +31,7 @@ class UpdateTransactionTool extends AccountTool
 
     protected string $title = 'Editar lançamento';
 
-    protected string $description = 'Edita campos de um lançamento da conta fixa. Aceita data, tipo, valor exato, descrição, plano, status e tags. Não altera a origem (manual/recorrente) nem aceita identidade.';
+    protected string $description = 'Edita campos de um lançamento da conta fixa. Aceita data, tipo, valor exato, descrição, plano, status e tags. Recusa mudança de valor ou de tipo em cartão detalhado com itens, porque o detalhamento precisa fechar com o valor do pai. Não altera a origem (manual/recorrente), não cria nem edita itens e não aceita identidade.';
 
     /**
      * @return array<string, Type>
@@ -75,6 +75,9 @@ class UpdateTransactionTool extends AccountTool
         }
 
         $input = $request->all();
+
+        $this->guardCardItems($transaction, $input);
+
         $changes = [];
 
         foreach (['date', 'type', 'status', 'description'] as $field) {
@@ -119,7 +122,35 @@ class UpdateTransactionTool extends AccountTool
         }
 
         return Response::structured([
-            'transaction' => $this->transactionRecord($transaction->refresh()->load('tags')),
+            'transaction' => $this->transactionRecord($transaction->refresh()->load('tags')->loadCount('cardItems')),
         ]);
+    }
+
+    /**
+     * A detailed card cannot move its amount or type through this tool: the item
+     * set would stop closing with the parent. Description, date, status, plan
+     * and tags stay editable.
+     *
+     * @param  array<string, mixed>  $input
+     *
+     * @throws ValidationException
+     */
+    private function guardCardItems(DailyTransaction $transaction, array $input): void
+    {
+        if (! $transaction->hasCardItems()) {
+            return;
+        }
+
+        $changesType = array_key_exists('type', $input)
+            && TransactionType::tryFrom((string) $input['type']) !== $transaction->type;
+
+        $changesAmount = array_key_exists('amount', $input)
+            && $this->money($input['amount']) !== (string) $transaction->amount;
+
+        if ($changesType || $changesAmount) {
+            throw ValidationException::withMessages([
+                'id' => 'Este cartão tem itens: ajuste o detalhamento no painel antes de mudar o valor ou o tipo do lançamento.',
+            ]);
+        }
     }
 }

@@ -89,6 +89,35 @@
                         </div>
                     @endif
 
+                    @if ($movement['card_items_label'] !== null)
+                        <details class="thermometer-card-items">
+                            <summary class="thermometer-card-items-summary">
+                                {{ $movement['card_items_label'] }}
+                            </summary>
+
+                            <ul class="thermometer-card-items-list">
+                                @foreach ($movement['card_items'] as $item)
+                                    <li
+                                        wire:key="thermometer-card-item-{{ $item['id'] }}"
+                                        class="thermometer-card-item"
+                                    >
+                                        <span class="thermometer-card-item-description">{{ $item['description'] }}</span>
+
+                                        <span class="thermometer-card-item-amount">{{ $item['amount'] }}</span>
+
+                                        @if ($item['tags'] !== [])
+                                            <span class="thermometer-card-item-tags">
+                                                @foreach ($item['tags'] as $tag)
+                                                    <x-tag-badge :tag="$tag" />
+                                                @endforeach
+                                            </span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </details>
+                    @endif
+
                     @unless ($movement['counts'])
                         <span class="thermometer-movement-excluded">Fora do cálculo desta célula.</span>
                     @endunless

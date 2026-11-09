@@ -45,4 +45,11 @@ class DailyTransactionFactory extends Factory
             'type' => TransactionType::Income,
         ]);
     }
+
+    public function card(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => TransactionType::Card,
+        ]);
+    }
 }

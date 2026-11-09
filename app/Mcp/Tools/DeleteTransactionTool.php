@@ -22,7 +22,7 @@ class DeleteTransactionTool extends AccountTool
 
     protected string $title = 'Excluir lançamento manual';
 
-    protected string $description = 'Exclui um lançamento manual da conta fixa. Ação destrutiva e irreversível: o Hermes deve pedir confirmação na conversa, resumindo o lançamento e seu efeito, antes de chamar esta ferramenta. Lançamentos recorrentes não podem ser excluídos; use pular ocorrência ou desative o plano. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
+    protected string $description = 'Exclui um lançamento manual da conta fixa. Ação destrutiva e irreversível: o Hermes deve pedir confirmação na conversa, resumindo o lançamento e seu efeito, antes de chamar esta ferramenta. Lançamentos recorrentes não podem ser excluídos; use pular ocorrência ou desative o plano. Excluir um cartão detalhado leva os itens junto. A confirmação conversacional é uma proteção do agente, não uma comprovação de aprovação humana pelo servidor.';
 
     /**
      * @return array<string, Type>
@@ -52,7 +52,7 @@ class DeleteTransactionTool extends AccountTool
 
         if ($transaction->is_recurring) {
             throw ValidationException::withMessages([
-                'id' => 'Lançamentos recorrentes não podem ser excluídos; use pular ocorrência ou desative o plano.',
+                'id' => 'Lançamentos recorrentes não podem ser excluídos; use pular ocorrência ou desative o plano. Excluir um cartão detalhado leva os itens junto.',
             ]);
         }
 

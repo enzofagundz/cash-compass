@@ -122,10 +122,16 @@ AccountPlan:
 DailyTransaction:
   tabela: "daily_transactions"
   campos: "date, type, amount, description, account_plan_id nullable, is_recurring, status"
-  relacoes: "belongsTo accountPlan; belongsToMany tags"
+  relacoes: "belongsTo accountPlan; belongsToMany tags; hasMany cardItems"
   unicidade: "unique(user_id, account_plan_id, date)"
   indice: "index(user_id, date, status)"
   tipos: "income, expense, daily, savings, card; o tipo daily é manual (não vem de planos)"
+
+CardItem:
+  tabela: "card_items"
+  campos: "daily_transaction_id, description (obrigatória, até 255), amount decimal(10,2) maior que zero"
+  relacoes: "belongsTo dailyTransaction; belongsToMany tags"
+  regras: "detalha o valor de um lançamento do tipo Cartão; herda o dono do pai; zero itens = cartão sem detalhamento; com itens a soma fecha exatamente com o valor do pai em centavos; excluído em cascata com o pai"
 
 DailyForecast:
   tabela: "daily_forecasts"
@@ -211,6 +217,18 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
   - `deleting`: bloqueia exclusão se houver lançamento realizado até hoje; caso contrário, cancela pendências e permite excluir.
 - Lançamentos recorrentes não podem ser excluídos pela action de exclusão do Termômetro (somente manuais); recorrências são tratadas com "Pular ocorrência" (`skipped`) ou desativando o plano.
 
+### Detalhamento de cartão
+
+- `CardItem` detalha o valor de um lançamento do tipo Cartão. O valor do pai continua sendo a única fonte de verdade para saldo, previsão, colunas e totais de gasto; item nunca entra em fórmula financeira.
+- Item tem descrição obrigatória (até 255), valor maior que zero e zero ou mais tags; não tem data, status nem tipo próprios. O item herda o dono do pai e não existe caminho para vinculá-lo a lançamento de outro usuário ou de outro tipo.
+- `CardItemSet` é a fonte única da regra: valida o conjunto e persiste a substituição. Com itens, a soma tem que ser igual ao valor do pai, comparada em centavos; detalhamento parcial não é persistido. Zero itens é permitido e mantém o comportamento atual.
+- Mudar o valor do pai exige ajustar os itens no mesmo salvamento. Trocar o tipo para fora de Cartão com itens existentes é bloqueado; remover todos os itens no mesmo salvamento libera a troca. O hook `saving` de `DailyTransaction` reforça as duas regras para qualquer caminho de escrita.
+- Excluir o pai exclui os itens em cascata (`card_items.daily_transaction_id` com `cascadeOnDelete`).
+- Ocorrências pendentes de cartão geradas por plano só podem ser detalhadas depois da proteção de planos (abaixo); realizadas e puladas podem ser detalhadas.
+- Formulário: o repetidor de itens entra em `DailyTransactionResource::formComponents()`, condicional ao tipo Cartão, e vale para a tela de Lançamentos e para as actions do Termômetro (criar, adicionar por célula e editar pelo lápis do painel do dia). O formulário mostra a soma dos itens e a diferença para o valor do pai e bloqueia o salvamento enquanto não fechar.
+- Exibição: a tabela de Lançamentos mostra a contagem de itens; o painel do dia mostra "N itens · R$ X" e uma lista colapsável com descrição, valor e tags. A grade mensal continua mostrando apenas o total de Cartão.
+- A semântica canônica está em `docs/adr/0008-detalhamento-de-cartao.md` e o termo está em `GLOSSARY.md`.
+
 ### Check-in
 
 - `DayCheckIn::toggleFor()` alterna o estado do dia; datas futuras são bloqueadas na página do Termômetro com notificação de erro.
@@ -228,6 +246,7 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - **Tags**: cada lançamento soma o valor integral em cada tag vinculada; a participação usa o total gasto do período como denominador, então a soma pode passar de 100% e a tela avisa. Tags arquivadas com gasto entram; tags sem gasto ficam fora; o gasto sem tag vira a linha "Sem tag" ao final da tabela.
 - **Dashboard**: resumo sempre do mês atual, independente do filtro de Relatórios; exibe total, variação, média por dia ativo, tag líder, top tags e link para Relatórios.
 - **Testes da feature**: `tests/Feature/Services/SpendingReportTest.php`, `tests/Feature/Filament/ReportsPageTest.php`, `tests/Feature/Filament/ReportsTagsTest.php`, `tests/Feature/Filament/DashboardPageTest.php` e `tests/Feature/DashboardTest.php`.
+- **Testes do detalhamento de cartão**: `tests/Feature/Models/CardItemTest.php` (fechamento exato, zero itens, bloqueio de valor e tipo, cascata, isolamento e descrição/valor), `tests/Feature/Filament/DailyTransactionResourceTest.php` e `tests/Feature/Filament/ThermometerPageTest.php` (formulário, contagem na tabela e painel do dia) e `tests/Feature/Mcp/MutationToolsTest.php` (guarda do `update_transaction`, contagem de itens e cascata na exclusão).
 - A semântica canônica está em `docs/adr/0007-relatorios-de-gastos.md`; os termos Gasto, Período, Dia ativo e Relatório de tags estão em `GLOSSARY.md`.
 
 ---
@@ -261,7 +280,7 @@ painel:
 - Escopo de imagem: `get_thermometer_image` (somente leitura, sem parâmetros) retorna o PNG do mês atual do termômetro como content block de imagem seguido de um resumo em texto (mês, saldo de hoje e totais). A grade é a mesma do painel (`ThermometerGrid` sobre `BalanceCalculator::horizonGrid()`), renderizada em view Blade autossuficiente (CSS inline, sem Livewire/Filament) e rasterizada pela API da Cloudflare (Browser Rendering/Browser Run, `POST /accounts/{id}/browser-run/screenshot`, `html` inline, viewport com largura e altura, PNG binário). Sem navegador local, sem hospedagem e sem URL pública; cada chamada rende uma imagem fresca, sem cache.
 - Dependência externa da imagem: chaves `CLOUDFLARE_ACCOUNT_ID` e `CLOUDFLARE_API_TOKEN` (token com permissão de Browser Rendering; plano gratuito basta) lidas por `cash_compass.thermometer_image`; o caminho da API ficou em `browser-run/screenshot` (o nome legado é `browser-rendering`) e o payload exige `viewport.width` e `viewport.height`. Credenciais ausentes ou falha da API degradam para o resumo em texto com aviso explícito — a tool nunca derruba o relatório diário.
 - Comando local `thermometer:image` (`--output` opcional) gera o mesmo PNG para aprovação visual e diagnóstico, sem passar pelo Hermes.
-- Escopo de mutação de lançamentos individuais: `create_transaction` (somente manual, nunca recorrente), `update_transaction`, `confirm_transaction`, `skip_transaction` e `delete_transaction`. Criar um lançamento sem `date` (chave omitida ou nula) registra no dia corrente do fuso do app (`America/Sao_Paulo`), e a data resolvida entra nos argumentos da chave de operação. Criação exige `operation_key` única por conta; repetir a mesma chave com os mesmos argumentos devolve o lançamento anterior sem duplicar e a mesma chave com argumentos diferentes é rejeitada. Criar um lançamento para um plano que já tem ocorrência na mesma data retorna erro de validação claro em vez de falha bruta. Confirmar e pular só aceitam lançamentos pendentes e são transições de estado sem chave de operação, portanto não são anunciadas como idempotentes; excluir só aceita lançamento manual (recorrentes são bloqueados) e a ferramenta é anotada como destrutiva. Não há SQL, escrita genérica nem operações em massa.
+- Escopo de mutação de lançamentos individuais: `create_transaction` (somente manual, nunca recorrente), `update_transaction`, `confirm_transaction`, `skip_transaction` e `delete_transaction`. Criar um lançamento sem `date` (chave omitida ou nula) registra no dia corrente do fuso do app (`America/Sao_Paulo`), e a data resolvida entra nos argumentos da chave de operação. Criação exige `operation_key` única por conta; repetir a mesma chave com os mesmos argumentos devolve o lançamento anterior sem duplicar e a mesma chave com argumentos diferentes é rejeitada. Criar um lançamento para um plano que já tem ocorrência na mesma data retorna erro de validação claro em vez de falha bruta. Confirmar e pular só aceitam lançamentos pendentes e são transições de estado sem chave de operação, portanto não são anunciadas como idempotentes; excluir só aceita lançamento manual (recorrentes são bloqueados) e a ferramenta é anotada como destrutiva. Não há SQL, escrita genérica nem operações em massa. Não existem tools de item de cartão: `get_transaction` e `list_transactions` devolvem o lançamento-pai com `card_items_count` e nunca os itens; `update_transaction` recusa mudança de valor ou de tipo em cartão detalhado (descrição, data, status, plano e tags seguem editáveis); `delete_transaction` exclui o pai e leva os itens junto.
 - Escopo de mutação de tags: `create_tag` (nome normalizado, cor da paleta `TagColor`, `operation_key` idempotente), `update_tag` (nome/cor), `archive_tag`, `reactivate_tag` e `delete_tag` (destrutiva). A unicidade por conta é `(user_id, normalized_name)` e inclui tags arquivadas; arquivar preserva os vínculos e novos vínculos só aceitam tags ativas; a exclusão é bloqueada quando há vínculos com lançamentos ou planos. Vínculos de lançamentos reutilizam `Tag::attachableTo` (tags ativas da conta, preservando as já vinculadas em edições).
 - Escopo de mutação de planos de contas: `create_account_plan` (`operation_key` idempotente), `update_account_plan`, `activate_account_plan`, `deactivate_account_plan` e `delete_account_plan` (destrutiva). O tipo Diário é exclusivo de lançamentos manuais e não é aceito em planos; frequência, intervalo, datas e limites de recorrência seguem os mesmos contratos do painel e o valor esperado usa decimal exato. Criação e edição usam o model `AccountPlan`, preservando os eventos do `AccountPlanObserver` (geração, cancelamento/regeneração de pendências e bloqueio de exclusão com realizado até hoje), sem regra de recorrência paralela nem operação em massa. O plano é a fonte de verdade das tags das ocorrências pendentes recorrentes; tags novas exigem tags ativas da conta e vínculos arquivados existentes são preservados. A exclusão com lançamento realizado até hoje retorna erro, nunca sucesso silencioso.
 - Idempotência e histórico mínimo ficam em `mcp_operations` (chave, ferramenta, hash dos argumentos e resultado) e `mcp_mutation_audits` (usuário, ferramenta, registro afetado, resultado, horário). Criação e registro da chave são atômicos na mesma transação, com a chave única por `(user_id, operation_key)` cobrindo concorrência e repetição após timeout. A mesma chave usada por ferramenta diferente é rejeitada como conflito, nunca reproduz o resultado de outra ferramenta. O histórico não guarda conversa, credenciais nem conteúdo financeiro completo.
@@ -298,6 +317,7 @@ recursos:
     pagina: "ManageDailyTransactions (única, sem create/edit separados)"
     filtros: "status, origem (recorrente/manual), ano, mês"
     acoes_linha: "Editar, Confirmar (pendente), Pular (pendente), Excluir"
+    itens_de_cartao: "formComponents() inclui o repetidor card_items, condicional ao tipo Cartão; a tabela mostra a contagem de itens"
   AccountPlanResource:
     label: "Plano de contas"
     pagina: "ManageAccountPlans"
@@ -341,6 +361,7 @@ paginas:
     acoes: "Novo lançamento; por célula: adicionar, editar, confirmar, pular, excluir; selecionar período; configurar horizonte; ir para hoje; navegação mês/ano"
     previsao_diaria: "coluna Diários projeta a previsão em dias futuros sem lançamento Diário; detalhe do dia mostra a previsão; seção no fim da página abre a DailyForecastPage"
     legenda_saldo_inicial: "quando há saldo inicial, a legenda informa valor e data de início (ex.: Saldo inicial de R$ X conta a partir de DD/MM/AAAA)"
+    detalhe_do_dia: "lista os movimentos do dia; cartão detalhado mostra 'N itens · R$ X' e uma lista colapsável com descrição, valor e tags; o lápis abre o mesmo formulário de lançamento (com o repetidor de itens)"
     views: "resources/views/filament/pages/thermometer/*"
   DailyForecastPage:
     slug: "daily-forecast"

@@ -67,6 +67,7 @@ class ListTransactionsTool extends AccountTool
         $query = DailyTransaction::query()
             ->forUser($account)
             ->with(['tags' => fn (Relation $query) => $query->where('tags.user_id', $account->getKey())])
+            ->withCount('cardItems')
             ->orderByDesc('date')
             ->orderByDesc('id');
 

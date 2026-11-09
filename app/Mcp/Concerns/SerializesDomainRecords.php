@@ -31,6 +31,9 @@ trait SerializesDomainRecords
             'tags' => $transaction->tags
                 ->map(fn (Tag $tag): array => $this->tagRecord($tag))
                 ->all(),
+            'card_items_count' => array_key_exists('card_items_count', $transaction->getAttributes())
+                ? (int) $transaction->card_items_count
+                : $transaction->cardItems->count(),
         ];
     }
 

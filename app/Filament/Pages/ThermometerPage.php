@@ -8,10 +8,12 @@ use App\Enums\TransactionType;
 use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Resources\DailyTransactions\DailyTransactionResource;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
 use App\Models\User;
 use App\Services\BalanceCalculator;
+use App\Services\CardItemSet;
 use App\Services\DailyForecastCalculator;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -351,7 +353,7 @@ class ThermometerPage extends Page
         $query = DailyTransaction::query()
             ->forUser($user)
             ->where('date', $date->toDateString())
-            ->with('tags');
+            ->with(['tags', 'cardItems.tags']);
 
         if ($type !== null) {
             $query->where('type', $type);
@@ -374,8 +376,43 @@ class ThermometerPage extends Page
                 'status_value' => $movement->status->value,
                 'is_recurring' => $movement->is_recurring,
                 'counts' => $this->movementCounts($movement, $startsAt),
+                'card_items' => $this->cardItemRows($movement),
+                'card_items_label' => $this->cardItemsLabel($movement),
             ])
             ->all();
+    }
+
+    /**
+     * Purchase lines of a card movement, ready for the collapsible list.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function cardItemRows(DailyTransaction $movement): array
+    {
+        return $movement->cardItems
+            ->map(fn (CardItem $item): array => [
+                'id' => (int) $item->getKey(),
+                'description' => $item->description,
+                'amount' => 'R$ '.number_format((float) $item->amount, 2, ',', '.'),
+                'tags' => $item->tags->all(),
+            ])
+            ->all();
+    }
+
+    /**
+     * "N itens · R$ X" summary shown under a detailed card movement.
+     */
+    private function cardItemsLabel(DailyTransaction $movement): ?string
+    {
+        $count = $movement->cardItems->count();
+
+        if ($count === 0) {
+            return null;
+        }
+
+        $total = $movement->cardItems->sum(fn (CardItem $item): int => (int) round((float) $item->amount * 100));
+
+        return $count.($count === 1 ? ' item' : ' itens').' · R$ '.number_format($total / 100, 2, ',', '.');
     }
 
     /**
@@ -620,6 +657,9 @@ class ThermometerPage extends Page
                     'account_plan_id' => $record->account_plan_id,
                     'tags' => $record->tags->pluck('id')->all(),
                     'status' => $record->status->value,
+                    'card_items' => $record->type === TransactionType::Card
+                        ? app(CardItemSet::class)->formState($record)
+                        : [],
                 ];
             })
             ->action(function (?DailyTransaction $record, array $data, Schema $schema): void {

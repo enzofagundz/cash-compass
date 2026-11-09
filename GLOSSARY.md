@@ -31,3 +31,12 @@ integral em cada tag vinculada, então a soma das tags pode passar do total
 gasto e a participação de cada tag pode somar mais de 100%. Tags arquivadas com
 gasto no período entram com indicação textual; tags sem gasto ficam fora. O
 gasto sem tag aparece em uma linha "Sem tag" ao final da tabela.
+
+## Item de cartão
+
+Compra que detalha o valor de um lançamento do tipo Cartão. Tem descrição
+obrigatória, valor maior que zero e zero ou mais tags; não tem data, status nem
+tipo próprios. Zero itens significa cartão sem detalhamento. Com itens, a soma
+tem que fechar exatamente com o valor do lançamento-pai, comparada em centavos,
+e o valor do pai continua sendo o único que move saldo, previsão, colunas e
+totais de gasto.

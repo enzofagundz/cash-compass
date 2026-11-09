@@ -5,6 +5,7 @@ use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Resources\DailyTransactions\Pages\ManageDailyTransactions;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -350,4 +351,196 @@ it('forbids admins from the transactions panel', function () {
     $this->actingAs(User::factory()->admin()->create());
 
     $this->get('/daily-transactions')->assertForbidden();
+});
+
+it('creates a card with items that close exactly with the amount', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 60],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    $transaction = DailyTransaction::firstOrFail();
+
+    expect($transaction->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia'])
+        ->and((float) $transaction->cardItems()->sum('amount'))->toBe(100.0);
+});
+
+it('creates a card without any item', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(DailyTransaction::firstOrFail()->cardItems()->count())->toBe(0);
+});
+
+it('blocks a card whose items do not close and shows the difference', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $component = Livewire::test(ManageDailyTransactions::class)
+        ->callAction('create', data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 60],
+            ],
+        ]);
+
+    $component->assertHasActionErrors(['card_items']);
+
+    expect($component->errors()->get('mountedActions.0.data.card_items')[0])
+        ->toContain('Diferença: R$ 40,00')
+        ->and(DailyTransaction::count())->toBe(0);
+});
+
+it('blocks changing the amount of a detailed card without adjusting the items', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($card), data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 150,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 100],
+            ],
+        ])
+        ->assertHasActionErrors(['card_items']);
+
+    expect($card->refresh()->amount)->toBe('100.00');
+});
+
+it('updates a detailed card when the items are adjusted in the same save', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($card), data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Card->value,
+            'amount' => 150,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['id' => $item->id, 'description' => 'Mercado', 'amount' => 90],
+                ['description' => 'Farmácia', 'amount' => 60],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($card->refresh()->amount)->toBe('150.00')
+        ->and($card->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
+});
+
+it('blocks leaving the card type while items remain', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($card), data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Expense->value,
+            'amount' => 100,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 100],
+            ],
+        ])
+        ->assertHasActionErrors();
+
+    expect($card->refresh()->type)->toBe(TransactionType::Card);
+});
+
+it('allows removing every item and leaving the card type in the same save', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->callAction(TestAction::make('edit')->table($card), data: [
+            'date' => '2026-01-02',
+            'type' => TransactionType::Expense->value,
+            'amount' => 100,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($card->refresh()->type)->toBe(TransactionType::Expense)
+        ->and($card->cardItems()->count())->toBe(0);
+});
+
+it('shows the item count of a card in the transactions table', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+        'description' => 'Compra no cartão',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '40.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '60.00']);
+
+    Livewire::test(ManageDailyTransactions::class)
+        ->assertCanSeeTableRecords([$card])
+        ->assertTableColumnStateSet('card_items_count', 2, $card);
 });

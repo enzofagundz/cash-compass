@@ -6,6 +6,7 @@ use App\Filament\Pages\DailyForecastPage;
 use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Pages\ThermometerPage;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyForecast;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
@@ -724,4 +725,99 @@ it('stays inside the render budget of the twelve month horizon', function () {
 
     expect($queries)->toBeLessThanOrEqual(10)
         ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_550_000);
+});
+
+it('shows the item count and the item list of a detailed card in the day detail', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra no cartão',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '40.00']);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->assertMountedActionModalSee('2 itens · R$ 100,00')
+        ->assertMountedActionModalSee('Mercado')
+        ->assertMountedActionModalSee('Farmácia')
+        ->assertMountedActionModalSee('R$ 60,00')
+        ->assertMountedActionModalSee('R$ 40,00');
+});
+
+it('does not show an item summary for a card without items', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra sem detalhe',
+    ]);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->assertMountedActionModalSee('Compra sem detalhe')
+        ->assertMountedActionModalDontSeeHtml('thermometer-card-items-summary');
+});
+
+it('creates a card with items from the quick create modal', function () {
+    $this->travelTo('2026-01-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ThermometerPage::class)
+        ->callAction('addMovement', data: [
+            'date' => '2026-01-08',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 60],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ], arguments: [
+            'date' => '2026-01-08',
+            'type' => TransactionType::Card->value,
+        ])
+        ->assertHasNoActionErrors();
+
+    $movement = DailyTransaction::firstOrFail();
+
+    expect($movement->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
+});
+
+it('edits a detailed card from the day detail keeping the items in sync', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra no cartão',
+    ]);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->callAction('editMovement', data: [
+            'date' => '2026-09-05',
+            'type' => TransactionType::Card->value,
+            'amount' => 130,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['id' => $item->id, 'description' => 'Mercado', 'amount' => 90],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ], arguments: ['movement' => $card->id]);
+
+    expect($card->refresh()->amount)->toBe('130.00')
+        ->and($card->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
 });
