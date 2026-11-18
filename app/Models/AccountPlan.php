@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -103,37 +102,59 @@ class AccountPlan extends Model
     public function hasRealizedTransactionsUpToToday(): bool
     {
         return $this->dailyTransactions()
+            ->where('user_id', $this->user_id)
             ->where('status', TransactionStatus::Realized)
             ->where('date', '<=', CarbonImmutable::now()->startOfDay()->toDateString())
             ->exists();
     }
 
-    /**
-     * Pending recurring occurrences that already carry card items. Any plan
-     * change that cancels them would silently drop a detail the user typed, so
-     * the mutation is refused while they exist.
-     *
-     * @return Collection<int, DailyTransaction>
-     */
-    public function pendingDetailedOccurrences(?CarbonImmutable $from = null): Collection
+    public function save(array $options = []): bool
     {
-        $fromDate = $from?->startOfDay()->toDateString();
+        if (! $this->exists) {
+            return parent::save($options);
+        }
 
-        return $this->dailyTransactions()
-            ->where('status', TransactionStatus::Pending)
-            ->where('is_recurring', true)
-            ->when($fromDate !== null, fn (Builder $query): Builder => $query->where('date', '>=', $fromDate))
-            ->whereHas('cardItems')
-            ->orderBy('date')
-            ->get();
+        return $this->getConnection()->transaction(function () use ($options): bool {
+            $changes = $this->getDirty();
+            $current = $this->lockForMutation();
+            $this->setRawAttributes($current->getAttributes(), sync: true);
+            $this->setRawAttributes(array_replace($this->getAttributes(), $changes));
+
+            return parent::save($options);
+        });
     }
 
     /**
+     * @throws ValidationException If deletion would remove detailed pending occurrences.
+     */
+    public function delete(): ?bool
+    {
+        if (! $this->exists) {
+            return parent::delete();
+        }
+
+        return $this->getConnection()->transaction(function (): ?bool {
+            $this->lockForMutation(deleting: true);
+
+            return parent::delete();
+        });
+    }
+
+    private function lockForMutation(bool $deleting = false): self
+    {
+        $lock = ! $deleting && $this->getConnection()->getDriverName() === 'pgsql' ? 'for no key update' : true;
+
+        return $this->newQuery()->whereKey($this->getKey())->lock($lock)->firstOrFail();
+    }
+
+    /**
+     * @param  Builder<DailyTransaction>  $candidates
+     *
      * @throws ValidationException
      */
-    public function assertNoDetailedPendingOccurrencesToCancel(?CarbonImmutable $from = null): void
+    private function assertNoDetailedPendingOccurrencesToCancel(Builder $candidates): void
     {
-        $occurrences = $this->pendingDetailedOccurrences($from);
+        $occurrences = (clone $candidates)->whereHas('cardItems')->orderBy('date')->get();
 
         if ($occurrences->isEmpty()) {
             return;
@@ -160,12 +181,10 @@ class AccountPlan extends Model
             ->where('is_active', true);
     }
 
-    /**
-     * Delete generated pending transactions, leaving manual transactions untouched.
-     */
-    public function cancelPendingRecurringTransactions(?CarbonImmutable $from = null): int
+    public function cancelPendingRecurringTransactions(?CarbonImmutable $from = null): bool
     {
-        $query = $this->dailyTransactions()
+        $query = $this->dailyTransactions()->getQuery()
+            ->where('user_id', $this->user_id)
             ->where('status', TransactionStatus::Pending)
             ->where('is_recurring', true);
 
@@ -173,6 +192,17 @@ class AccountPlan extends Model
             $query->where('date', '>=', $from->startOfDay()->toDateString());
         }
 
-        return $query->delete();
+        $ids = (clone $query)->orderBy('id')->lockForUpdate()->pluck('id');
+        $candidates = $query->whereIntegerInRaw('id', $ids);
+
+        $this->assertNoDetailedPendingOccurrencesToCancel($candidates);
+
+        if ($from === null && $this->hasRealizedTransactionsUpToToday()) {
+            return false;
+        }
+
+        $candidates->delete();
+
+        return true;
     }
 }

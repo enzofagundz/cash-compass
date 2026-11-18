@@ -106,9 +106,7 @@ class UpdateAccountPlanTool extends AccountTool
         }
 
         DB::transaction(function () use ($plan, $changes, $syncTags, $tagIds, $account, $ledger): void {
-            if ($changes !== []) {
-                $plan->update($changes);
-            }
+            $plan->fill($changes)->save();
 
             if ($syncTags) {
                 $plan->tags()->sync($tagIds);

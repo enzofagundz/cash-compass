@@ -6,6 +6,7 @@ use App\Models\AccountPlan;
 use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
@@ -58,6 +59,25 @@ it('blocks editing a plan whose pending occurrence would be cancelled', function
         ->and($pending->refresh()->cardItems()->count())->toBe(1);
 });
 
+it('checks for items again after selecting pending occurrences to cancel', function () {
+    $plan = detailedPlan($this->user);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    $detailed = false;
+
+    $plan->getConnection()->listen(function (QueryExecuted $query) use ($pending, &$detailed): void {
+        if ($detailed || ! str_starts_with($query->sql, 'select "id" from "daily_transactions"')) {
+            return;
+        }
+
+        $detailed = true;
+        detailPendingOccurrence($pending);
+    });
+
+    expect(fn () => $plan->update(['description' => 'Nova descrição']))
+        ->toThrow(ValidationException::class, '10/01/2026')
+        ->and($plan->refresh()->description)->toBe('Assinaturas');
+});
+
 it('blocks deactivating a plan with a detailed pending occurrence', function () {
     $plan = detailedPlan($this->user);
     detailPendingOccurrence($plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail());
@@ -98,6 +118,20 @@ it('releases plan editing once the detailed occurrence is realized', function ()
     $plan->update(['description' => 'Nova descrição']);
 
     expect($plan->refresh()->description)->toBe('Nova descrição');
+});
+
+it('regenerates occurrences from the current plan plus only the stale model changes', function () {
+    $plan = detailedPlan($this->user);
+    $stale = $plan->fresh();
+
+    $plan->update(['expected_amount' => '175.00']);
+    $stale->update(['description' => 'Descrição nova']);
+
+    $occurrence = $stale->dailyTransactions()->whereDate('date', '2026-01-10')->firstOrFail();
+
+    expect($stale->expected_amount)->toBe('175.00')
+        ->and($occurrence->amount)->toBe('175.00')
+        ->and($occurrence->description)->toBe('Descrição nova');
 });
 
 it('ignores detailed pending occurrences already in the past', function () {

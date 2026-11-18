@@ -10,6 +10,7 @@ use App\Models\CardItem;
 use App\Models\Tag;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Notifications\Notification;
 use Livewire\Livewire;
 
 it('lets users create an account plan from the panel', function () {
@@ -224,6 +225,7 @@ it('blocks editing a plan with a detailed pending occurrence from the panel', fu
     ]);
     $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
     CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+    $tag = Tag::create(['name' => 'Cartão']);
 
     Livewire::test(ManageAccountPlans::class)
         ->callAction(TestAction::make('edit')->table($plan), data: [
@@ -234,11 +236,42 @@ it('blocks editing a plan with a detailed pending occurrence from the panel', fu
             'interval' => $plan->interval,
             'starts_at' => $plan->starts_at->toDateString(),
             'is_active' => $plan->is_active,
+            'tags' => [$tag->id],
         ])
-        ->assertNotified('Plano não pode ser alterado');
+        ->assertNotified(Notification::make()
+            ->danger()
+            ->title('Plano não pode ser alterado')
+            ->body('O plano não pode mudar: as ocorrências pendentes 10/01/2026 têm itens de cartão. Realize-as ou remova o detalhamento antes de editar, desativar ou excluir o plano.'));
 
     expect($plan->refresh()->description)->toBe('Assinaturas')
+        ->and($plan->tags()->count())->toBe(0)
+        ->and($pending->tags()->count())->toBe(0)
         ->and($pending->refresh()->cardItems()->count())->toBe(1);
+});
+
+it('updates only the tags of a plan with a detailed pending occurrence', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    $item = CardItem::factory()->forTransaction($pending)->create(['amount' => '100.00']);
+    $tag = Tag::create(['name' => 'Cartão']);
+
+    Livewire::test(ManageAccountPlans::class)
+        ->mountAction(TestAction::make('edit')->table($plan))
+        ->fillForm(['tags' => [$tag->id]])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($plan->tags()->pluck('tags.id')->all())->toBe([$tag->id])
+        ->and($pending->tags()->pluck('tags.id')->all())->toBe([$tag->id])
+        ->and($item->fresh())->not->toBeNull();
 });
 
 it('blocks deleting a plan with a detailed pending occurrence from the panel', function () {

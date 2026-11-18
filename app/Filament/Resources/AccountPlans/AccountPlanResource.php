@@ -10,7 +10,6 @@ use App\Filament\Resources\AccountPlans\Pages\ManageAccountPlans;
 use App\Models\AccountPlan;
 use App\Services\RecurrenceGenerator;
 use BackedEnum;
-use Carbon\CarbonImmutable;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
@@ -192,9 +191,10 @@ class AccountPlanResource extends Resource
             ->recordActions([
                 EditAction::make()
                     ->iconButton()
-                    ->before(function (AccountPlan $record, EditAction $action): void {
+                    ->databaseTransaction()
+                    ->before(function (AccountPlan $record, array $data, EditAction $action): void {
                         try {
-                            $record->assertNoDetailedPendingOccurrencesToCancel(CarbonImmutable::now());
+                            $record->update($data);
                         } catch (ValidationException $exception) {
                             Notification::make()
                                 ->danger()
@@ -202,15 +202,15 @@ class AccountPlanResource extends Resource
                                 ->body(self::firstValidationMessage($exception))
                                 ->send();
 
-                            $action->halt();
+                            $action->halt(shouldRollBackDatabaseTransaction: true);
                         }
                     })
+                    ->using(static fn (): null => null)
                     ->after(fn (AccountPlan $record): int => app(RecurrenceGenerator::class)->generate($record)),
                 DeleteAction::make()
                     ->iconButton()
                     ->action(function (AccountPlan $record): void {
                         try {
-                            $record->assertNoDetailedPendingOccurrencesToCancel();
                             $deleted = $record->delete();
                         } catch (ValidationException $exception) {
                             Notification::make()
