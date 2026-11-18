@@ -10,15 +10,23 @@ use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Resources\DailyTransactions\Pages\ManageDailyTransactions;
 use App\Models\AccountPlan;
 use App\Models\DailyTransaction;
+use App\Services\CardItemSet;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\Contracts\HasActions;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -28,6 +36,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class DailyTransactionResource extends Resource
 {
@@ -71,6 +81,7 @@ class DailyTransactionResource extends Resource
                 ->options(collect(TransactionType::cases())
                     ->mapWithKeys(fn (TransactionType $type): array => [$type->value => $type->label()])
                     ->all())
+                ->live()
                 ->required(),
             TextInput::make('amount')
                 ->label('Valor (R$)')
@@ -78,6 +89,7 @@ class DailyTransactionResource extends Resource
                 ->prefix('R$')
                 ->minValue(0.01)
                 ->rules(['gt:0'])
+                ->live(onBlur: true)
                 ->required(),
             TextInput::make('description')
                 ->label('Descrição')
@@ -98,7 +110,100 @@ class DailyTransactionResource extends Resource
                     ->all())
                 ->default(TransactionStatus::Realized->value)
                 ->required(),
+            Hidden::make('card_items_signature')->dehydrated(false),
+            self::cardItemsRepeater(),
+            Text::make(fn (Get $get): string => self::cardItemsSummary($get))
+                ->visible(fn (Get $get): bool => $get('type') === TransactionType::Card->value),
         ];
+    }
+
+    /**
+     * Purchase lines that detail a card transaction. The set only exists for
+     * the card type and has to close exactly with the parent amount.
+     */
+    public static function cardItemsRepeater(): Repeater
+    {
+        return Repeater::make('card_items')
+            ->label('Itens do cartão')
+            ->addActionLabel('Adicionar item')
+            ->helperText('Tags do lançamento valem para itens sem tag própria.')
+            ->defaultItems(0)
+            ->itemLabel(fn (array $state): ?string => filled($state['description'] ?? null)
+                ? (string) $state['description']
+                : null)
+            ->columns(2)
+            ->visible(fn (Get $get, Repeater $component): bool => $get('type') === TransactionType::Card->value
+                || filled($component->getState()))
+            ->addable(fn (Get $get): bool => $get('type') === TransactionType::Card->value)
+            ->dehydrated(false)
+            ->validatedWhenNotDehydrated()
+            ->saveRelationshipsWhenHidden()
+            ->live(onBlur: true)
+            ->afterStateHydrated(function (Repeater $component): void {
+                $record = $component->getRecord();
+
+                if (! $record instanceof DailyTransaction || ! $record->exists) {
+                    return;
+                }
+
+                $set = app(CardItemSet::class);
+                $items = $set->formState($record);
+                $component->state($items);
+                $component->makeSetUtility()('card_items_signature', $set->signature($items));
+            })
+            ->schema([
+                TextInput::make('description')
+                    ->label('Descrição')
+                    ->required()
+                    ->maxLength(255),
+                TextInput::make('amount')
+                    ->label('Valor (R$)')
+                    ->numeric()
+                    ->prefix('R$')
+                    ->minValue(0.01)
+                    ->rules(['gt:0'])
+                    ->required(),
+                self::tagIdsSelector(),
+            ])
+            ->validationAttribute('itens do cartão')
+            ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                $type = TransactionType::tryFrom((string) $get('type'));
+                $items = is_array($value) ? array_values(array_filter($value, 'is_array')) : [];
+
+                if ($type === null) {
+                    return;
+                }
+
+                try {
+                    app(CardItemSet::class)->validate($type, $get('amount'), $items);
+                } catch (ValidationException $exception) {
+                    $fail((string) (collect($exception->errors())->flatten()->first() ?? 'Itens inválidos.'));
+                }
+            })
+            ->saveRelationshipsUsing(function (Repeater $component, ?DailyTransaction $record, Get $get): void {
+                if (! $record instanceof DailyTransaction) {
+                    return;
+                }
+
+                $state = $component->getState();
+
+                app(CardItemSet::class)->sync(
+                    $record,
+                    is_array($state) ? array_values(array_filter($state, 'is_array')) : [],
+                    $get('amount'),
+                );
+            });
+    }
+
+    public static function cardItemsSummary(Get $get): string
+    {
+        $set = app(CardItemSet::class);
+        $state = $get('card_items');
+        $items = is_array($state) ? array_values(array_filter($state, 'is_array')) : [];
+        $difference = $set->differenceCents($get('amount'), $items);
+
+        return 'Soma dos itens: '.$set->formatMoney($set->cents($items))
+            .' · Diferença para o valor do lançamento: '.$set->formatMoney($difference);
     }
 
     public static function table(Table $table): Table
@@ -124,6 +229,12 @@ class DailyTransactionResource extends Resource
                 TextColumn::make('description')
                     ->label('Descrição')
                     ->searchable()
+                    ->placeholder('—'),
+                TextColumn::make('card_items_count')
+                    ->counts('cardItems')
+                    ->label('Itens')
+                    ->numeric()
+                    ->alignEnd()
                     ->placeholder('—'),
                 ViewColumn::make('tags')
                     ->label('Tags')
@@ -177,7 +288,11 @@ class DailyTransactionResource extends Resource
                     )),
             ])
             ->recordActions([
-                EditAction::make()->iconButton(),
+                EditAction::make()
+                    ->iconButton()
+                    ->databaseTransaction()
+                    ->before(self::persistEdit(...))
+                    ->using(static fn (): null => null),
                 Action::make('confirm')
                     ->label('Confirmar')
                     ->icon(Heroicon::OutlinedCheckCircle)
@@ -198,6 +313,45 @@ class DailyTransactionResource extends Resource
                     ->label('Excluir')
                     ->iconButton(),
             ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function persistEdit(DailyTransaction $record, array $data, Action $action): void
+    {
+        $livewire = $action->getLivewire();
+
+        if (! $livewire instanceof HasActions || ! $livewire instanceof HasSchemas) {
+            throw new LogicException('Card edit action requires a mounted schema.');
+        }
+
+        $schemaName = $livewire->getMountedActionSchemaName();
+        $schema = $schemaName === null ? null : $livewire->getSchema($schemaName);
+        $fields = $schema?->getFlatFields(withHidden: true) ?? [];
+        $repeater = $fields['card_items'] ?? null;
+
+        if (! $repeater instanceof Repeater) {
+            throw new LogicException('Card item repeater not found.');
+        }
+
+        $state = $repeater->getState();
+        $items = is_array($state) ? array_values(array_filter($state, 'is_array')) : [];
+
+        try {
+            $signature = ($fields['card_items_signature'] ?? null)?->getState();
+            app(CardItemSet::class)->updateTransaction($record, $data, $items, is_string($signature) ? $signature : '');
+        } catch (ValidationException $exception) {
+            if (isset($exception->errors()['card_items'])) {
+                throw ValidationException::withMessages([
+                    $repeater->getStatePath() => $exception->errors()['card_items'],
+                ]);
+            }
+
+            throw $exception;
+        }
+
+        $repeater->saveRelationshipsUsing(null);
     }
 
     public static function getEloquentQuery(): Builder

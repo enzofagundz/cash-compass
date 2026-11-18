@@ -6,6 +6,15 @@ use Tests\TestCase;
 
 uses(TestCase::class, LazilyRefreshDatabase::class)->in('Feature');
 
+/*
+ * Livewire and Filament pages leave reference cycles behind. Collecting them
+ * after every test keeps the peak memory of the whole suite bounded instead of
+ * growing with the number of rendered pages.
+ */
+pest()->afterEach(function (): void {
+    gc_collect_cycles();
+});
+
 function useMcpAccount(User $user): void
 {
     config()->set('cash_compass.mcp.account_email', $user->email);

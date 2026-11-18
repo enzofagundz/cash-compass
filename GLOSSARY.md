@@ -26,8 +26,30 @@ dias ativos, o indicador fica vazio.
 
 ## Relatório de tags
 
-Leitura agregada do gasto por tag no período. Cada lançamento soma seu valor
-integral em cada tag vinculada, então a soma das tags pode passar do total
-gasto e a participação de cada tag pode somar mais de 100%. Tags arquivadas com
-gasto no período entram com indicação textual; tags sem gasto ficam fora. O
-gasto sem tag aparece em uma linha "Sem tag" ao final da tabela.
+Leitura agregada do gasto por tag no período. A unidade é o **registro**: um
+lançamento comum conta como um registro, e um cartão detalhado contribui com um
+registro por item, então o valor do pai não é contado à parte. Cada registro
+soma seu valor integral em cada tag vinculada, então a soma das tags pode
+passar do total gasto e a participação de cada tag pode somar mais de 100%.
+Um item com tags próprias é atribuído a elas; sem tag própria, herda as tags do
+lançamento-pai; sem nenhuma das duas, vai para "Sem tag". A data usada é a do
+pai. Tags arquivadas com gasto no período entram com indicação textual; tags
+sem gasto ficam fora. O gasto sem tag aparece em uma linha "Sem tag" ao final
+da tabela.
+
+## Item de cartão
+
+Compra que detalha o valor de um lançamento do tipo Cartão. Tem descrição
+obrigatória, valor maior que zero e zero ou mais tags; não tem data, status nem
+tipo próprios. Uma tag vinculada a item conta como uso: pode ser arquivada, mas
+não excluída enquanto houver vínculo. Zero itens significa cartão sem detalhamento. Com itens, a soma
+tem que fechar exatamente com o valor do lançamento-pai, comparada em centavos,
+e o valor do pai continua sendo o único que move saldo, previsão, colunas e
+totais de gasto.
+
+## Ocorrência detalhada pendente
+
+Ocorrência recorrente de cartão com status pendente que já tem itens de compra.
+Ela é o motivo pelo qual editar, desativar ou excluir o plano pode ser recusado:
+a mutação cancelaria a ocorrência e o detalhamento digitado junto com ela. Sair
+de pendente (realizar) libera o plano.

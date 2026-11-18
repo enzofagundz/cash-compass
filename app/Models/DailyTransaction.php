@@ -5,13 +5,16 @@ namespace App\Models;
 use App\Concerns\BelongsToUser;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Services\CardItemSet;
 use Carbon\CarbonImmutable;
 use Database\Factories\DailyTransactionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -61,7 +64,75 @@ class DailyTransaction extends Model
             if ((float) $transaction->amount <= 0) {
                 throw new InvalidArgumentException('O valor do lançamento deve ser maior que zero.');
             }
+
+            $transaction->assertCardItemsFollowTheParent();
         });
+    }
+
+    public function save(array $options = []): bool
+    {
+        if (! $this->exists || ! $this->isDirty(['type', 'amount'])) {
+            return parent::save($options);
+        }
+
+        return $this->getConnection()->transaction(function () use ($options): bool {
+            $this->lockForCardItemMutation();
+
+            return parent::save($options);
+        });
+    }
+
+    public function lockForCardItemMutation(): self
+    {
+        $record = $this->newQuery()
+            ->where('user_id', $this->user_id)
+            ->whereKey($this->getKey())
+            ->lockForUpdate()
+            ->first();
+
+        if ($record === null) {
+            throw ValidationException::withMessages([
+                'card_items' => 'Salve o lançamento antes de detalhar os itens.',
+            ]);
+        }
+
+        return $record;
+    }
+
+    /**
+     * A detailed card keeps its items closed against the parent: leaving the
+     * card type or moving the amount away from the item sum is refused.
+     *
+     * @throws ValidationException
+     */
+    private function assertCardItemsFollowTheParent(): void
+    {
+        if (! $this->exists || ! $this->isDirty(['type', 'amount'])) {
+            return;
+        }
+
+        $items = $this->cardItems()->get();
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        if ($this->type !== TransactionType::Card) {
+            throw ValidationException::withMessages([
+                'type' => 'Remova os itens antes de trocar o tipo do lançamento.',
+            ]);
+        }
+
+        $difference = app(CardItemSet::class)->differenceCents(
+            $this->amount,
+            $items->map(fn (CardItem $item): array => ['amount' => $item->amount])->all(),
+        );
+
+        if ($difference !== 0) {
+            throw ValidationException::withMessages([
+                'amount' => 'Ajuste os itens antes de mudar o valor. Diferença: '.app(CardItemSet::class)->formatMoney($difference).'.',
+            ]);
+        }
     }
 
     /**
@@ -97,5 +168,18 @@ class DailyTransaction extends Model
         return $this->belongsToMany(Tag::class)
             ->withTimestamps()
             ->orderBy('tags.normalized_name');
+    }
+
+    /**
+     * @return HasMany<CardItem, $this>
+     */
+    public function cardItems(): HasMany
+    {
+        return $this->hasMany(CardItem::class)->orderBy('id');
+    }
+
+    public function hasCardItems(): bool
+    {
+        return $this->cardItems()->exists();
     }
 }

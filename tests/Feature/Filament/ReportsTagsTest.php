@@ -3,6 +3,8 @@
 use App\Enums\TagColor;
 use App\Enums\TransactionType;
 use App\Filament\Pages\Reports;
+use App\Filament\Widgets\TagBreakdownTable;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -45,7 +47,7 @@ it('shows the full tag table with the required columns and no-tag row at the end
         ->assertSee('Tag')
         ->assertSee('Total')
         ->assertSee('Participação')
-        ->assertSee('Lançamentos')
+        ->assertSee('Registros')
         ->assertSee('Média')
         ->assertSee('Última data')
         ->assertSee('Mercado')
@@ -139,4 +141,26 @@ it('isolates the tag report by user', function () {
     $this->get('/reports?activeTab=tags')
         ->assertOk()
         ->assertDontSee('Tag de Outro');
+});
+
+it('attributes a detailed card per item in the tag table', function () {
+    $market = Tag::factory()->for($this->user)->create(['name' => 'Mercado', 'color' => TagColor::Green]);
+    $pharmacy = Tag::factory()->for($this->user)->create(['name' => 'Farmácia', 'color' => TagColor::Teal]);
+
+    $card = DailyTransaction::factory()->for($this->user)->card()->create([
+        'date' => '2026-10-10',
+        'amount' => '100.00',
+    ]);
+    $first = CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '60.00']);
+    $first->tags()->attach($market);
+    $second = CardItem::factory()->forTransaction($card)->create(['description' => 'Remédio', 'amount' => '40.00']);
+    $second->tags()->attach($pharmacy);
+
+    Livewire::test(TagBreakdownTable::class)
+        ->assertSee('Registros')
+        ->assertSee('Mercado')
+        ->assertSee('Farmácia')
+        ->assertSee('R$ 60,00')
+        ->assertSee('R$ 40,00')
+        ->assertDontSee('R$ 100,00');
 });

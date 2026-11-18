@@ -3,6 +3,7 @@
 use App\Enums\TagColor;
 use App\Filament\Resources\Tags\Pages\ManageTags;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -206,4 +207,49 @@ it('only lists tags owned by the authenticated user', function () {
 
     Livewire::test(ManageTags::class)
         ->assertDontSee('Outra pessoa');
+});
+
+it('counts card items as usage next to launches and plans', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Mercado']);
+    $card = DailyTransaction::factory()->for($user)->card()->create(['amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00'])
+        ->tags()->attach($tag);
+
+    Livewire::test(ManageTags::class)
+        ->assertTableColumnStateSet('card_items_count', 1, $tag)
+        ->assertTableColumnStateSet('daily_transactions_count', 0, $tag);
+});
+
+it('archives a tag linked only to card items without removing the link', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Mercado']);
+    $card = DailyTransaction::factory()->for($user)->card()->create(['amount' => '100.00']);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00']);
+    $item->tags()->attach($tag);
+
+    Livewire::test(ManageTags::class)
+        ->callAction(TestAction::make('archive')->table($tag));
+
+    expect($tag->refresh()->is_active)->toBeFalse()
+        ->and($item->refresh()->tags->pluck('id')->all())->toBe([$tag->id]);
+});
+
+it('does not offer deletion for a tag linked to a card item', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $tag = Tag::create(['name' => 'Mercado']);
+    $card = DailyTransaction::factory()->for($user)->card()->create(['amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00'])
+        ->tags()->attach($tag);
+
+    Livewire::test(ManageTags::class)
+        ->assertActionHidden(TestAction::make('delete')->table($tag));
+
+    expect(Tag::find($tag->id))->not->toBeNull();
 });

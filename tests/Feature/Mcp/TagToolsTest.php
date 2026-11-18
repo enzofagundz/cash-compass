@@ -7,9 +7,12 @@ use App\Mcp\Tools\ArchiveTagTool;
 use App\Mcp\Tools\CreateTagTool;
 use App\Mcp\Tools\CreateTransactionTool;
 use App\Mcp\Tools\DeleteTagTool;
+use App\Mcp\Tools\GetTagTool;
+use App\Mcp\Tools\ListTagsTool;
 use App\Mcp\Tools\ReactivateTagTool;
 use App\Mcp\Tools\UpdateTagTool;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\McpMutationAudit;
 use App\Models\McpOperation;
@@ -372,4 +375,42 @@ it('links a tag created through the MCP to a transaction', function () {
             ->etc());
 
     expect(DailyTransaction::query()->forUser($account)->sole()->tags->pluck('id')->all())->toBe([$tagId]);
+});
+
+it('blocks deleting a tag linked to a card item', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $tag = Tag::factory()->for($account)->create();
+    $card = DailyTransaction::factory()->for($account)->card()->create(['amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00'])
+        ->tags()->attach($tag);
+
+    CashCompassServer::tool(DeleteTagTool::class, ['id' => $tag->getKey()])
+        ->assertHasErrors(['vinculada']);
+
+    expect($tag->refresh()->exists)->toBeTrue();
+});
+
+it('reports the card item count on the tag read tools', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $tag = Tag::factory()->for($account)->create(['name' => 'Mercado']);
+    $card = DailyTransaction::factory()->for($account)->card()->create(['amount' => '100.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Feira', 'amount' => '100.00'])
+        ->tags()->attach($tag);
+
+    CashCompassServer::tool(GetTagTool::class, ['id' => $tag->getKey()])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('tag.card_items_count', 1)
+            ->where('tag.daily_transactions_count', 0)
+            ->etc());
+
+    CashCompassServer::tool(ListTagsTool::class, [])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('items.0.card_items_count', 1)
+            ->etc());
 });

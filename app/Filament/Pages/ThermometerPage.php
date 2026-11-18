@@ -8,10 +8,12 @@ use App\Enums\TransactionType;
 use App\Filament\Concerns\VisibleToNonAdmins;
 use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Resources\DailyTransactions\DailyTransactionResource;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
 use App\Models\User;
 use App\Services\BalanceCalculator;
+use App\Services\CardItemSet;
 use App\Services\DailyForecastCalculator;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -351,7 +353,7 @@ class ThermometerPage extends Page
         $query = DailyTransaction::query()
             ->forUser($user)
             ->where('date', $date->toDateString())
-            ->with('tags');
+            ->with(['tags', 'cardItems.tags']);
 
         if ($type !== null) {
             $query->where('type', $type);
@@ -374,8 +376,46 @@ class ThermometerPage extends Page
                 'status_value' => $movement->status->value,
                 'is_recurring' => $movement->is_recurring,
                 'counts' => $this->movementCounts($movement, $startsAt),
+                'card_items' => $this->cardItemRows($movement),
+                'card_items_label' => $this->cardItemsLabel($movement),
             ])
             ->all();
+    }
+
+    /**
+     * Purchase lines of a card movement, ready for the collapsible list.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function cardItemRows(DailyTransaction $movement): array
+    {
+        return $movement->cardItems
+            ->map(fn (CardItem $item): array => [
+                'id' => (int) $item->getKey(),
+                'description' => $item->description,
+                'amount' => 'R$ '.number_format((float) $item->amount, 2, ',', '.'),
+                'tags' => $item->tags->all(),
+            ])
+            ->all();
+    }
+
+    /**
+     * "N itens · R$ X" summary shown under a detailed card movement.
+     */
+    private function cardItemsLabel(DailyTransaction $movement): ?string
+    {
+        $count = $movement->cardItems->count();
+
+        if ($count === 0) {
+            return null;
+        }
+
+        $set = app(CardItemSet::class);
+        $total = $set->cents(
+            $movement->cardItems->map(fn (CardItem $item): array => ['amount' => $item->amount])->all(),
+        );
+
+        return $count.($count === 1 ? ' item' : ' itens').' · '.$set->formatMoney($total);
     }
 
     /**
@@ -607,6 +647,7 @@ class ThermometerPage extends Page
             ->record(fn (array $arguments): ?DailyTransaction => $this->findMovement($arguments['movement'] ?? null))
             ->visible(fn (array $arguments): bool => $this->findMovement($arguments['movement'] ?? null) instanceof DailyTransaction)
             ->schema(DailyTransactionResource::formComponents())
+            ->databaseTransaction()
             ->fillForm(function (?DailyTransaction $record): array {
                 if (! $record instanceof DailyTransaction) {
                     return [];
@@ -622,18 +663,16 @@ class ThermometerPage extends Page
                     'status' => $record->status->value,
                 ];
             })
-            ->action(function (?DailyTransaction $record, array $data, Schema $schema): void {
-                if (! $record instanceof DailyTransaction) {
+            ->before(function (?DailyTransaction $record, array $data, Action $action): void {
+                if ($record === null) {
                     $this->notifyMissingMovement();
 
-                    return;
+                    $action->halt(shouldRollBackDatabaseTransaction: true);
                 }
 
-                DB::transaction(function () use ($record, $data, $schema): void {
-                    $record->update($data);
-                    $schema->model($record)->saveRelationships();
-                });
-
+                DailyTransactionResource::persistEdit($record, $data, $action);
+            })
+            ->action(function (): void {
                 Notification::make()
                     ->success()
                     ->title('Lançamento atualizado.')

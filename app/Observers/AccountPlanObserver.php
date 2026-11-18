@@ -49,12 +49,6 @@ class AccountPlanObserver
 
     public function deleting(AccountPlan $plan): bool
     {
-        if ($plan->hasRealizedTransactionsUpToToday()) {
-            return false;
-        }
-
-        $plan->cancelPendingRecurringTransactions();
-
-        return true;
+        return $plan->cancelPendingRecurringTransactions();
     }
 }

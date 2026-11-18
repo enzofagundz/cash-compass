@@ -30,7 +30,7 @@ class UpdateAccountPlanTool extends AccountTool
 
     protected string $title = 'Editar plano de contas';
 
-    protected string $description = 'Edita campos de agendamento e tags de um plano de contas da conta fixa. Alterações de agendamento cancelam as ocorrências pendentes geradas e as regeram pelo observer existente, preservando os lançamentos realizados. Ação de efeito amplo: o Hermes deve explicar o impacto e pedir confirmação na conversa antes de alterar recorrência que cancela ou regenera ocorrências. Não altera a situação ativo/inativo (use activate_account_plan/deactivate_account_plan) nem aceita identidade.';
+    protected string $description = 'Edita campos de agendamento e tags de um plano de contas da conta fixa. Alterações de agendamento cancelam as ocorrências pendentes geradas e as regeram pelo observer existente, preservando os lançamentos realizados. Ação de efeito amplo: o Hermes deve explicar o impacto e pedir confirmação na conversa antes de alterar recorrência que cancela ou regenera ocorrências. A alteração é recusada quando cancelaria uma ocorrência pendente que tem itens de cartão; realize a ocorrência ou remova o detalhamento antes. Não altera a situação ativo/inativo (use activate_account_plan/deactivate_account_plan) nem aceita identidade.';
 
     /**
      * @return array<string, Type>
@@ -106,9 +106,7 @@ class UpdateAccountPlanTool extends AccountTool
         }
 
         DB::transaction(function () use ($plan, $changes, $syncTags, $tagIds, $account, $ledger): void {
-            if ($changes !== []) {
-                $plan->update($changes);
-            }
+            $plan->fill($changes)->save();
 
             if ($syncTags) {
                 $plan->tags()->sync($tagIds);

@@ -23,7 +23,7 @@ class GetTransactionTool extends AccountTool
 
     protected string $title = 'Consultar lançamento';
 
-    protected string $description = 'Retorna um lançamento da conta fixa pelo identificador, incluindo suas tags.';
+    protected string $description = 'Retorna um lançamento da conta fixa pelo identificador, incluindo suas tags e a contagem de itens de cartão. Os itens não são expostos individualmente.';
 
     /**
      * @return array<string, Type>
@@ -46,6 +46,7 @@ class GetTransactionTool extends AccountTool
         $transaction = DailyTransaction::query()
             ->forUser($account)
             ->with(['tags' => fn (Relation $query) => $query->where('tags.user_id', $account->getKey())])
+            ->withCount('cardItems')
             ->find((int) $request->get('id'));
 
         if (! $transaction instanceof DailyTransaction) {

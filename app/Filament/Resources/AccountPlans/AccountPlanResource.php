@@ -28,6 +28,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
 
 class AccountPlanResource extends Resource
 {
@@ -190,11 +191,38 @@ class AccountPlanResource extends Resource
             ->recordActions([
                 EditAction::make()
                     ->iconButton()
+                    ->databaseTransaction()
+                    ->before(function (AccountPlan $record, array $data, EditAction $action): void {
+                        try {
+                            $record->update($data);
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Plano não pode ser alterado')
+                                ->body(self::firstValidationMessage($exception))
+                                ->send();
+
+                            $action->halt(shouldRollBackDatabaseTransaction: true);
+                        }
+                    })
+                    ->using(static fn (): null => null)
                     ->after(fn (AccountPlan $record): int => app(RecurrenceGenerator::class)->generate($record)),
                 DeleteAction::make()
                     ->iconButton()
                     ->action(function (AccountPlan $record): void {
-                        if ($record->delete() === false) {
+                        try {
+                            $deleted = $record->delete();
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Plano não pode ser excluído')
+                                ->body(self::firstValidationMessage($exception))
+                                ->send();
+
+                            return;
+                        }
+
+                        if ($deleted === false) {
                             Notification::make()
                                 ->danger()
                                 ->title('Plano não pode ser excluído')
@@ -215,6 +243,11 @@ class AccountPlanResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with('tags');
+    }
+
+    private static function firstValidationMessage(ValidationException $exception): string
+    {
+        return (string) (collect($exception->errors())->flatten()->first() ?? 'O plano não pode mudar agora.');
     }
 
     public static function getPages(): array

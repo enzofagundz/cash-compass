@@ -58,6 +58,25 @@ class Tag extends Model
     }
 
     /**
+     * Normalise a raw multiselect value into a list of tag ids.
+     *
+     * @return array<int, int>
+     */
+    public static function idsFrom(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->filter(fn (mixed $id): bool => is_numeric($id))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  Builder<Tag>  $query
      * @return Builder<Tag>
      */
@@ -101,7 +120,16 @@ class Tag extends Model
     public function hasUsage(): bool
     {
         return $this->dailyTransactions()->withoutGlobalScope('user')->exists()
-            || $this->accountPlans()->withoutGlobalScope('user')->exists();
+            || $this->accountPlans()->withoutGlobalScope('user')->exists()
+            || $this->cardItems()->withoutGlobalScope('user')->exists();
+    }
+
+    /**
+     * @return BelongsToMany<CardItem, $this>
+     */
+    public function cardItems(): BelongsToMany
+    {
+        return $this->belongsToMany(CardItem::class)->withTimestamps();
     }
 
     /**

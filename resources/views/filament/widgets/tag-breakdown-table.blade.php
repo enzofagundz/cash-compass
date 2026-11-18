@@ -1,7 +1,7 @@
 <x-filament-widgets::widget>
     <x-filament::section
         heading="Todas as tags"
-        description="Um lançamento entra inteiro em cada tag, então a soma das tags pode passar do total gasto."
+        description="Cada registro entra inteiro em cada tag, então a soma das tags pode passar do total gasto. Cartão detalhado é atribuído por item."
     >
         @if ($total === 0)
             <x-filament::empty-state
@@ -26,7 +26,7 @@
                                 Participação
                             </th>
                             <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-right text-[0.6875rem] font-bold uppercase tracking-[0.08em] whitespace-nowrap">
-                                Lançamentos
+                                Registros
                             </th>
                             <th scope="col" class="border-b-[3px] border-[var(--cc-ink)] px-3 py-2 text-right text-[0.6875rem] font-bold uppercase tracking-[0.08em] whitespace-nowrap">
                                 Média

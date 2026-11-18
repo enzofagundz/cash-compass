@@ -47,4 +47,11 @@ class AccountPlanFactory extends Factory
             'is_active' => false,
         ]);
     }
+
+    public function card(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'type' => TransactionType::Card,
+        ]);
+    }
 }

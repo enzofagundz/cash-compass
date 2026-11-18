@@ -6,6 +6,7 @@ use App\Filament\Pages\DailyForecastPage;
 use App\Filament\Pages\Thermometer\ThermometerGrid;
 use App\Filament\Pages\ThermometerPage;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyForecast;
 use App\Models\DailyTransaction;
 use App\Models\DayCheckIn;
@@ -13,6 +14,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\RecurrenceGenerator;
 use Carbon\CarbonImmutable;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
@@ -724,4 +726,148 @@ it('stays inside the render budget of the twelve month horizon', function () {
 
     expect($queries)->toBeLessThanOrEqual(10)
         ->and(strlen($response->getContent()))->toBeLessThanOrEqual(1_550_000);
+});
+
+it('shows the item count and the item list of a detailed card in the day detail', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra no cartão',
+    ]);
+    $tag = Tag::create(['name' => 'Mercado', 'color' => 'green']);
+    $market = CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    $market->tags()->attach($tag);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '40.00']);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->assertMountedActionModalSee('2 itens · R$ 100,00')
+        ->assertMountedActionModalSee('Mercado')
+        ->assertMountedActionModalSee('Farmácia')
+        ->assertMountedActionModalSee('R$ 60,00')
+        ->assertMountedActionModalSee('R$ 40,00')
+        ->assertMountedActionModalSeeHtml('fi-color-green');
+});
+
+it('does not show an item summary for a card without items', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra sem detalhe',
+    ]);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->assertMountedActionModalSee('Compra sem detalhe')
+        ->assertMountedActionModalDontSeeHtml('thermometer-card-items-summary');
+});
+
+it('creates a card with items from the quick create modal', function () {
+    $this->travelTo('2026-01-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    Livewire::test(ThermometerPage::class)
+        ->callAction('addMovement', data: [
+            'date' => '2026-01-08',
+            'type' => TransactionType::Card->value,
+            'amount' => 100,
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['description' => 'Mercado', 'amount' => 60],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ], arguments: [
+            'date' => '2026-01-08',
+            'type' => TransactionType::Card->value,
+        ])
+        ->assertHasNoActionErrors();
+
+    $movement = DailyTransaction::firstOrFail();
+
+    expect($movement->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
+});
+
+it('does not overwrite item tags changed after opening the day detail edit modal', function () {
+    $this->travelTo('2026-01-31');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-01-02',
+        'amount' => '100.00',
+    ]);
+    $item = CardItem::factory()->forTransaction($card)->create(['amount' => '100.00']);
+    $tag = Tag::factory()->for($user)->create();
+
+    $modal = Livewire::test(ThermometerPage::class)->mountAction('editMovement', ['movement' => $card->id]);
+    $item->tags()->attach($tag);
+
+    $modal->callMountedAction()->assertHasActionErrors(['card_items']);
+
+    expect($item->tags()->pluck('tags.id')->all())->toBe([$tag->id]);
+});
+
+it('edits a detailed card from the day detail keeping the items in sync', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+        'description' => 'Compra no cartão',
+    ]);
+    $item = CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->callAction('editMovement', data: [
+            'date' => '2026-09-05',
+            'type' => TransactionType::Card->value,
+            'amount' => 130,
+            'description' => 'Compra no cartão',
+            'status' => TransactionStatus::Realized->value,
+            'card_items' => [
+                ['id' => $item->id, 'description' => 'Mercado', 'amount' => 90],
+                ['description' => 'Farmácia', 'amount' => 40],
+            ],
+        ], arguments: ['movement' => $card->id]);
+
+    expect($card->refresh()->amount)->toBe('130.00')
+        ->and($card->cardItems()->pluck('description')->all())->toBe(['Mercado', 'Farmácia']);
+});
+
+it('allows leaving the card type after deleting its last item from the day detail', function () {
+    $this->travelTo('2026-09-15');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = DailyTransaction::factory()->for($user)->card()->create([
+        'date' => '2026-09-05',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    $component = Livewire::test(ThermometerPage::class)
+        ->mountAction('openCell', ['date' => '2026-09-05', 'type' => TransactionType::Card->value])
+        ->mountAction('editMovement', ['movement' => $card->id])
+        ->set('mountedActions.1.data.type', TransactionType::Expense->value)
+        ->assertSchemaComponentVisible('card_items', 'mountedActionSchema1');
+
+    $itemKey = array_key_first($component->get('mountedActions.1.data.card_items'));
+
+    $component
+        ->callAction(TestAction::make('delete')->schemaComponent('card_items')->arguments(['item' => $itemKey]))
+        ->callMountedAction();
+
+    expect($card->refresh()->type)->toBe(TransactionType::Expense)
+        ->and($card->cardItems()->count())->toBe(0);
 });

@@ -6,6 +6,7 @@ use App\Enums\Month;
 use App\Enums\TagColor;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
@@ -18,8 +19,11 @@ use Illuminate\Support\Collection;
  *
  * Spending means a realized transaction of type Expense, Daily or Card dated
  * inside the inclusive period. Income, Savings, pending and skipped
- * transactions stay out. Tag totals add the full amount of a transaction to
- * each linked tag, so they may exceed the period total.
+ * transactions stay out. The period total, the type breakdown, the monthly
+ * evolution, the active days and the largest transactions always read the
+ * parent amount. Tag totals add the full amount of a record to each linked
+ * tag, so they may exceed the period total; a detailed card is attributed per
+ * item (own tags, else the parent tags, else "Sem tag").
  *
  * @phpstan-type ReportPeriod array{start: CarbonImmutable, end: CarbonImmutable, previous_start: CarbonImmutable, previous_end: CarbonImmutable, preset: string, label: string, is_custom: bool}
  * @phpstan-type TagRow array{id: int|null, name: string, color: TagColor|null, is_active: bool, total: string, total_cents: int, count: int, average: string, last_date: string|null, percentage: float, is_untagged: bool}
@@ -128,7 +132,7 @@ class SpendingReport
      */
     public function summary(User $user, array $period): array
     {
-        $transactions = $this->transactions($user, $period);
+        $transactions = $this->transactions($user, $period, ['tags', 'cardItems.tags']);
         $totalCents = $this->sumCents($transactions);
         $previousCents = $this->totalCents($user, [
             'start' => $period['previous_start'],
@@ -331,7 +335,7 @@ class SpendingReport
      */
     public function largest(User $user, array $period, int $limit = 5): array
     {
-        return $this->transactions($user, $period)
+        return $this->transactions($user, $period, ['tags'])
             ->sort(fn (DailyTransaction $a, DailyTransaction $b): int => $this->toCents($b->amount) <=> $this->toCents($a->amount)
                 ?: $a->date->format('Y-m-d') <=> $b->date->format('Y-m-d')
                 ?: $a->getKey() <=> $b->getKey())
@@ -359,7 +363,7 @@ class SpendingReport
      */
     public function tags(User $user, array $period): array
     {
-        $transactions = $this->transactions($user, $period);
+        $transactions = $this->transactions($user, $period, ['tags', 'cardItems.tags']);
 
         return $this->aggregateTags($transactions, $this->sumCents($transactions));
     }
@@ -410,12 +414,13 @@ class SpendingReport
 
     /**
      * @param  ReportPeriod  $period
+     * @param  list<string>  $relations
      * @return Collection<int, DailyTransaction>
      */
-    private function transactions(User $user, array $period): Collection
+    private function transactions(User $user, array $period, array $relations = []): Collection
     {
         return $this->eligibleQuery($user)
-            ->with('tags')
+            ->with($relations)
             ->whereBetween('date', [$period['start']->toDateString(), $period['end']->toDateString()])
             ->orderBy('date')
             ->orderBy('id')
@@ -444,23 +449,27 @@ class SpendingReport
         $untaggedLastDate = null;
 
         foreach ($transactions as $transaction) {
-            $cents = $this->toCents($transaction->amount);
             $date = $transaction->date->format('Y-m-d');
 
-            if ($transaction->tags->isEmpty()) {
-                $untaggedCents += $cents;
-                $untaggedCount++;
-                $untaggedLastDate = $untaggedLastDate === null || $date > $untaggedLastDate ? $date : $untaggedLastDate;
+            foreach ($this->tagRecords($transaction) as $record) {
+                $cents = $record['cents'];
+                $tags = $record['tags'];
 
-                continue;
-            }
+                if ($tags->isEmpty()) {
+                    $untaggedCents += $cents;
+                    $untaggedCount++;
+                    $untaggedLastDate = $untaggedLastDate === null || $date > $untaggedLastDate ? $date : $untaggedLastDate;
 
-            foreach ($transaction->tags as $tag) {
-                $id = (int) $tag->getKey();
-                $groups[$id] ??= ['tag' => $tag, 'cents' => 0, 'count' => 0, 'last_date' => $date];
-                $groups[$id]['cents'] += $cents;
-                $groups[$id]['count']++;
-                $groups[$id]['last_date'] = $date > $groups[$id]['last_date'] ? $date : $groups[$id]['last_date'];
+                    continue;
+                }
+
+                foreach ($tags as $tag) {
+                    $id = (int) $tag->getKey();
+                    $groups[$id] ??= ['tag' => $tag, 'cents' => 0, 'count' => 0, 'last_date' => $date];
+                    $groups[$id]['cents'] += $cents;
+                    $groups[$id]['count']++;
+                    $groups[$id]['last_date'] = $date > $groups[$id]['last_date'] ? $date : $groups[$id]['last_date'];
+                }
             }
         }
 
@@ -502,6 +511,34 @@ class SpendingReport
         }
 
         return $rows;
+    }
+
+    /**
+     * Spending records the tag report attributes: a plain transaction is one
+     * record, while a detailed card contributes one record per purchase item,
+     * so the parent amount is never counted alongside its items.
+     *
+     * Each record uses the parent date and the item's own tags, falling back to
+     * the parent tags when the item has none.
+     *
+     * @return array<int, array{cents: int, tags: Collection<int, Tag>}>
+     */
+    private function tagRecords(DailyTransaction $transaction): array
+    {
+        if ($transaction->cardItems->isEmpty()) {
+            return [[
+                'cents' => $this->toCents($transaction->amount),
+                'tags' => $transaction->tags,
+            ]];
+        }
+
+        return $transaction->cardItems
+            ->map(fn (CardItem $item): array => [
+                'cents' => $this->toCents($item->amount),
+                'tags' => $item->tags->isNotEmpty() ? $item->tags : $transaction->tags,
+            ])
+            ->values()
+            ->all();
     }
 
     private function parseDate(mixed $value): ?CarbonImmutable

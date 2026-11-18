@@ -7,9 +7,12 @@ use App\Mcp\Support\MutationLedger;
 use App\Mcp\Tools\ConfirmTransactionTool;
 use App\Mcp\Tools\CreateTransactionTool;
 use App\Mcp\Tools\DeleteTransactionTool;
+use App\Mcp\Tools\GetTransactionTool;
+use App\Mcp\Tools\ListTransactionsTool;
 use App\Mcp\Tools\SkipTransactionTool;
 use App\Mcp\Tools\UpdateTransactionTool;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\McpMutationAudit;
 use App\Models\McpOperation;
@@ -743,4 +746,96 @@ it('returns a fresh balance after a mutation in the same process', function () {
 
     $call(3, 'get_balance', []);
     expect($realized(2))->toBe('350.00');
+});
+
+it('refuses to change the amount or the type of a detailed card', function (array $changes) {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $card = DailyTransaction::factory()->for($account)->card()->create([
+        'date' => '2026-01-10',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool(UpdateTransactionTool::class, ['id' => $card->getKey(), ...$changes])
+        ->assertHasErrors(['cartão tem itens']);
+
+    expect($card->refresh()->amount)->toBe('100.00')
+        ->and($card->type)->toBe(TransactionType::Card);
+})->with([
+    'amount' => [['amount' => 150]],
+    'type' => [['type' => TransactionType::Expense->value]],
+]);
+
+it('keeps description, date, status and tags editable on a detailed card', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $tag = Tag::factory()->for($account)->create(['name' => 'Casa']);
+    $card = DailyTransaction::factory()->for($account)->card()->create([
+        'date' => '2026-01-10',
+        'amount' => '100.00',
+        'description' => 'Original',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool(UpdateTransactionTool::class, [
+        'id' => $card->getKey(),
+        'amount' => 100,
+        'type' => TransactionType::Card->value,
+        'description' => 'Atualizado',
+        'date' => '2026-01-12',
+        'tags' => [$tag->getKey()],
+    ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.description', 'Atualizado')
+            ->where('transaction.card_items_count', 1)
+            ->etc());
+
+    expect($card->refresh()->description)->toBe('Atualizado')
+        ->and($card->date->toDateString())->toBe('2026-01-12');
+});
+
+it('reports the card item count on read tools without exposing the items', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $card = DailyTransaction::factory()->for($account)->card()->create([
+        'date' => '2026-01-10',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '60.00']);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Farmácia', 'amount' => '40.00']);
+
+    CashCompassServer::tool(GetTransactionTool::class, ['id' => $card->getKey()])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('transaction.card_items_count', 2)
+            ->missing('transaction.card_items')
+            ->etc());
+
+    CashCompassServer::tool(ListTransactionsTool::class, [])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('items.0.card_items_count', 2)
+            ->missing('items.0.card_items')
+            ->etc());
+});
+
+it('deletes the card items in cascade with the parent transaction', function () {
+    $account = User::factory()->create();
+    useMcpAccount($account);
+
+    $card = DailyTransaction::factory()->for($account)->card()->create([
+        'date' => '2026-01-10',
+        'amount' => '100.00',
+    ]);
+    CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    CashCompassServer::tool(DeleteTransactionTool::class, ['id' => $card->getKey()])
+        ->assertOk();
+
+    expect(CardItem::withoutGlobalScopes()->count())->toBe(0);
 });

@@ -44,7 +44,7 @@ class GetTagTool extends AccountTool
 
         $tag = Tag::query()
             ->forUser($account)
-            ->withCount(['dailyTransactions', 'accountPlans'])
+            ->withCount(['dailyTransactions', 'accountPlans', 'cardItems'])
             ->find((int) $request->get('id'));
 
         if (! $tag instanceof Tag) {

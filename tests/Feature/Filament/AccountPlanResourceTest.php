@@ -2,12 +2,15 @@
 
 use App\Enums\RecurrenceFrequency;
 use App\Enums\TagColor;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Filament\Resources\AccountPlans\Pages\ManageAccountPlans;
 use App\Models\AccountPlan;
+use App\Models\CardItem;
 use App\Models\Tag;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Notifications\Notification;
 use Livewire\Livewire;
 
 it('lets users create an account plan from the panel', function () {
@@ -207,4 +210,117 @@ it('forbids admins from the account plans panel', function () {
     $this->actingAs(User::factory()->admin()->create());
 
     $this->get('/account-plans')->assertForbidden();
+});
+
+it('blocks editing a plan with a detailed pending occurrence from the panel', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+    $tag = Tag::create(['name' => 'Cartão']);
+
+    Livewire::test(ManageAccountPlans::class)
+        ->callAction(TestAction::make('edit')->table($plan), data: [
+            'type' => $plan->type->value,
+            'description' => 'Nova descrição',
+            'expected_amount' => $plan->expected_amount,
+            'frequency' => $plan->frequency->value,
+            'interval' => $plan->interval,
+            'starts_at' => $plan->starts_at->toDateString(),
+            'is_active' => $plan->is_active,
+            'tags' => [$tag->id],
+        ])
+        ->assertNotified(Notification::make()
+            ->danger()
+            ->title('Plano não pode ser alterado')
+            ->body('O plano não pode mudar: as ocorrências pendentes 10/01/2026 têm itens de cartão. Realize-as ou remova o detalhamento antes de editar, desativar ou excluir o plano.'));
+
+    expect($plan->refresh()->description)->toBe('Assinaturas')
+        ->and($plan->tags()->count())->toBe(0)
+        ->and($pending->tags()->count())->toBe(0)
+        ->and($pending->refresh()->cardItems()->count())->toBe(1);
+});
+
+it('updates only the tags of a plan with a detailed pending occurrence', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    $item = CardItem::factory()->forTransaction($pending)->create(['amount' => '100.00']);
+    $tag = Tag::create(['name' => 'Cartão']);
+
+    Livewire::test(ManageAccountPlans::class)
+        ->mountAction(TestAction::make('edit')->table($plan))
+        ->fillForm(['tags' => [$tag->id]])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect($plan->tags()->pluck('tags.id')->all())->toBe([$tag->id])
+        ->and($pending->tags()->pluck('tags.id')->all())->toBe([$tag->id])
+        ->and($item->fresh())->not->toBeNull();
+});
+
+it('blocks deleting a plan with a detailed pending occurrence from the panel', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+
+    Livewire::test(ManageAccountPlans::class)
+        ->callAction(TestAction::make('delete')->table($plan))
+        ->assertNotified('Plano não pode ser excluído');
+
+    expect(AccountPlan::query()->find($plan->getKey()))->not->toBeNull();
+});
+
+it('releases plan editing from the panel after the detailed occurrence is realized', function () {
+    $this->travelTo('2026-01-10');
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $plan = AccountPlan::factory()->for($user)->card()->create([
+        'description' => 'Assinaturas',
+        'expected_amount' => '100.00',
+        'starts_at' => '2026-01-10',
+        'day_of_month' => 10,
+    ]);
+    $pending = $plan->dailyTransactions()->where('date', '2026-01-10')->firstOrFail();
+    CardItem::factory()->forTransaction($pending)->create(['description' => 'Mercado', 'amount' => '100.00']);
+    $pending->update(['status' => TransactionStatus::Realized]);
+
+    Livewire::test(ManageAccountPlans::class)
+        ->callAction(TestAction::make('edit')->table($plan), data: [
+            'type' => $plan->type->value,
+            'description' => 'Nova descrição',
+            'expected_amount' => $plan->expected_amount,
+            'frequency' => $plan->frequency->value,
+            'interval' => $plan->interval,
+            'starts_at' => $plan->starts_at->toDateString(),
+            'is_active' => $plan->is_active,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($plan->refresh()->description)->toBe('Nova descrição');
 });
