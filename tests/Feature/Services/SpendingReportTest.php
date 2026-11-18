@@ -491,6 +491,24 @@ it('keeps total, type breakdown, active days and largest transactions on the par
         ->and($largest[0]['tags'])->toBe(['Mercado']);
 });
 
+it('queries only the data needed for each behavior report', function (string $method, int $queryCount) {
+    $tag = Tag::factory()->for($this->user)->create();
+    $card = spending(['type' => TransactionType::Card]);
+    $card->tags()->attach($tag);
+    CardItem::factory()->forTransaction($card)->create(['amount' => '100.00'])->tags()->attach($tag);
+    $period = $this->report->period(null);
+
+    $this->expectsDatabaseQueryCount($queryCount);
+
+    $this->report->{$method}($this->user, $period);
+})->with([
+    'hourly' => ['hourly', 1],
+    'weekdays' => ['weekdays', 1],
+    'types' => ['types', 1],
+    'monthly' => ['monthly', 1],
+    'largest' => ['largest', 2],
+]);
+
 it('keeps an archived tag of a card item with its inactive flag', function () {
     $archived = Tag::factory()->for($this->user)->archived()->create(['name' => 'Antiga']);
 

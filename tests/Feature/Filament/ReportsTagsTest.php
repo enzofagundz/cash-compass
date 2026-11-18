@@ -3,6 +3,7 @@
 use App\Enums\TagColor;
 use App\Enums\TransactionType;
 use App\Filament\Pages\Reports;
+use App\Filament\Widgets\TagBreakdownTable;
 use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
@@ -155,8 +156,7 @@ it('attributes a detailed card per item in the tag table', function () {
     $second = CardItem::factory()->forTransaction($card)->create(['description' => 'Remédio', 'amount' => '40.00']);
     $second->tags()->attach($pharmacy);
 
-    Livewire::test(Reports::class)
-        ->set('activeTab', 'tags')
+    Livewire::test(TagBreakdownTable::class)
         ->assertSee('Registros')
         ->assertSee('Mercado')
         ->assertSee('Farmácia')

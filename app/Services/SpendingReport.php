@@ -132,7 +132,7 @@ class SpendingReport
      */
     public function summary(User $user, array $period): array
     {
-        $transactions = $this->transactions($user, $period);
+        $transactions = $this->transactions($user, $period, ['tags', 'cardItems.tags']);
         $totalCents = $this->sumCents($transactions);
         $previousCents = $this->totalCents($user, [
             'start' => $period['previous_start'],
@@ -335,7 +335,7 @@ class SpendingReport
      */
     public function largest(User $user, array $period, int $limit = 5): array
     {
-        return $this->transactions($user, $period)
+        return $this->transactions($user, $period, ['tags'])
             ->sort(fn (DailyTransaction $a, DailyTransaction $b): int => $this->toCents($b->amount) <=> $this->toCents($a->amount)
                 ?: $a->date->format('Y-m-d') <=> $b->date->format('Y-m-d')
                 ?: $a->getKey() <=> $b->getKey())
@@ -363,7 +363,7 @@ class SpendingReport
      */
     public function tags(User $user, array $period): array
     {
-        $transactions = $this->transactions($user, $period);
+        $transactions = $this->transactions($user, $period, ['tags', 'cardItems.tags']);
 
         return $this->aggregateTags($transactions, $this->sumCents($transactions));
     }
@@ -414,12 +414,13 @@ class SpendingReport
 
     /**
      * @param  ReportPeriod  $period
+     * @param  list<string>  $relations
      * @return Collection<int, DailyTransaction>
      */
-    private function transactions(User $user, array $period): Collection
+    private function transactions(User $user, array $period, array $relations = []): Collection
     {
         return $this->eligibleQuery($user)
-            ->with(['tags', 'cardItems.tags'])
+            ->with($relations)
             ->whereBetween('date', [$period['start']->toDateString(), $period['end']->toDateString()])
             ->orderBy('date')
             ->orderBy('id')
