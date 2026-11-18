@@ -62,6 +62,35 @@ it('blocks a set that does not close and reports the difference', function () {
     ]))->toThrow(ValidationException::class, 'Diferença: R$ 40,00');
 });
 
+it('validates a replacement against the current persisted card amount', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = cardFor($user, '100.00');
+    $card->fresh()->update(['amount' => '150.00']);
+
+    expect(fn () => app(CardItemSet::class)->sync($card, [
+        ['description' => 'Mercado', 'amount' => '100.00'],
+    ]))->toThrow(ValidationException::class, 'Diferença: R$ 50,00')
+        ->and($card->cardItems()->count())->toBe(0);
+});
+
+it('updates the amount and items together without replacing retained items', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $card = cardFor($user, '100.00');
+    $item = CardItem::factory()->forTransaction($card)->create(['amount' => '100.00']);
+
+    app(CardItemSet::class)->updateTransaction($card, ['amount' => '150.00'], [
+        ['id' => $item->id, 'description' => 'Mercado', 'amount' => '150.00'],
+    ]);
+
+    expect($card->refresh()->amount)->toBe('150.00')
+        ->and($item->refresh()->amount)->toBe('150.00')
+        ->and($card->cardItems()->count())->toBe(1);
+});
+
 it('reports a negative difference when the items overshoot the parent', function () {
     $user = User::factory()->create();
     $this->actingAs($user);

@@ -69,6 +69,36 @@ class DailyTransaction extends Model
         });
     }
 
+    public function save(array $options = []): bool
+    {
+        if (! $this->exists || ! $this->isDirty(['type', 'amount'])) {
+            return parent::save($options);
+        }
+
+        return $this->getConnection()->transaction(function () use ($options): bool {
+            $this->lockForCardItemMutation();
+
+            return parent::save($options);
+        });
+    }
+
+    public function lockForCardItemMutation(): self
+    {
+        $record = $this->newQuery()
+            ->where('user_id', $this->user_id)
+            ->whereKey($this->getKey())
+            ->lockForUpdate()
+            ->first();
+
+        if ($record === null) {
+            throw ValidationException::withMessages([
+                'card_items' => 'Salve o lançamento antes de detalhar os itens.',
+            ]);
+        }
+
+        return $record;
+    }
+
     /**
      * A detailed card keeps its items closed against the parent: leaving the
      * card type or moving the amount away from the item sum is refused.

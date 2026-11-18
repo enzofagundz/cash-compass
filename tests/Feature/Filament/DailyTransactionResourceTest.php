@@ -10,6 +10,7 @@ use App\Models\DailyTransaction;
 use App\Models\Tag;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
 use Livewire\Livewire;
 
 it('lets users create a manual transaction from the panel', function () {
@@ -445,6 +446,23 @@ it('blocks changing the amount of a detailed card without adjusting the items', 
     expect($card->refresh()->amount)->toBe('100.00');
 });
 
+it('does not clear newly added items when saving an older edit modal', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+    $card = DailyTransaction::factory()->for($user)->card()->create(['amount' => '100.00']);
+    $modal = Livewire::test(ManageDailyTransactions::class)
+        ->mountAction(TestAction::make('edit')->table($card));
+
+    $item = CardItem::factory()->forTransaction($card)->create(['amount' => '100.00']);
+
+    $modal->fillForm(['description' => 'Edição antiga'])
+        ->callMountedAction()
+        ->assertHasActionErrors(['card_items']);
+
+    expect($item->fresh())->not->toBeNull()
+        ->and($card->refresh()->description)->not->toBe('Edição antiga');
+});
+
 it('updates a detailed card when the items are adjusted in the same save', function () {
     $this->travelTo('2026-01-31');
     $user = User::factory()->create();
@@ -496,9 +514,10 @@ it('blocks leaving the card type while items remain', function () {
                 ['description' => 'Mercado', 'amount' => 100],
             ],
         ])
-        ->assertHasActionErrors();
+        ->assertHasActionErrors(['card_items']);
 
-    expect($card->refresh()->type)->toBe(TransactionType::Card);
+    expect($card->refresh()->type)->toBe(TransactionType::Card)
+        ->and($card->cardItems()->count())->toBe(1);
 });
 
 it('allows removing every item and leaving the card type in the same save', function () {
@@ -512,15 +531,17 @@ it('allows removing every item and leaving the card type in the same save', func
     ]);
     CardItem::factory()->forTransaction($card)->create(['description' => 'Mercado', 'amount' => '100.00']);
 
-    Livewire::test(ManageDailyTransactions::class)
-        ->callAction(TestAction::make('edit')->table($card), data: [
-            'date' => '2026-01-02',
-            'type' => TransactionType::Expense->value,
-            'amount' => 100,
-            'description' => 'Compra no cartão',
-            'status' => TransactionStatus::Realized->value,
-            'card_items' => [],
-        ])
+    $component = Livewire::test(ManageDailyTransactions::class)
+        ->mountAction(TestAction::make('edit')->table($card))
+        ->set('mountedActions.0.data.type', TransactionType::Expense->value)
+        ->assertSchemaComponentVisible('card_items', 'mountedActionSchema0');
+
+    $itemKey = array_key_first($component->get('mountedActions.0.data.card_items'));
+
+    $component
+        ->callAction(TestAction::make('delete')->schemaComponent('card_items')->arguments(['item' => $itemKey]))
+        ->assertSchemaComponentHidden('card_items', 'mountedActionSchema0')
+        ->callMountedAction()
         ->assertHasNoActionErrors();
 
     expect($card->refresh()->type)->toBe(TransactionType::Expense)
@@ -625,10 +646,10 @@ it('rejects a tag of another user on a card item', function () {
     expect(DailyTransaction::count())->toBe(0);
 });
 
-it('creates a tag quickly from the card item selector', function () {
+it('creates a tag quickly from the card item selector and escapes its labels', function () {
     $this->actingAs(User::factory()->create());
 
-    Livewire::test(ManageDailyTransactions::class)
+    $component = Livewire::test(ManageDailyTransactions::class)
         ->mountAction('create')
         ->setActionData([
             'type' => TransactionType::Card->value,
@@ -636,14 +657,26 @@ it('creates a tag quickly from the card item selector', function () {
         ])
         ->call('$refresh')
         ->callAction(TestAction::make('createOption')->schemaComponent('card_items.0.tag_ids'), data: [
-            'name' => 'Feira',
+            'name' => '<b>Feira & mercado</b>',
             'color' => 'green',
         ]);
 
     $tag = Tag::firstOrFail();
 
-    expect($tag->name)->toBe('Feira')
+    expect($tag->name)->toBe('<b>Feira & mercado</b>')
         ->and($tag->color->value)->toBe('green');
+
+    $component->assertSchemaComponentExists(
+        'card_items.0.tag_ids',
+        'mountedActionSchema0',
+        function (Select $select) use ($tag): bool {
+            expect($select->getOptions()[$tag->id])->toBe('&lt;b&gt;Feira &amp; mercado&lt;/b&gt;')
+                ->and((string) $select->getOptionLabels()[$tag->id])->toContain('&lt;b&gt;Feira &amp; mercado&lt;/b&gt;')
+                ->not->toContain($tag->name);
+
+            return true;
+        },
+    );
 });
 
 it('rejects quick creation from an item when the equivalent tag is archived', function () {

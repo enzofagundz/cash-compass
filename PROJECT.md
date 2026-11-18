@@ -213,9 +213,9 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 - `RecurrenceGenerator` cria apenas ocorrências ausentes; ocorrências existentes mantêm seus valores, exceto tags, que seguem o plano como fonte de verdade para pendentes recorrentes.
 - `AccountPlanObserver`:
   - `created`: gera ocorrências.
-  - `updated`: se campo de agendamento mudou, cancela pendências recorrentes geradas e regera.
+  - `updated`: se campo de agendamento mudou, cancela pendências recorrentes geradas e regera. Alterar só as tags não cancela ocorrências.
   - `deleting`: bloqueia exclusão se houver lançamento realizado até hoje; caso contrário, cancela pendências e permite excluir.
-  - `updating`: bloqueia qualquer mudança de campo de agendamento (`SCHEDULING_FIELDS`, incluindo `is_active`) quando a mutação apagaria uma ocorrência pendente que tem itens de cartão; a mensagem lista as datas das ocorrências e o plano não muda. `deleting` aplica o mesmo bloqueio antes de cancelar pendências.
+  - A edição que muda um campo de agendamento (`SCHEDULING_FIELDS`, incluindo `is_active`) e a exclusão verificam os itens após travar as ocorrências pendentes candidatas, na mesma transação do cancelamento. Se houver itens, a mensagem lista as datas e a mutação do plano é desfeita.
   - Ocorrências pendentes sem itens continuam sendo canceladas e regeradas como antes; realizar a ocorrência (sair de pendente) libera a edição do plano.
 - Lançamentos recorrentes não podem ser excluídos pela action de exclusão do Termômetro (somente manuais); recorrências são tratadas com "Pular ocorrência" (`skipped`) ou desativando o plano.
 
@@ -223,13 +223,13 @@ saldo_projetado = saldo realizado de hoje + pendências futuras até a data alvo
 
 - `CardItem` detalha o valor de um lançamento do tipo Cartão. O valor do pai continua sendo a única fonte de verdade para saldo, previsão, colunas e totais de gasto; item nunca entra em fórmula financeira.
 - Item tem descrição obrigatória (até 255), valor maior que zero e zero ou mais tags; não tem data, status nem tipo próprios. O item herda o dono do pai e não existe caminho para vinculá-lo a lançamento de outro usuário ou de outro tipo.
-- `CardItemSet` é a fonte única da regra: valida o conjunto e persiste a substituição. Com itens, a soma tem que ser igual ao valor do pai, comparada em centavos; detalhamento parcial não é persistido. Zero itens é permitido e mantém o comportamento atual.
+- `CardItemSet` é a fonte única da regra: valida o conjunto e persiste a substituição em uma transação, sob lock do lançamento-pai. Com itens, a soma tem que ser igual ao valor do pai, comparada em centavos; detalhamento parcial não é persistido. Zero itens é permitido e mantém o comportamento atual.
 - Mudar o valor do pai exige ajustar os itens no mesmo salvamento. Trocar o tipo para fora de Cartão com itens existentes é bloqueado; remover todos os itens no mesmo salvamento libera a troca. O hook `saving` de `DailyTransaction` reforça as duas regras para qualquer caminho de escrita.
 - Excluir o pai exclui os itens em cascata (`card_items.daily_transaction_id` com `cascadeOnDelete`).
 - Ocorrências de cartão geradas por plano podem ser detalhadas em qualquer status, inclusive pendentes. Enquanto uma ocorrência pendente tiver itens, qualquer mutação do plano que a apagaria (editar, desativar ou excluir) é bloqueada com mensagem listando as ocorrências; realizar a ocorrência libera a edição.
 - Cada item aceita zero ou mais tags pelo mesmo seletor do lançamento, com criação rápida e as mesmas regras de tag arquivada (`HasTagSelector::tagIdsSelector()`). Item só aceita tag ativa da conta, exceto as já vinculadas.
 - As tags dos itens aparecem nas linhas do painel do dia e alimentam o relatório de tags: item com tags próprias é atribuído a elas; item sem tag própria herda as tags do pai; sem nenhuma das duas, vai para "Sem tag". O valor do pai não é atribuído separadamente e soma, contagem e média contam registros (itens), com a data do pai.
-- Formulário: o repetidor de itens entra em `DailyTransactionResource::formComponents()`, condicional ao tipo Cartão, e vale para a tela de Lançamentos e para as actions do Termômetro (criar, adicionar por célula e editar pelo lápis do painel do dia). O formulário mostra a soma dos itens e a diferença para o valor do pai e bloqueia o salvamento enquanto não fechar.
+- Formulário: o repetidor de itens entra em `DailyTransactionResource::formComponents()` e vale para Lançamentos e Termômetro. Ao trocar o tipo de um Cartão detalhado, os itens continuam visíveis para remoção no mesmo salvamento; fora do tipo Cartão não é possível adicionar itens. O formulário mostra a soma dos itens e a diferença para o valor do pai e bloqueia o salvamento enquanto não fechar. Se os itens ou suas tags mudarem desde a abertura, é preciso reabrir a edição para salvar.
 - Exibição: a tabela de Lançamentos mostra a contagem de itens; o painel do dia mostra "N itens · R$ X" e uma lista colapsável com descrição, valor e tags. A grade mensal continua mostrando apenas o total de Cartão.
 - A semântica canônica está em `docs/adr/0008-detalhamento-de-cartao.md` e o termo está em `GLOSSARY.md`.
 
@@ -321,7 +321,7 @@ recursos:
     pagina: "ManageDailyTransactions (única, sem create/edit separados)"
     filtros: "status, origem (recorrente/manual), ano, mês"
     acoes_linha: "Editar, Confirmar (pendente), Pular (pendente), Excluir"
-    itens_de_cartao: "formComponents() inclui o repetidor card_items, condicional ao tipo Cartão; a tabela mostra a contagem de itens"
+    itens_de_cartao: "formComponents() mostra o repetidor card_items para Cartão ou enquanto houver itens a remover; a tabela mostra a contagem de itens"
   AccountPlanResource:
     label: "Plano de contas"
     pagina: "ManageAccountPlans"

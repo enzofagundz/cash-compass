@@ -647,6 +647,7 @@ class ThermometerPage extends Page
             ->record(fn (array $arguments): ?DailyTransaction => $this->findMovement($arguments['movement'] ?? null))
             ->visible(fn (array $arguments): bool => $this->findMovement($arguments['movement'] ?? null) instanceof DailyTransaction)
             ->schema(DailyTransactionResource::formComponents())
+            ->databaseTransaction()
             ->fillForm(function (?DailyTransaction $record): array {
                 if (! $record instanceof DailyTransaction) {
                     return [];
@@ -660,23 +661,18 @@ class ThermometerPage extends Page
                     'account_plan_id' => $record->account_plan_id,
                     'tags' => $record->tags->pluck('id')->all(),
                     'status' => $record->status->value,
-                    'card_items' => $record->type === TransactionType::Card
-                        ? app(CardItemSet::class)->formState($record)
-                        : [],
                 ];
             })
-            ->action(function (?DailyTransaction $record, array $data, Schema $schema): void {
-                if (! $record instanceof DailyTransaction) {
+            ->before(function (?DailyTransaction $record, array $data, Action $action): void {
+                if ($record === null) {
                     $this->notifyMissingMovement();
 
-                    return;
+                    $action->halt(shouldRollBackDatabaseTransaction: true);
                 }
 
-                DB::transaction(function () use ($record, $data, $schema): void {
-                    $record->update($data);
-                    $schema->model($record)->saveRelationships();
-                });
-
+                DailyTransactionResource::persistEdit($record, $data, $action);
+            })
+            ->action(function (): void {
                 Notification::make()
                     ->success()
                     ->title('Lançamento atualizado.')

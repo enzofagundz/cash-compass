@@ -65,6 +65,7 @@ trait HasTagSelector
             ->attachableTo((int) auth()->id(), Tag::idsFrom($selectedTagIds))
             ->orderBy('tags.normalized_name')
             ->pluck('name', 'tags.id')
+            ->map(fn (string $name): string => e($name))
             ->all();
     }
 

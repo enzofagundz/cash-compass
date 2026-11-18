@@ -14,9 +14,11 @@ use App\Services\CardItemSet;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\Contracts\HasActions;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -24,6 +26,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -34,6 +37,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class DailyTransactionResource extends Resource
 {
@@ -106,6 +110,7 @@ class DailyTransactionResource extends Resource
                     ->all())
                 ->default(TransactionStatus::Realized->value)
                 ->required(),
+            Hidden::make('card_items_signature')->dehydrated(false),
             self::cardItemsRepeater(),
             Text::make(fn (Get $get): string => self::cardItemsSummary($get))
                 ->visible(fn (Get $get): bool => $get('type') === TransactionType::Card->value),
@@ -127,7 +132,9 @@ class DailyTransactionResource extends Resource
                 ? (string) $state['description']
                 : null)
             ->columns(2)
-            ->visible(fn (Get $get): bool => $get('type') === TransactionType::Card->value)
+            ->visible(fn (Get $get, Repeater $component): bool => $get('type') === TransactionType::Card->value
+                || filled($component->getState()))
+            ->addable(fn (Get $get): bool => $get('type') === TransactionType::Card->value)
             ->dehydrated(false)
             ->validatedWhenNotDehydrated()
             ->saveRelationshipsWhenHidden()
@@ -139,7 +146,10 @@ class DailyTransactionResource extends Resource
                     return;
                 }
 
-                $component->state(app(CardItemSet::class)->formState($record));
+                $set = app(CardItemSet::class);
+                $items = $set->formState($record);
+                $component->state($items);
+                $component->makeSetUtility()('card_items_signature', $set->signature($items));
             })
             ->schema([
                 TextInput::make('description')
@@ -278,7 +288,11 @@ class DailyTransactionResource extends Resource
                     )),
             ])
             ->recordActions([
-                EditAction::make()->iconButton(),
+                EditAction::make()
+                    ->iconButton()
+                    ->databaseTransaction()
+                    ->before(self::persistEdit(...))
+                    ->using(static fn (): null => null),
                 Action::make('confirm')
                     ->label('Confirmar')
                     ->icon(Heroicon::OutlinedCheckCircle)
@@ -299,6 +313,45 @@ class DailyTransactionResource extends Resource
                     ->label('Excluir')
                     ->iconButton(),
             ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function persistEdit(DailyTransaction $record, array $data, Action $action): void
+    {
+        $livewire = $action->getLivewire();
+
+        if (! $livewire instanceof HasActions || ! $livewire instanceof HasSchemas) {
+            throw new LogicException('Card edit action requires a mounted schema.');
+        }
+
+        $schemaName = $livewire->getMountedActionSchemaName();
+        $schema = $schemaName === null ? null : $livewire->getSchema($schemaName);
+        $fields = $schema?->getFlatFields(withHidden: true) ?? [];
+        $repeater = $fields['card_items'] ?? null;
+
+        if (! $repeater instanceof Repeater) {
+            throw new LogicException('Card item repeater not found.');
+        }
+
+        $state = $repeater->getState();
+        $items = is_array($state) ? array_values(array_filter($state, 'is_array')) : [];
+
+        try {
+            $signature = ($fields['card_items_signature'] ?? null)?->getState();
+            app(CardItemSet::class)->updateTransaction($record, $data, $items, is_string($signature) ? $signature : '');
+        } catch (ValidationException $exception) {
+            if (isset($exception->errors()['card_items'])) {
+                throw ValidationException::withMessages([
+                    $repeater->getStatePath() => $exception->errors()['card_items'],
+                ]);
+            }
+
+            throw $exception;
+        }
+
+        $repeater->saveRelationshipsUsing(null);
     }
 
     public static function getEloquentQuery(): Builder

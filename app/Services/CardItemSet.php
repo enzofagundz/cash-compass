@@ -6,7 +6,6 @@ use App\Enums\TransactionType;
 use App\Models\CardItem;
 use App\Models\DailyTransaction;
 use App\Models\Tag;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -16,6 +15,8 @@ use Illuminate\Validation\ValidationException;
  * card transaction, and a non-empty set has to close exactly, in cents, with
  * the parent amount. The parent amount keeps being the only number that moves
  * the balance, the forecast, the columns and the spending totals.
+ *
+ * @phpstan-type ItemState array{id: int, description: string, amount: string, tag_ids: list<int>}
  */
 class CardItemSet
 {
@@ -90,52 +91,87 @@ class CardItemSet
             ]);
         }
 
+        $transaction->getConnection()->transaction(function () use ($transaction, $items): void {
+            $transaction = $transaction->lockForCardItemMutation();
+
+            $this->validate($transaction->type, $transaction->amount, $items);
+            $this->replace($transaction, $items);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<int|string, array<string, mixed>>  $items
+     */
+    public function updateTransaction(DailyTransaction $transaction, array $attributes, array $items, ?string $expectedSignature = null): void
+    {
+        $transaction->getConnection()->transaction(function () use ($transaction, $attributes, $items, $expectedSignature): void {
+            $transaction = $transaction->lockForCardItemMutation();
+
+            if ($expectedSignature !== null && ! hash_equals($this->signature($this->formState($transaction)), $expectedSignature)) {
+                throw ValidationException::withMessages([
+                    'card_items' => 'Os itens deste cartão mudaram. Feche e reabra a edição antes de salvar.',
+                ]);
+            }
+
+            $wasCard = $transaction->type === TransactionType::Card;
+            $transaction->fill($attributes);
+
+            $this->validate($transaction->type, $transaction->amount, $items);
+
+            if ($wasCard) {
+                $this->replace($transaction, $items);
+            }
+
+            $transaction->save();
+
+            if (! $wasCard && $items !== []) {
+                $this->replace($transaction, $items);
+            }
+        });
+    }
+
+    /**
+     * @param  array<int|string, array<string, mixed>>  $items
+     */
+    private function replace(DailyTransaction $transaction, array $items): void
+    {
         if ($items === []) {
-            $this->deleteAll($transaction);
+            $transaction->cardItems()->delete();
 
             return;
         }
 
-        $this->validate($transaction->type, $parentAmount ?? $transaction->amount, $items);
+        $remaining = $transaction->cardItems()->get()
+            ->keyBy(fn (CardItem $item): int => (int) $item->getKey());
 
-        DB::transaction(function () use ($transaction, $items): void {
-            $existing = $transaction->cardItems()->get()
-                ->keyBy(fn (CardItem $item): int => (int) $item->getKey());
+        foreach ($items as $item) {
+            $id = isset($item['id']) && is_numeric($item['id']) ? (int) $item['id'] : null;
+            $stored = $id === null ? null : $remaining->pull($id);
 
-            $keptIds = [];
+            $payload = [
+                'description' => (string) ($item['description'] ?? ''),
+                'amount' => $this->normalizeAmount($item['amount'] ?? null),
+            ];
 
-            foreach (array_values($items) as $item) {
-                $id = isset($item['id']) && is_numeric($item['id']) ? (int) $item['id'] : null;
-                $stored = $id === null ? null : $existing->get($id);
+            $record = $stored instanceof CardItem
+                ? tap($stored)->update($payload)
+                : $transaction->cardItems()->create($payload);
 
-                $payload = [
-                    'description' => (string) ($item['description'] ?? ''),
-                    'amount' => $this->normalizeAmount($item['amount'] ?? null),
-                ];
+            $record->tags()->sync($this->resolveTagIds($record, $item['tag_ids'] ?? []));
+        }
 
-                $record = $stored instanceof CardItem
-                    ? tap($stored)->update($payload)
-                    : $transaction->cardItems()->create($payload);
-
-                $record->tags()->sync($this->resolveTagIds($record, $item['tag_ids'] ?? []));
-
-                $keptIds[] = (int) $record->getKey();
-            }
-
-            $existing
-                ->reject(fn (CardItem $item): bool => in_array((int) $item->getKey(), $keptIds, true))
-                ->each(fn (CardItem $item) => $item->delete());
-        });
+        $remaining->each(fn (CardItem $item) => $item->delete());
     }
 
     /**
      * Items of a transaction as repeater-ready state, in insertion order.
      *
-     * @return array<int, array<string, mixed>>
+     * @return list<ItemState>
      */
     public function formState(DailyTransaction $transaction): array
     {
-        return $transaction->cardItems()
+        $items = $transaction->cardItems()
             ->with('tags')
             ->orderBy('id')
             ->get()
@@ -143,9 +179,23 @@ class CardItemSet
                 'id' => (int) $item->getKey(),
                 'description' => $item->description,
                 'amount' => $item->amount,
-                'tag_ids' => $item->tags->pluck('id')->all(),
+                'tag_ids' => array_values($item->tags->map(fn (Tag $tag): int => $tag->id)->all()),
             ])
             ->all();
+
+        return array_values($items);
+    }
+
+    /**
+     * @param  list<ItemState>  $items
+     */
+    public function signature(array $items): string
+    {
+        foreach ($items as &$item) {
+            sort($item['tag_ids'], SORT_NUMERIC);
+        }
+
+        return hash('sha256', json_encode($items, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -182,7 +232,7 @@ class CardItemSet
 
     public function deleteAll(DailyTransaction $transaction): void
     {
-        $transaction->cardItems()->delete();
+        $this->sync($transaction, []);
     }
 
     public function formatMoney(int $cents): string
